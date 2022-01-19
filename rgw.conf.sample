@@ -1,0 +1,7 @@
+{
+  "install_path": "/opt/seagate/cortx",
+  "log_dir": "/var/log",
+  "rgw": {
+    "log_level": "INFO"
+    }
+}
