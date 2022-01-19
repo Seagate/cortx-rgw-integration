@@ -59,8 +59,57 @@ rpm -q rpm-build > /dev/null || {
 # Create version file
 echo $VER > "$BASE_DIR"/VERSION
 /bin/chmod +rx "$BASE_DIR"/VERSION
-/bin/chmod +x "$BASE_DIR"/src/setup/rgw_setup
+/bin/chmod +x "$BASE_DIR"/src/setup/rgw_setup.py
+
+INSTALL_PATH=/opt/seagate/cortx
+mkdir -p $INSTALL_PATH
+
+# Put install_path in utils-post-install
+sed -i -e "s|<INSTALL_PATH>|${INSTALL_PATH}|g" rgw-post-install
+
+# Put install_path in utils-post-uninstall
+sed -i -e "s|<INSTALL_PATH>|${INSTALL_PATH}|g" rgw-post-uninstall
+
+echo "Creating cortx-rgw RPM with version $VER, release $REL"
 
 cd "$BASE_DIR"
 
-./setup.py bdist_rpm --release="$REL"
+# Create the rgw-pre-install
+echo "#!/bin/bash" > rgw-pre-install
+echo ""  >> rgw-pre-install
+echo "PACKAGE_LIST=\""  >> rgw-pre-install
+/bin/cat python_requirements.txt >> rgw-pre-install
+echo "\""  >> rgw-pre-install
+echo "rc=0
+for package in \$PACKAGE_LIST
+do
+    python3 -m pip freeze | grep \$package > /dev/null
+    if [ \$? -ne 0 ]; then
+       if [ \$rc -eq 0 ]; then
+	  echo \"===============================================\"
+       fi
+       echo \"Required python package \$package is missing\"
+       rc=-1
+    fi
+done
+if [ \$rc -ne 0 ]; then
+   echo \"Please install above python packages\"
+   echo \"===============================================\"
+fi
+exit \$rc " >> rgw-pre-install
+/bin/chmod +x rgw-pre-install
+
+
+# Building rpm using setuptool utility
+
+python3 ./setup.py bdist_rpm --release="$REL" --requires python36 \
+--pre-install rgw-pre-install \
+--post-install rgw-post-install --post-uninstall rgw-post-uninstall
+
+
+if [ $? -ne 0 ]; then
+  echo "RGW build failed !!!"
+  exit 1
+else
+  echo "RPM build successful !!!"
+fi

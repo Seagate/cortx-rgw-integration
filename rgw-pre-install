@@ -1,0 +1,22 @@
+#!/bin/bash
+
+PACKAGE_LIST="
+configparser==4.0.2
+"
+rc=0
+for package in $PACKAGE_LIST
+do
+    python3 -m pip freeze | grep $package > /dev/null
+    if [ $? -ne 0 ]; then
+       if [ $rc -eq 0 ]; then
+	  echo "==============================================="
+       fi
+       echo "Required python package $package is missing"
+       rc=-1
+    fi
+done
+if [ $rc -ne 0 ]; then
+   echo "Please install above python packages"
+   echo "==============================================="
+fi
+exit $rc 
