@@ -16,7 +16,7 @@
 
 import os
 import glob
-from setuptools import setup
+from setuptools import setup, find_packages
 import json
 import sys
 from fnmatch import fnmatch
@@ -53,6 +53,9 @@ tmpl_files = glob.glob('src/setup/templates/*.*')
 with open('README.md', 'r') as rf:
     long_description = rf.read()
 
+# Get list of mini-provisioner classes
+mini_prov_files = glob.glob('src/setup/*.py')
+
 def get_install_requirements() -> list:
     with open('python_requirements.txt') as req:
         install_requires = [line.strip() for line in req]
@@ -69,10 +72,10 @@ setup(name='cortx-rgw',
       license='Seagate',
       description='RGW integration code for CORTX',
       package_dir={'cortx': 'src'},
-      packages=['cortx', 'cortx.setup',
-          ],
+      packages=find_packages(),
       package_data={
         'cortx': ['py.typed'],
+        'cortx.src.setup': ['*.py'],
       },
       long_description=long_description,
       zip_safe=False,
@@ -82,10 +85,9 @@ setup(name='cortx-rgw',
               'rgw_setup = cortx.rgw.setup.rgw_setup:main',
               ]
       },
-      data_files =[ ('/opt/seagate/cortx/rgw/conf', tmpl_files),
-                    ('/opt/seagate/cortx/rgw/conf', get_requirements_files()),
-                    ('%s/conf' % rgw_path, ['rgw.conf.sample', 'VERSION']),
-                    ('%s/conf' % rgw_path, tmpl_files),
+      data_files =[ ('%s/templates' % rgw_path, tmpl_files),
+                    ('%s/conf' % rgw_path, ['rgw.conf.sample']),
+                    ('%s/mini-provisioner' % rgw_path, mini_prov_files),
                   ],
       install_requires=get_install_requirements())
 
