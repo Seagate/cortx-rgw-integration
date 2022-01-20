@@ -102,7 +102,7 @@ exit \$rc " >> rgw-pre-install
 
 # Building rpm using setuptool utility
 
-python3 ./setup.py bdist_rpm --release="$REL" --requires python36 \
+/usr/bin/python3 ./setup.py bdist_rpm --release="$REL" --requires python36 \
 --pre-install rgw-pre-install \
 --post-install rgw-post-install --post-uninstall rgw-post-uninstall
 
