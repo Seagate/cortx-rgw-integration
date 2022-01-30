@@ -15,4 +15,3 @@
 # For any questions about this software or licensing,
 # please email opensource@seagate.com or cortx-questions@seagate.com.
 
-from cortx.rgw.setup.rgw import Rgw

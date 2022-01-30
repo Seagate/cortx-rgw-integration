@@ -88,6 +88,7 @@ class TestCmd(SetupCmdBase):
     """ Test Setup Cmd """
     name = 'test'
 
+    def __init__(self, args):
         super().__init__(args)
         self.config_path = args.config
         # Default test_plan is 'sanity'
