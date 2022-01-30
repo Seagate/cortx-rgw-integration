@@ -72,6 +72,17 @@ sed -i -e "s|<INSTALL_PATH>|${INSTALL_PATH}|g" rgw-post-uninstall
 
 echo "Creating cortx-rgw RPM with version $VER, release $REL"
 
+INSTALL_PATH=/opt/seagate/cortx
+mkdir -p $INSTALL_PATH
+
+# Put install_path in utils-post-install
+sed -i -e "s|<INSTALL_PATH>|${INSTALL_PATH}|g" rgw-post-install
+
+# Put install_path in utils-post-uninstall
+sed -i -e "s|<INSTALL_PATH>|${INSTALL_PATH}|g" rgw-post-uninstall
+
+echo "Creating cortx-rgw RPM with version $VER, release $REL"
+
 cd "$BASE_DIR"
 
 # Create the rgw-pre-install
