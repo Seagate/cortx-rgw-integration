@@ -16,53 +16,71 @@
 
 
 class Rgw:
-    """ Represents Utils and Performs setup related actions """
+    """
+    Represents Utils and Performs setup related actions.
+    """
 
     @staticmethod
     def validate(phase: str):
-        """ Perform validtions """
+        """
+        Perform validtions
+        """
 
         # Perform RPM validations
         return 0
 
     @staticmethod
     def post_install(config_path: str):
-        """ Performs post install operations """
+        """
+        Performs post install operations
+        """
 
         return 0
 
     @staticmethod
     def config(config_path: str):
-        """Performs configurations."""
+        """
+        Performs configurations.
+        """
 
         return 0
 
     @staticmethod
     def init(config_path: str):
-        """ Perform initialization """
+        """
+        Perform initialization
+        """
 
         return 0
 
     @staticmethod
     def test(config_path: str, plan: str):
-        """ Perform configuration testing """
+        """
+        Perform configuration testing
+        """
 
         return 0
 
     @staticmethod
     def reset(config_path: str):
-        """Remove/Delete all the data/logs that was created by user/testing."""
+        """
+        Remove/Delete all the data/logs that was created by user/testing.
+        """
 
         return 0
 
     @staticmethod
     def cleanup(pre_factory: bool, config_path: str):
-        """Remove/Delete all the data that was created after post install."""
+        """
+        Remove/Delete all the data that was created after post install.
+        """
 
         return 0
 
     @staticmethod
     def upgrade(config_path: str):
-        """Perform upgrade steps."""
+        """
+        Perform upgrade steps.
+        """
 
         return 0

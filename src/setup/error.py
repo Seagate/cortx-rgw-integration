@@ -1,4 +1,5 @@
-# CORTX-Py-Utils: CORTX Python common library.
+#!/usr/bin/python3
+
 # Copyright (c) 2021 Seagate Technology LLC and/or its Affiliates
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published
@@ -16,7 +17,12 @@
 from cortx.utils.errors import BaseError
 
 class SetupError(BaseError):
-    """Generic Exception with error code and output."""
+    """
+    Generic Exception with error code and output.
+    """
 
     def __init__(self, rc, message_id, *message_args):
+        """
+        Initalize error message paramters.
+        """
         super().__init__(rc, message_id=message_id, *message_args)
