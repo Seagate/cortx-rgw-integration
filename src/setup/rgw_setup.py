@@ -23,15 +23,11 @@ from cortx.utils.cmd_framework import Cmd
 from setup import Rgw
 from error import SetupError
 
-class SetupCmdBase(cmd):
-    """
-    Setup cmd base class.
-    """
+class SetupCmdBase(Cmd):
+    """Setup cmd base class."""
 
     def __init__(self, *args):
-        """
-        Initialize super class members
-        """
+        """Initialize super class members."""
         super().__init__(*args)
 
     def add_args(parser):
@@ -39,14 +35,12 @@ class SetupCmdBase(cmd):
         parser.add_argument('--config', default='config_url', help='config')
 
 class PostInstallCmd(SetupCmdBase):
-    """
-    PostInstall Setup Cmd
-    """
+    """PostInstall Setup Cmd."""
 
     name = 'post_install'
 
     def __init__(self, args: dict):
-        """Initialize super class members"""
+        """Initialize super class members."""
         super().__init__(args)
 
     def process(self):
@@ -56,27 +50,25 @@ class PostInstallCmd(SetupCmdBase):
 
 
 class PrepareCmd(SetupCmdBase):
-    """
-    Prepare Setup Cmd
-    """
+    """Prepare Setup Cmd."""
     name = 'prepare'
 
     def __init__(self, args: dict):
-        """Initialize super class members"""
+        """Initialize super class members."""
         super().__init__(args)
 
     def process(self):
-        return 0
+        Rgw.validate('prepare')
+        rc = Rgw.prepare(self._url)
+        return rc
 
 
 class ConfigCmd(SetupCmdBase):
-    """
-    Setup Config Cmd
-    """
+    """Setup Config Cmd."""
     name = 'config'
 
     def __init__(self, args):
-        """Initialize super class members"""
+        """Initialize super class members."""
         super().__init__(args)
 
     def process(self):
@@ -86,13 +78,11 @@ class ConfigCmd(SetupCmdBase):
 
 
 class InitCmd(SetupCmdBase):
-    """
-    Init Setup Cmd
-    """
+    """Init Setup Cmd."""
     name = 'init'
 
     def __init__(self, args):
-        """Initialize super class members"""
+        """Initialize super class members."""
         super().__init__(args)
         self.config_path = args.config
 
@@ -103,13 +93,11 @@ class InitCmd(SetupCmdBase):
 
 
 class TestCmd(SetupCmdBase):
-    """
-    Test Setup Cmd
-    """
+    """Test Setup Cmd."""
     name = 'test'
 
     def __init__(self, args):
-        """Initialize super class members"""
+        """Initialize super class members."""
         super().__init__(args)
         self.config_path = args.config
         # Default test_plan is 'sanity'
@@ -122,13 +110,11 @@ class TestCmd(SetupCmdBase):
 
 
 class ResetCmd(SetupCmdBase):
-    """
-    Reset Setup Cmd
-    """
+    """Reset Setup Cmd."""
     name = 'reset'
 
     def __init__(self, args):
-        """ Initialize super class members """
+        """ Initialize super class members."""
         super().__init__(args)
         self.config_path = args.config
 
@@ -139,34 +125,32 @@ class ResetCmd(SetupCmdBase):
 
 
 class CleanupCmd(SetupCmdBase):
-    """
-    Cleanup Setup Cmd
-    """
+    """Cleanup Setup Cmd."""
     name = 'cleanup'
 
     def __init__(self, args: dict):
-        """Initialize super class members"""
+        """Initialize super class members."""
         super().__init__(args)
+        self.config_path = args.config
 
     def process(self):
         Rgw.validate('cleanup')
-        rc = Rgw.cleanup()
+        rc = Rgw.cleanup(self.config_path)
         return rc
 
 
 class UpgradeCmd(SetupCmdBase):
-    """
-    Upgrade Setup Cmd
-    """
+    """Upgrade Setup Cmd."""
     name = 'upgrade'
 
     def __init__(self, args: dict):
-        """Initialize super class members"""
+        """Initialize super class members."""
         super().__init__(args)
+        self.config_path = args.config
 
     def process(self):
         Rgw.validate('upgrade')
-        rc = Rgw.upgrade()
+        rc = Rgw.upgrade(self.config_path)
         return rc
 
 

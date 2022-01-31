@@ -16,15 +16,11 @@
 
 
 class Rgw:
-    """
-    Represents Utils and Performs setup related actions.
-    """
+    """Represents RGW and Performs setup related actions."""
 
     @staticmethod
     def validate(phase: str):
-        """
-        Perform validtions
-        """
+        """Perform validtions."""
 
         # Perform RPM validations
         return 0
@@ -32,7 +28,15 @@ class Rgw:
     @staticmethod
     def post_install(config_path: str):
         """
-        Performs post install operations
+        Performs post install operations.
+        """
+
+        return 0
+
+    @staticmethod
+    def prepare(config_path: str):
+        """
+        Performs prepare phase operations.
         """
 
         return 0
@@ -48,7 +52,7 @@ class Rgw:
     @staticmethod
     def init(config_path: str):
         """
-        Perform initialization
+        Perform initialization.
         """
 
         return 0
@@ -56,7 +60,7 @@ class Rgw:
     @staticmethod
     def test(config_path: str, plan: str):
         """
-        Perform configuration testing
+        Perform configuration testing.
         """
 
         return 0
