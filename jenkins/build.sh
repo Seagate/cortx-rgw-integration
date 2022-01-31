@@ -21,6 +21,7 @@ SCRIPT_DIR=$(realpath $(dirname "$0"))
 BASE_DIR=$SCRIPT_DIR/..
 BUILD_NUMBER=
 GIT_VER=
+PRODUCT="cortx"
 
 usage() {
     echo """usage: $PROG[-v version] [-g git_version] [-b build_number]""" 1>&2;
@@ -59,8 +60,23 @@ rpm -q rpm-build > /dev/null || {
 # Create version file
 echo $VER > "$BASE_DIR"/VERSION
 /bin/chmod +rx "$BASE_DIR"/VERSION
-/bin/chmod +x "$BASE_DIR"/src/setup/rgw_setup
+/bin/chmod +x "$BASE_DIR"/src/setup/rgw_setup.py
 
+INSTALL_PATH="/opt/seagate/""${PRODUCT}"
+
+mkdir -p "$INSTALL_PATH"
+
+echo "Creating cortx-rgw-integration RPM with version $VER, release $REL"
+
+# Building rpm using setuptool utility
 cd "$BASE_DIR"
 
-./setup.py bdist_rpm --release="$REL"
+/usr/bin/python3 ./setup.py bdist_rpm --release="$REL"
+
+if [ $? -ne 0 ]; then
+  echo "ERROR !!! cortx-rgw-integration rpm build failed !!!"
+  exit 1
+else
+  echo "cortx-rgw-integration rpm build successful !!!"
+fi
+
