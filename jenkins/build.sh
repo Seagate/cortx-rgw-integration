@@ -60,7 +60,7 @@ rpm -q rpm-build > /dev/null || {
 # Create version file
 echo $VER > "$BASE_DIR"/VERSION
 /bin/chmod +rx "$BASE_DIR"/VERSION
-/bin/chmod +x "$BASE_DIR"/src/setup/rgw_setup.py
+/bin/chmod +x "$BASE_DIR"/src/setup/rgw_setup
 
 INSTALL_PATH="/opt/seagate/""${PRODUCT}"
 

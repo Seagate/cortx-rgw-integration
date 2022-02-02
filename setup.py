@@ -57,9 +57,13 @@ setup(name='cortx-rgw-integration',
       },
       data_files =[ ('%s/mini-provisioner' % RGW_INSTALL_PATH, mini_prov_files),
 <<<<<<< HEAD
+<<<<<<< HEAD
                     ('%s/bin' % RGW_INSTALL_PATH,['src/setup/rgw_setup']),
 =======
 >>>>>>> rpm build failure fixes
+=======
+                    ('%s/bin' % RGW_INSTALL_PATH,['src/setup/rgw_setup']),
+>>>>>>> changing rgw_setup file location in installed path
                     ('%s/mini-provisioner' % RGW_INSTALL_PATH,['VERSION']),
                   ],
       )
