@@ -217,7 +217,7 @@ class Rgw:
         if not os.path.exists(file_path):
             exist = False
             raise RgwSetupError(errno.EINVAL,
-                    f'{file_path} file not exists.')
+                f'{file_path} file not exists.')
         return exist
 
     @staticmethod

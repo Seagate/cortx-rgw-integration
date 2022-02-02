@@ -27,4 +27,4 @@ ceph_rpms = ['ceph-radosgw', 'ceph-common', 'ceph-base', 'gperftools-libs',
             'libradosstriper1','librbd1','librgw2','libunwind', 'mailcap',
             'python3-ceph-argparse','python3-ceph-common', 'python3-cephfs',
             'python3-rados','python3-rbd','python3-rgw']
-cortx_rpms = ['cortx-hare', 'cortx-motr-devel', 'cortx-motr']
+cortx_rpms = ['cortx-hare', 'cortx-motr-devel', 'cortx-motr', 'cortx-py-utils']
