@@ -24,7 +24,7 @@ GIT_VER=
 PRODUCT="cortx"
 
 usage() {
-    echo """usage: $PROG[-v version] [-g git_version] [-b build_number]""" 1>&2;
+    echo """usage: $PROG [-v version] [-g git_version] [-b build_number]""" 1>&2;
     exit 1;
 }
 
@@ -71,7 +71,7 @@ echo "Creating cortx-rgw-integration RPM with version $VER, release $REL"
 # Building rpm using setuptool utility
 cd "$BASE_DIR"
 
-/usr/bin/python3 ./setup.py bdist_rpm --release="$REL"
+/usr/bin/python3.6 setup.py bdist_rpm --release="$REL"
 
 if [ $? -ne 0 ]; then
   echo "ERROR !!! cortx-rgw-integration rpm build failed !!!"
