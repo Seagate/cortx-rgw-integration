@@ -24,7 +24,7 @@ from cortx.utils.cmd_framework import Cmd
 from cortx.utils.conf_store import Conf, MappedConf
 from src.setup.rgw import Rgw
 from src.setup.error import RgwSetupError
-from src.setup.const import service_name
+from src.const import service_name
 
 class SetupCmdBase(Cmd):
     """Setup cmd base class."""

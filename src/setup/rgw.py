@@ -26,7 +26,7 @@ from cortx.utils.conf_store.error import ConfError
 from cortx.utils.process import SimpleProcess
 from cortx.utils.log import Log
 from src.setup.error import RgwSetupError
-from src.setup.const import (
+from src.const import (
     cortx_rpms, ceph_rpms, ceph_conf_tmpl_file, ceph_conf_tmpl_url,
     ceph_conf_file, ceph_conf_path, ceph_admin_keyring_file)
 
@@ -90,7 +90,7 @@ class Rgw:
                 --gen-key -n client.admin --cap mon 'allow *' --cap osd 'allow *'"
             _, err, rc, = SimpleProcess(cmd).run()
             if rc != 0:
-                raise RgwSetupError(errno.EINVAL, '"{cmd}" failed with error {err}.')
+                raise RgwSetupError(errno.EINVAL, f'"{cmd}" failed with error {err}.')
         except Exception as e:
             raise RgwSetupError(errno.EINVAL, f'Error ocurred while fetching node ip, {e}')
 
@@ -145,7 +145,7 @@ class Rgw:
                     continue
                 elif rgw_lock_val == Rgw._machine_id:
                     Log.info('Found lock acquired successfully hence processing'
-                        ' with openldap schema push')
+                        ' with RGW admin user creation.')
                     rgw_lock = True
                     break
                 elif rgw_lock_val != Rgw._machine_id:

@@ -21,4 +21,4 @@ class RgwSetupError(BaseError):
 
     def __init__(self, rc, desc, message_id=None, *message_args):
         """Initialize error message paramters."""
-        super(RgwSetupError, self).__init__(rc, desc, message_id, *message_args)
+        super().__init__(rc, desc, message_id, *message_args)
