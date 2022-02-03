@@ -45,7 +45,9 @@ class SetupCmdBase(Cmd):
     def initialize_logging(self, cortx_gconf: MappedConf):
         """Initialize Logging."""
         log_path = cortx_gconf.get('cortx>common>storage>log')
-        rgw_log_path = os.path.join(log_path, 'rgw/' + Conf.machine_id)
+        if log_path is None:
+            raise RgwSetupError(errno.EINVAL, 'Log path is None.')
+        rgw_log_path = os.path.join(log_path, 'rgw', Conf.machine_id)
         if not os.path.exists(rgw_log_path):
             os.makedirs(rgw_log_path)
         Log.init(service_name, rgw_log_path)

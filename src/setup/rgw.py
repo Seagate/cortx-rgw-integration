@@ -42,12 +42,12 @@ class Rgw:
 
         Log.info(f'validations started for {phase} phase.')
 
-        if phase == "post_install":
+        if phase == 'post_install':
             # Perform RPM validations
             for rpms in [cortx_rpms, ceph_rpms]:
                 PkgV().validate('rpms', rpms)
             Log.info(f'All required rpms are installed on {Rgw._machine_id} node.')
-        elif phase == "prepare":
+        elif phase == 'prepare':
             Rgw._file_exist(ceph_conf_tmpl_file)
         elif phase == 'config':
             Rgw._file_exist(ceph_conf_file)
@@ -77,7 +77,7 @@ class Rgw:
             kv_list = [
                 ('global>fsid', str(uuid.uuid1())),
                 ('global>mon host', host_ip)]
-            Rgw._update_config(ceph_tmpl_idx, kv_list, ceph_conf_tmpl_url)
+            Rgw._update_config(ceph_tmpl_idx, ceph_conf_tmpl_url, kv_list)
 
             # Copy ceph_conf_tmpl_file to /etc/ceph/ dir.
             if not os.path.exists(ceph_conf_path):
@@ -138,7 +138,8 @@ class Rgw:
                 if rgw_lock_val is None:
                     Log.info(f'Setting confstore value for key :{rgw_lock_key}'
                         f' and value as :{Rgw._machine_id}')
-                    Rgw._update_config(rgw_consul_idx, [(rgw_lock_key, Rgw._machine_id)])
+                    Rgw._update_config(
+                        rgw_consul_idx, consul_url, [(rgw_lock_key, Rgw._machine_id)])
                     Log.info('Updated confstore with latest value')
                     time.sleep(3)
                     continue
@@ -212,20 +213,18 @@ class Rgw:
 
     @staticmethod
     def _file_exist(file_path: str):
-        """Return True if given file exist else False."""
-        exist = True
+        """Check if a file is exists."""
         if not os.path.exists(file_path):
-            exist = False
             raise RgwSetupError(errno.EINVAL,
                 f'{file_path} file not exists.')
-        return exist
 
     @staticmethod
-    def _update_config(conf_idx: str, kv_list: list, conf_url: str = None):
+    def _update_config(conf_idx: str, conf_url: str, kv_list: list):
         """Add/Updated key-values in given config."""
         try:
-            if conf_url is not None:
-                Conf.load(conf_idx, conf_url, skip_reload=True)
+            if conf_url is None:
+                raise RgwSetupError(errno.EINVAL, 'Conf url is None.')
+            Conf.load(conf_idx, conf_url, skip_reload=True)
             for key, val in kv_list:
                 Conf.set(conf_idx, key, val)
             Conf.save(conf_idx)
