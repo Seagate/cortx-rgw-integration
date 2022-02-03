@@ -38,7 +38,7 @@ class SupportBundleError(BaseError):
 
 class RGWSupportBundle:
     """Generate rgw specific support bundle."""
-    _conf_file = '/etc/ceph/ceph.conf'
+    _ceph_conf_file = '/etc/ceph/ceph.conf'
     _tmp_src = '/tmp/rgw/'
 
     @staticmethod
@@ -53,7 +53,7 @@ class RGWSupportBundle:
         os.makedirs(RGWSupportBundle._tmp_src, exist_ok=True)
         # copy configuration files
         try:
-            shutil.copyfile(RGWSupportBundle._conf_file,\
+            shutil.copyfile(RGWSupportBundle._ceph_conf_file,\
                 os.path.join(RGWSupportBundle._tmp_src, 'ceph.conf'))
         except FileNotFoundError as fe:
             raise SupportBundleError(errno.ENOENT, "File not found %s", fe)

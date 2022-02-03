@@ -58,8 +58,8 @@ setup(name='cortx-rgw-integration',
               ]
       },
       data_files =[ ('%s/mini-provisioner' % RGW_INSTALL_PATH, mini_prov_files),
-                    ('%s/bin' % RGW_INSTALL_PATH,['src/setup/rgw_setup']),
-                    ('%s/bin' % RGW_INSTALL_PATH,['src/support/rgw_support_bundle']),
+                    ('%s/bin' % RGW_INSTALL_PATH,
+                    ['src/setup/rgw_setup', 'src/support/rgw_support_bundle']),
                     ('%s/mini-provisioner' % RGW_INSTALL_PATH,['VERSION']),
                   ],
       )
