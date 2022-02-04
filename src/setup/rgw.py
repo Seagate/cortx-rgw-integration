@@ -130,6 +130,11 @@ class Rgw:
         Log.info('Checking for rgw lock in consul kv store.')
         Conf.load(rgw_consul_idx, consul_url)
 
+        # if in case try-catch block code executed at the same time on all nodes,
+        # then all nodes will try to update lock-key, after updation it will wait
+        # for sometime(time.sleep(3)) and in next iteration all nodes will get
+        # lock value as node-id of node who has updated lock key at last.
+        # and then only that node will perform the user creation operation.
         while(True):
             try:
                 rgw_lock_val = Conf.get(rgw_consul_idx, rgw_lock_key)
@@ -161,6 +166,8 @@ class Rgw:
         if rgw_lock is True:
             Log.info('Creating admin user.')
             # TODO: Add rgw admin user creation.
+            # Before creating user check if user is already created.
+            # If user is present in user list then skip the user creation.
             Log.info('User is created.')
             Log.info(f'Deleting rgw_lock key {rgw_lock_key}.')
             Conf.delete(rgw_consul_idx, rgw_lock_key)

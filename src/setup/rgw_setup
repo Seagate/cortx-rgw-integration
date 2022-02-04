@@ -29,18 +29,15 @@ from src.const import SERVICE_NAME, LOG_PATH_KEY
 class SetupCmdBase(Cmd):
     """Setup cmd base class."""
 
-    def __init__(self, *args):
+    def __init__(self, args):
         """Initialize super class members."""
-        super().__init__(*args)
+        super().__init__(args)
+        config_url = args.config
+        self._conf = MappedConf(config_url)
 
     def add_args(parser):
         parser.add_argument('--services', default='services', help='services')
         parser.add_argument('--config', default='config_url', help='config')
-
-    def _load_config(self, config_url: str):
-        """Load Config url."""
-        self.conf = MappedConf(config_url)
-        return self.conf
 
     def _initialize_logging(self, conf: MappedConf):
         """Initialize Logging."""
@@ -49,7 +46,7 @@ class SetupCmdBase(Cmd):
             raise SetupError(errno.EINVAL, 'Log path is None.')
         rgw_log_path = os.path.join(log_path, 'rgw', Conf.machine_id)
         os.makedirs(rgw_log_path, exist_ok=True)
-        Log.init(SERVICE_NAME, rgw_log_path)
+        Log.init(SERVICE_NAME, rgw_log_path, console_output=True)
 
 
 class PostInstallCmd(SetupCmdBase):
@@ -60,7 +57,6 @@ class PostInstallCmd(SetupCmdBase):
     def __init__(self, args: dict):
         """Initialize super class members."""
         super().__init__(args)
-        self._conf = self._load_config(args.config)
 
     def process(self):
         self._initialize_logging(self._conf)
@@ -76,7 +72,6 @@ class PrepareCmd(SetupCmdBase):
     def __init__(self, args: dict):
         """Initialize super class members."""
         super().__init__(args)
-        self._conf = self._load_config(args.config)
 
     def process(self):
         self._initialize_logging(self._conf)
@@ -92,7 +87,6 @@ class ConfigCmd(SetupCmdBase):
     def __init__(self, args):
         """Initialize super class members."""
         super().__init__(args)
-        self._conf = self._load_config(args.config)
 
     def process(self):
         self._initialize_logging(self._conf)
@@ -108,7 +102,6 @@ class InitCmd(SetupCmdBase):
     def __init__(self, args):
         """Initialize super class members."""
         super().__init__(args)
-        self._conf = self._load_config(args.config)
 
     def process(self):
         self._initialize_logging(self._conf)
@@ -124,7 +117,6 @@ class TestCmd(SetupCmdBase):
     def __init__(self, args):
         """Initialize super class members."""
         super().__init__(args)
-        self._conf = self._load_config(args.config)
         # Default test_plan is 'sanity'
         self.test_plan = args.plan
 
@@ -142,7 +134,6 @@ class ResetCmd(SetupCmdBase):
     def __init__(self, args):
         """ Initialize super class members."""
         super().__init__(args)
-        self._conf = self._load_config(args.config)
 
     def process(self):
         self._initialize_logging(self._conf)
@@ -158,7 +149,6 @@ class CleanupCmd(SetupCmdBase):
     def __init__(self, args: dict):
         """Initialize super class members."""
         super().__init__(args)
-        self._conf = self._load_config(args.config)
 
     def process(self):
         self._initialize_logging(self._conf)
@@ -174,7 +164,6 @@ class UpgradeCmd(SetupCmdBase):
     def __init__(self, args: dict):
         """Initialize super class members."""
         super().__init__(args)
-        self._conf = self._load_config(args.config)
 
     def process(self):
         self._initialize_logging(self._conf)
