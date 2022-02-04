@@ -46,7 +46,7 @@ class Rgw:
             # Perform RPM validations
             for rpms in [CORTX_RPMS, CEPH_RPMS]:
                 PkgV().validate('rpms', rpms)
-            Log.info(f'All required rpms are installed on {Rgw._machine_id} node.')
+            Log.info(f'All RGW required RPMs are installed on {Rgw._machine_id} node.')
         elif phase == 'prepare':
             Rgw._file_exist(CEPH_CONF_TMPL)
         elif phase == 'config':
@@ -65,7 +65,7 @@ class Rgw:
 
     @staticmethod
     def prepare(conf: MappedConf):
-        """Perform prepare operations."""
+        """Prepare for operations required before RGW can be configured."""
 
         Log.info('Prepare phase started.')
 
@@ -74,7 +74,7 @@ class Rgw:
             host_ip = socket.gethostbyname(hostname)
             ceph_tmpl_idx = 'ceph_conf_tmpl'
             ceph_tmpl_url = f'ini://{CEPH_CONF_TMPL}'
-            # Load template ceph.conf file and updated required field.
+            # Load template ceph.conf file and update required field.
             kv_list = [
                 ('global>fsid', str(uuid.uuid1())),
                 ('global>mon host', host_ip)]
@@ -134,6 +134,7 @@ class Rgw:
             try:
                 rgw_lock_val = Conf.get(rgw_consul_idx, rgw_lock_key)
                 Log.info(f'rgw_lock value - {rgw_lock_val}')
+                # TODO: Explore consul lock - https://www.consul.io/commands/lock
                 if rgw_lock_val is None:
                     Log.info(f'Setting confstore value for key :{rgw_lock_key}'
                         f' and value as :{Rgw._machine_id}')
@@ -183,9 +184,10 @@ class Rgw:
         return 0
 
     @staticmethod
-    def cleanup(conf: MappedConf, pre_factory: bool):
+    def cleanup(conf: MappedConf, pre_factory: bool = False):
         """Remove/Delete all the data that was created after post install."""
-
+        if os.path.exists(CEPH_CONF):
+            os.remove(CEPH_CONF)
         Log.info('Cleanup phase completed.')
         return 0
 
@@ -197,7 +199,7 @@ class Rgw:
         return 0
 
     @staticmethod
-    def _get_consul_url(conf: MappedConf, seq: int=0):
+    def _get_consul_url(conf: MappedConf, seq: int = 0):
         """Return consul url."""
 
         endpoints = conf.get('cortx>external>consul>endpoints')

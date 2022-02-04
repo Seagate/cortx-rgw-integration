@@ -26,3 +26,4 @@ CEPH_RPMS = ['ceph-radosgw', 'ceph-common', 'ceph-base', 'gperftools-libs',
             'python3-ceph-argparse','python3-ceph-common', 'python3-cephfs',
             'python3-rados','python3-rbd','python3-rgw']
 CORTX_RPMS = ['cortx-hare', 'cortx-motr-devel', 'cortx-motr', 'cortx-py-utils']
+LOG_PATH_KEY = 'cortx>common>storage>log'

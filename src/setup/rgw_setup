@@ -24,7 +24,7 @@ from cortx.utils.cmd_framework import Cmd
 from cortx.utils.conf_store import Conf, MappedConf
 from src.setup.rgw import Rgw
 from src.setup.error import SetupError
-from src.const import SERVICE_NAME
+from src.const import SERVICE_NAME, LOG_PATH_KEY
 
 class SetupCmdBase(Cmd):
     """Setup cmd base class."""
@@ -44,7 +44,7 @@ class SetupCmdBase(Cmd):
 
     def _initialize_logging(self, conf: MappedConf):
         """Initialize Logging."""
-        log_path = conf.get('cortx>common>storage>log')
+        log_path = conf.get(LOG_PATH_KEY)
         if log_path is None:
             raise SetupError(errno.EINVAL, 'Log path is None.')
         rgw_log_path = os.path.join(log_path, 'rgw', Conf.machine_id)
