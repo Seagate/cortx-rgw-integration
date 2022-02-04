@@ -16,7 +16,7 @@
 
 from cortx.utils.errors import BaseError
 
-class RgwSetupError(BaseError):
+class SetupError(BaseError):
     """Generic Exception with error code and output."""
 
     def __init__(self, rc, desc, message_id=None, *message_args):
