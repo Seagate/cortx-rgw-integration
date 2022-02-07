@@ -18,6 +18,7 @@
 
 import sys
 import os
+import re
 import shutil
 import tarfile
 import errno
@@ -63,8 +64,9 @@ class RGWSupportBundle:
         # copy rgw client log files
         log_dir = os.path.join(log_base, f'rgw/{machine_id}')
         if os.path.exists(log_dir):
+            regex = re.compile('(rgw.client.*log)')
             for file in os.listdir(log_dir):
-                if file.startswith('rgw.client') and file.endswith('.log'):
+                if regex.match(file):
                     infile = os.path.join(log_dir, file)
                     outfile = os.path.join(RGWSupportBundle._tmp_src, file)
                     shutil.copyfile(infile, outfile)
