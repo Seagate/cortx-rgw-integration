@@ -61,7 +61,7 @@ rpm -q rpm-build > /dev/null || {
 echo $VER > "$BASE_DIR"/VERSION
 /bin/chmod +rx "$BASE_DIR"/VERSION
 /bin/chmod +x "$BASE_DIR"/src/setup/rgw_setup
-/bin/chmod +x "$BASE_DIR"/src/support/rgw_support_bundle
+#/bin/chmod +x "$BASE_DIR"/src/support/rgw_support_bundle
 
 INSTALL_PATH="/opt/seagate/""${PRODUCT}"
 
