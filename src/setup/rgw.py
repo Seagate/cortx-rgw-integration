@@ -16,10 +16,8 @@
 
 import os
 import time
-import uuid
 import errno
 import shutil
-import socket
 from urllib.parse import urlparse
 from cortx.utils.validator.v_pkg import PkgV
 from cortx.utils.conf_store import Conf, MappedConf
@@ -28,13 +26,14 @@ from cortx.utils.process import SimpleProcess
 from cortx.utils.log import Log
 from src.setup.error import SetupError
 from src.const import (
-    CORTX_RPMS, CEPH_RPMS, CEPH_CONF_TMPL, CEPH_CONF, CEPH_ADMIN_KEYRING)
+    CORTX_RPMS, CEPH_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY)
 
 
 class Rgw:
     """Represents RGW and Performs setup related actions."""
 
     _machine_id = Conf.machine_id
+    _rgw_conf_idx = 'rgw_config'
 
     @staticmethod
     def validate(phase: str):
@@ -48,9 +47,7 @@ class Rgw:
                 PkgV().validate('rpms', rpms)
             Log.info(f'All RGW required RPMs are installed on {Rgw._machine_id} node.')
         elif phase == 'prepare':
-            Rgw._file_exist(CEPH_CONF_TMPL)
-        elif phase == 'config':
-            Rgw._file_exist(CEPH_CONF)
+            Rgw._file_exist(RGW_CONF_TMPL)
 
         Log.info(f'validations completed for {phase} phase.')
 
@@ -70,26 +67,19 @@ class Rgw:
         Log.info('Prepare phase started.')
 
         try:
-            hostname = conf.get(f'node>{Rgw._machine_id}>hostname')
-            host_ip = socket.gethostbyname(hostname)
-            ceph_tmpl_idx = 'ceph_conf_tmpl'
-            ceph_tmpl_url = f'ini://{CEPH_CONF_TMPL}'
-            # Load template ceph.conf file and update required field.
-            kv_list = [
-                ('global>fsid', str(uuid.uuid1())),
-                ('global>mon host', host_ip)]
-            Rgw._update_config(ceph_tmpl_idx, ceph_tmpl_url, kv_list)
+            rgw_config_path = Rgw._get_rgw_config_path(conf)
+            # Copy cortx_rgw to <config> dir.
+            # TODO: Use Conf.copy() api once the
+            # https://github.com/Seagate/cortx-utils/pull/728 PR is merge.
 
-            # Copy ceph_conf_tmpl_file to /etc/ceph/ dir.
-            shutil.copyfile(CEPH_CONF_TMPL, CEPH_CONF)
-            Log.info(f'{CEPH_CONF_TMPL} config copied to {CEPH_CONF}.')
+            # rgw_tmpl_idx = 'rgw_conf_tmpl'
+            # rgw_tmpl_url = f'ini://{RGW_CONF_TMPL}'
+            # Rgw._load_rgw_config(rgw_tmpl_idx, rgw_tmpl_url)
+            # RGW._load_rgw_config(RGW._rgw_conf_idx, f'ini://{rgw_conf_file_path}')
+            # Conf.copy(rgw_tmpl_idx, RGW._rgw_conf_idx)
+            shutil.copyfile(RGW_CONF_TMPL, rgw_config_path)
+            Log.info(f'{RGW_CONF_TMPL} config copied to {rgw_config_path}.')
 
-            # create admin keyring.
-            cmd = f"sudo ceph-authtool --create-keyring {CEPH_ADMIN_KEYRING} \
-                --gen-key -n client.admin --cap mon 'allow *' --cap osd 'allow *'"
-            _, err, rc, = SimpleProcess(cmd).run()
-            if rc != 0:
-                raise SetupError(errno.EINVAL, f'"{cmd}" failed with error {err}.')
         except Exception as e:
             raise SetupError(errno.EINVAL, f'Error ocurred while fetching node ip, {e}')
 
@@ -130,10 +120,10 @@ class Rgw:
         Log.info('Checking for rgw lock in consul kv store.')
         Conf.load(rgw_consul_idx, consul_url)
 
-        # if in case try-catch block code executed at the same time on all nodes,
-        # then all nodes will try to update lock-key, after updation it will wait
-        # for sometime(time.sleep(3)) and in next iteration all nodes will get
-        # lock value as node-id of node who has updated lock key at last.
+        # if in case try-catch block code executed at the same time on all the nodes,
+        # then all nodes will try to update rgw lock-key in consul, after updating key
+        # it will wait for sometime(time.sleep(3)) and in next iteration all nodes will
+        # get lock value as node-id of node who has updated the lock key at last.
         # and then only that node will perform the user creation operation.
         while(True):
             try:
@@ -143,8 +133,9 @@ class Rgw:
                 if rgw_lock_val is None:
                     Log.info(f'Setting confstore value for key :{rgw_lock_key}'
                         f' and value as :{Rgw._machine_id}')
-                    Rgw._update_config(
-                        rgw_consul_idx, consul_url, [(rgw_lock_key, Rgw._machine_id)])
+                    Rgw._load_rgw_config(rgw_consul_idx, consul_url)
+                    Conf.set(rgw_consul_idx, rgw_lock_key,rgw_lock_val)
+                    Conf.save(rgw_consul_idx)
                     Log.info('Updated confstore with latest value')
                     time.sleep(3)
                     continue
@@ -155,7 +146,7 @@ class Rgw:
                     break
                 elif rgw_lock_val != Rgw._machine_id:
                     Log.info('Skipping rgw user creation, as rgw lock is already'
-                        ' acquired by {rgw_lock_val}')
+                        f' acquired by {rgw_lock_val}')
                     rgw_lock = False
                     break
 
@@ -168,6 +159,7 @@ class Rgw:
             # TODO: Add rgw admin user creation.
             # Before creating user check if user is already created.
             # If user is present in user list then skip the user creation.
+            # RGW._create_rgw_user(conf)
             Log.info('User is created.')
             Log.info(f'Deleting rgw_lock key {rgw_lock_key}.')
             Conf.delete(rgw_consul_idx, rgw_lock_key)
@@ -193,8 +185,9 @@ class Rgw:
     @staticmethod
     def cleanup(conf: MappedConf, pre_factory: bool = False):
         """Remove/Delete all the data that was created after post install."""
-        if os.path.exists(CEPH_CONF):
-            os.remove(CEPH_CONF)
+        rgw_config_path = Rgw._get_rgw_config_path(conf)
+        if os.path.exists(rgw_config_path):
+            os.remove(rgw_config_path)
         Log.info('Cleanup phase completed.')
         return 0
 
@@ -215,8 +208,9 @@ class Rgw:
             raise SetupError(errno.EINVAL,
                 'consul http endpoint is not specified in the conf.'
                 f' Listed endpoints: {endpoints}')
-        # Relace 'http' with 'consul' in endpoint string.
-        consul_url = 'consul' + http_endpoints[seq].split('http')[1]
+        # Relace 'http' with 'consul' and port - 8500 in endpoint string.
+        consul_fqdn = http_endpoints[seq].split(':')[1]
+        consul_url = 'consul:' + consul_fqdn + ':8500'
         return consul_url
 
     @staticmethod
@@ -227,15 +221,39 @@ class Rgw:
                 f'{file_path} file not exists.')
 
     @staticmethod
-    def _update_config(conf_idx: str, conf_url: str, kv_list: list):
+    def _load_rgw_config(conf_idx: str, conf_url: str):
         """Add/Updated key-values in given config."""
         try:
             if conf_url is None:
                 raise SetupError(errno.EINVAL, 'Conf url is None.')
             Conf.load(conf_idx, conf_url, skip_reload=True)
-            for key, val in kv_list:
-                Conf.set(conf_idx, key, val)
-            Conf.save(conf_idx)
         except (AssertionError, ConfError) as e:
             raise SetupError(errno.EINVAL,
                 f'Error occurred while adding the key in {conf_url} config. {e}')
+
+    @staticmethod
+    def _get_rgw_config_path(conf: MappedConf):
+        """Return RGW config file path."""
+        config_path = conf.get(CONFIG_PATH_KEY)
+        rgw_config_dir = os.path.join(config_path, 'rgw', Rgw._machine_id)
+        os.makedirs(rgw_config_dir, exist_ok=True)
+        rgw_conf_file_path = os.path.join(rgw_config_dir, RGW_CONF_FILE)
+        return rgw_conf_file_path
+
+    @staticmethod
+    def _create_rgw_user(conf):
+        """Create RGW admin user."""
+        user_name = conf.get('cortx>rgw>auth_user')
+        access_key = conf.get('cortx>rgw>auth_admin')
+        auth_secret = conf.get('cortx>rgw>auth_secret')
+        rgw_config = Rgw._get_rgw_config_path(conf)
+        create_usr_cmd = f'sudo radosgw-admin user create --uid={user_name} --access-key \
+            {access_key} --secret {auth_secret} --display-name="{user_name}" -c {rgw_config}'
+        check_user_cmd = f'radosgw-admin user info --uid {user_name} --no-mon-config -c {rgw_config}'
+        _, _, rc, = SimpleProcess(check_user_cmd).run()
+        if rc == 0:
+            Log.info(f'RGW adin user {user_name} is already created, skipping user creation.')
+            return 0
+        _, err, rc, = SimpleProcess(create_usr_cmd).run()
+        if rc != 0:
+            raise SetupError(rc, f'"{create_usr_cmd}" failed with error {err}.')

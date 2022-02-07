@@ -17,9 +17,8 @@
 SERVICE_NAME = 'rgw_setup'
 INSTALL_PATH = '/opt/seagate/cortx'
 RGW_INSTALL_PATH = f'{INSTALL_PATH}/rgw'
-CEPH_CONF_TMPL = f'{RGW_INSTALL_PATH}/conf/ceph.conf'
-CEPH_CONF = '/etc/ceph/ceph.conf'
-CEPH_ADMIN_KEYRING = '/etc/ceph/ceph.client.admin.keyring'
+RGW_CONF_TMPL = f'{RGW_INSTALL_PATH}/conf/cortx_rgw.conf'
+RGW_CONF_FILE = 'cortx_rgw.conf'
 CEPH_RPMS = ['ceph-radosgw', 'ceph-common', 'ceph-base', 'gperftools-libs',
             'libcephfs2', 'libicu', 'liboath','librabbitmq','librados2',
             'libradosstriper1','librbd1','librgw2','libunwind', 'mailcap',
@@ -27,3 +26,4 @@ CEPH_RPMS = ['ceph-radosgw', 'ceph-common', 'ceph-base', 'gperftools-libs',
             'python3-rados','python3-rbd','python3-rgw']
 CORTX_RPMS = ['cortx-hare', 'cortx-motr-devel', 'cortx-motr', 'cortx-py-utils']
 LOG_PATH_KEY = 'cortx>common>storage>log'
+CONFIG_PATH_KEY = 'cortx>common>storage>config'

@@ -61,6 +61,6 @@ setup(name='cortx-rgw-integration',
                     ('%s/bin' % RGW_INSTALL_PATH,
                     ['src/setup/rgw_setup', 'src/support/rgw_support_bundle']),
                     ('%s/mini-provisioner' % RGW_INSTALL_PATH,['VERSION']),
-                    ('%s/conf' % RGW_INSTALL_PATH,['src/setup/templates/ceph.conf'])
+                    ('%s/conf' % RGW_INSTALL_PATH,['src/setup/templates/cortx_rgw.conf'])
                   ],
       )
