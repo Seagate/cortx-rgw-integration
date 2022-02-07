@@ -46,6 +46,7 @@ setup(name='cortx-rgw-integration',
       package_data={
         'cortx': ['py.typed'],
         'cortx.src.setup': ['*.py'],
+        'cortx.src.support': ['*.py'],
       },
       long_description=long_description,
       zip_safe=False,
@@ -53,10 +54,12 @@ setup(name='cortx-rgw-integration',
       entry_points={
           'console_scripts': [
               'rgw_setup = cortx.rgw.setup.rgw_setup:main',
+              'rgw_support_bundle = cortx.rgw.support.rgw_support_bundle:main',
               ]
       },
       data_files =[ ('%s/mini-provisioner' % RGW_INSTALL_PATH, mini_prov_files),
-                    ('%s/bin' % RGW_INSTALL_PATH,['src/setup/rgw_setup']),
+                    ('%s/bin' % RGW_INSTALL_PATH,
+                    ['src/setup/rgw_setup', 'src/support/rgw_support_bundle']),
                     ('%s/mini-provisioner' % RGW_INSTALL_PATH,['VERSION']),
                   ],
       )

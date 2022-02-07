@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+
+# CORTX Python common library.
+# Copyright (c) 2022 Seagate Technology LLC and/or its Affiliates
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+# For any questions about this software or licensing,
+# please email opensource@seagate.com or cortx-questions@seagate.com.
+
+import sys
+import os
+import re
+import shutil
+import tarfile
+import errno
+import subprocess
+import argparse
+
+from cortx.utils.errors import BaseError
+from cortx.utils.process import SimpleProcess
+from cortx.utils.conf_store.conf_store import Conf, MappedConf
+
+
+class SupportBundleError(BaseError):
+    """ SupportBundleError exception with error code and output """
+
+    def __init__(self, rc, message, *args):
+        super().__init__(rc, message, *args)
+
+
+class RGWSupportBundle:
+    """Generate rgw specific support bundle."""
+    _ceph_conf_file = '/etc/ceph/ceph.conf'
+    _ceph_crashdump_dir = '/var/log/ceph/crash'
+    _tmp_src = '/tmp/rgw/'
+
+    @staticmethod
+    def generate(bundle_id: str, target_path: str, cluster_conf: str, **filters):
+        """ Generate a tar file. """
+        coredumps = filters.get('coredumps', False)
+        cortx_config_store = MappedConf(cluster_conf)
+        log_base = cortx_config_store.get('cortx>common>storage>log')
+        machine_id = Conf.machine_id
+
+        if os.path.exists(RGWSupportBundle._tmp_src):
+            RGWSupportBundle._cleanup()
+        os.makedirs(RGWSupportBundle._tmp_src, exist_ok=True)
+        # copy configuration files
+        try:
+            shutil.copyfile(RGWSupportBundle._ceph_conf_file,\
+                os.path.join(RGWSupportBundle._tmp_src, 'ceph.conf'))
+        except FileNotFoundError as fe:
+            raise SupportBundleError(errno.ENOENT, "File not found %s", fe)
+
+        # copy rgw client log files
+        log_dir = os.path.join(log_base, f'rgw/{machine_id}')
+        if os.path.exists(log_dir):
+            regex = re.compile('(rgw.client.*log)')
+            for file in os.listdir(log_dir):
+                if regex.match(file):
+                    infile = os.path.join(log_dir, file)
+                    outfile = os.path.join(RGWSupportBundle._tmp_src, file)
+                    shutil.copyfile(infile, outfile)
+        else:
+            print("WARNING: RGW log file does not exists hence skipping log file collection.")
+
+        # copy ceph crash-dump files
+        if coredumps:
+            if os.path.exists(RGWSupportBundle._ceph_crashdump_dir):
+                shutil.copytree(RGWSupportBundle._ceph_crashdump_dir,\
+                    os.path.join(RGWSupportBundle._tmp_src, 'crash'))
+
+        # add cortx components rpm version
+        cmd = "rpm -qa | grep cortx"
+        output, _, rc = SimpleProcess(cmd).run()
+        if rc == 0:
+            infile = os.path.join(RGWSupportBundle._tmp_src, 'cortx-rpms')
+            with open(infile, 'w') as fin:
+                fin.write(output.decode("utf-8"))
+        RGWSupportBundle._generate_tar(bundle_id, target_path)
+        RGWSupportBundle._cleanup()
+
+    @staticmethod
+    def _generate_tar(bundle_id: str, target_path: str):
+        """ Generate tar.gz file at given path """
+        component = 'rgw'
+        target_path = os.path.join(target_path, component)
+        tar_name = component + '_' + bundle_id + '.tar.gz'
+        tar_file_name = os.path.join(target_path, tar_name)
+        if not os.path.exists(target_path):
+            os.makedirs(target_path)
+        with tarfile.open(tar_file_name, 'w:gz') as tar:
+            tar.add(RGWSupportBundle._tmp_src,
+                arcname=os.path.basename(RGWSupportBundle._tmp_src))
+
+    @staticmethod
+    def _cleanup():
+        """Cleanup of temporary files generated during rgw support bundle."""
+        shutil.rmtree(RGWSupportBundle._tmp_src)
+
+    @staticmethod
+    def parse_args():
+        parser = argparse.ArgumentParser(description='''Bundle RGW logs.''')
+        parser.add_argument('-b', dest='bundle_id', required=True,
+            help='Unique bundle id')
+        parser.add_argument('-t', dest='path', help='Path to store the created bundle',
+            nargs='?', default="/var/cortx/support_bundle/")
+        parser.add_argument('-c', dest='cluster_conf',\
+            help="Cluster config file path for Support Bundle",\
+            default='yaml:///etc/cortx/cluster.conf')
+        parser.add_argument('-s', '--services', dest='services', nargs='+',\
+            default='', help='List of services for Support Bundle')
+        parser.add_argument('-d', '--duration', default='P5D', dest='duration',
+            help="Duration - duration for which log should be captured, Default - P5D")
+        parser.add_argument('--size_limit', default='500MB', dest='size_limit',
+            help="Size Limit - Support Bundle size limit per node, Default - 500MB")
+        parser.add_argument('--binlogs', type=RGWSupportBundle.str2bool, default=False, dest='binlogs',
+            help="Include/Exclude Binary Logs, Default = False")
+        parser.add_argument('--coredumps', type=RGWSupportBundle.str2bool, default=False, dest='coredumps',
+            help="Include/Exclude Coredumps, Default = False")
+        parser.add_argument('--stacktrace', type=RGWSupportBundle.str2bool, default=False, dest='stacktrace',
+            help="Include/Exclude stacktrace, Default = False")
+        parser.add_argument('--modules', dest='modules',
+            help="list of components & services to generate support bundle.")
+        args=parser.parse_args()
+        return args
+
+    @staticmethod
+    def str2bool(value):
+        if isinstance(value, bool):
+            return value
+        if value.lower() in ('true'):
+            return True
+        elif value.lower() in ('false'):
+            return False
+        else:
+            raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
+def main():
+    args = RGWSupportBundle.parse_args()
+    RGWSupportBundle.generate(
+        bundle_id=args.bundle_id,
+        target_path=args.path,
+        cluster_conf=args.cluster_conf,
+        duration = args.duration,
+        size_limit = args.size_limit,
+        binlogs = args.binlogs,
+        coredumps = args.coredumps,
+        stacktrace = args.stacktrace
+    )
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt as e:
+        print(f"\n\nWARNING: User aborted command. Partial data " \
+            f"save/corruption might occur. It is advised to re-run the" \
+            f"command. {e}")
+        sys.exit(1)
