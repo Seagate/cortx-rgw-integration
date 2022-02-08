@@ -17,6 +17,7 @@
 import os
 import time
 import errno
+import glob
 from urllib.parse import urlparse
 from cortx.utils.validator.v_pkg import PkgV
 from cortx.utils.conf_store import Conf, MappedConf
@@ -25,14 +26,15 @@ from cortx.utils.process import SimpleProcess
 from cortx.utils.log import Log
 from src.setup.error import SetupError
 from src.const import (
-    CORTX_RPMS, CEPH_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY)
+    CORTX_RPMS, CEPH_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
+    COMPONENT_NAME, RGW_ADMIN_PARAMETERS, RgwEndpoint)
 
 
 class Rgw:
     """Represents RGW and Performs setup related actions."""
 
     _machine_id = Conf.machine_id
-    _rgw_conf_idx = 'rgw_config'
+    _rgw_conf_idx = f'{COMPONENT_NAME}_config'   # e.g. rgw_config
 
     @staticmethod
     def validate(phase: str):
@@ -67,13 +69,13 @@ class Rgw:
 
         try:
             rgw_config_path = Rgw._get_rgw_config_path(conf)
-            rgw_tmpl_idx = 'rgw_conf_tmpl'
+            rgw_tmpl_idx = f'{COMPONENT_NAME}_conf_tmpl'  # e.g. rgw_conf_tmpl
             rgw_tmpl_url = f'ini://{RGW_CONF_TMPL}'
             Rgw._load_rgw_config(rgw_tmpl_idx, rgw_tmpl_url)
             Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{rgw_config_path}')
             Conf.copy(rgw_tmpl_idx, Rgw._rgw_conf_idx)
             Conf.save(Rgw._rgw_conf_idx)
-            Log.info(f'{RGW_CONF_TMPL} config copied to {rgw_config_path}.')
+            Log.info(f'{RGW_CONF_TMPL} config copied to {rgw_config_path}')
 
         except Exception as e:
             raise SetupError(errno.EINVAL, f'Error ocurred while fetching node ip, {e}')
@@ -88,8 +90,26 @@ class Rgw:
 
         Log.info('Config phase started.')
 
-        # TODO: Inside [client.rgw.<hostname>] section and
-        # add motr,hax endpoints and rgw client related parameters.
+        Log.info('create symbolic link of FID config files started')
+        Rgw._create_symbolic_link_fid(conf)
+        Log.info('create symbolic link of FID config files completed')
+        Log.info('fetching endpoint values from hare sysconfig file.')
+        # For running rgw service and radosgw-admin tool,
+        # we are using same endpoints mentioned in first symlink file 'rgw-1' as default endpoints,
+        # given radosgw-admin tool & rgw service not expected to run simultaneously.
+        # Radosgw-admin is used only in mini provisioner phase i.e in Init container,
+        # and then later rgw service container boots up.
+        # TODO : explore on index based symlinks, to span across multiple instances,
+        # even when we plan to use 1 instance of RGW today.
+        rgw_service_endpoints = Rgw._parse_endpoint_values(conf, f'{COMPONENT_NAME}-1')  # e.g.(conf, rgw-1)
+
+        Log.debug('Validating endpoint entries provided by hare sysconfig file')
+        Rgw._validate_endpoint_paramters(rgw_service_endpoints)
+        Log.info('Validated endpoint entries provided by hare sysconfig file successfully.')
+
+        Log.info('updating endpoint values in rgw config file.')
+        Rgw._update_rgw_config_with_endpoints(conf, rgw_service_endpoints)
+
         Log.info('Config phase completed.')
         return 0
 
@@ -107,8 +127,8 @@ class Rgw:
         #    b. Create user only if lock value is None/machine-id.
 
         rgw_lock = False
-        rgw_lock_key = 'component>rgw>volatile>rgw_lock'
-        rgw_consul_idx = 'rgw_consul_idx'
+        rgw_lock_key = f'component>{COMPONENT_NAME}>volatile>{COMPONENT_NAME}_lock'
+        rgw_consul_idx = f'{COMPONENT_NAME}_consul_idx'
         # Get consul url from cortx config.
         consul_url = Rgw._get_consul_url(conf)
         # Check for rgw_lock in consul kv store.
@@ -129,7 +149,7 @@ class Rgw:
                     Log.info(f'Setting confstore value for key :{rgw_lock_key}'
                         f' and value as :{Rgw._machine_id}')
                     Rgw._load_rgw_config(rgw_consul_idx, consul_url)
-                    Conf.set(rgw_consul_idx, rgw_lock_key,rgw_lock_val)
+                    Conf.set(rgw_consul_idx, rgw_lock_key, Rgw._machine_id)
                     Conf.save(rgw_consul_idx)
                     Log.info('Updated confstore with latest value')
                     time.sleep(3)
@@ -227,27 +247,115 @@ class Rgw:
     @staticmethod
     def _get_rgw_config_path(conf: MappedConf):
         """Return RGW config file path."""
-        config_path = conf.get(CONFIG_PATH_KEY)
-        rgw_config_dir = os.path.join(config_path, 'rgw', Rgw._machine_id)
+        rgw_config_dir = Rgw._get_rgw_config_dir(conf)
         os.makedirs(rgw_config_dir, exist_ok=True)
         rgw_conf_file_path = os.path.join(rgw_config_dir, RGW_CONF_FILE)
         return rgw_conf_file_path
 
     @staticmethod
+    def _get_rgw_config_dir(conf: MappedConf):
+        """Return RGW config directory path."""
+        config_path = conf.get(CONFIG_PATH_KEY)
+        rgw_config_dir = os.path.join(config_path, COMPONENT_NAME, Rgw._machine_id)
+        return rgw_config_dir
+
+    @staticmethod
     def _create_rgw_user(conf):
         """Create RGW admin user."""
-        user_name = conf.get('cortx>rgw>auth_user')
-        access_key = conf.get('cortx>rgw>auth_admin')
-        auth_secret = conf.get('cortx>rgw>auth_secret')
+        user_name = conf.get(f'cortx>{COMPONENT_NAME}>auth_user')
+        access_key = conf.get(f'cortx>{COMPONENT_NAME}>auth_admin')
+        auth_secret = conf.get(f'cortx>{COMPONENT_NAME}>auth_secret')
         err_str = f'user: {user_name} exists'
         rgw_config = Rgw._get_rgw_config_path(conf)
         create_usr_cmd = f'sudo radosgw-admin user create --uid={user_name} --access-key \
-            {access_key} --secret {auth_secret} --display-name="{user_name}" -c {rgw_config} --no-mon-config'
+            {access_key} --secret {auth_secret} --display-name="{user_name}" \
+            -c {rgw_config} --no-mon-config'
         _, err, rc, = SimpleProcess(create_usr_cmd).run()
         if rc == 0:
             Log.info(f'RGW admin user {user_name} is created.')
         elif rc != 0:
             if err and err_str in err.decode():
-                Log.info(f'RGW admin user {user_name} is already created. skipping user creation.')
+                Log.info(f'RGW admin user {user_name} is already created. \
+                    skipping user creation.')
             else:
                 raise SetupError(rc, f'"{create_usr_cmd}" failed with error {err}.')
+
+    @staticmethod
+    def _create_symbolic_link_fid(conf: MappedConf):
+        """ Create symbolic link of FID sysconfig files."""
+        base_config_path = conf.get(CONFIG_PATH_KEY)
+        sysconfig_file_path = os.path.join(base_config_path, COMPONENT_NAME,
+            'sysconfig', Rgw._machine_id)
+        file_name = sysconfig_file_path + f'/{COMPONENT_NAME}-0x*'
+        list_matching = []
+        for name in glob.glob(file_name):
+            list_matching.append(name)
+        count = len(list_matching)
+        Log.info(f'{COMPONENT_NAME} FID file count : {count}')
+        if count < 1:
+           raise Exception(f'HARE-sysconfig file is missing at {sysconfig_file_path}')
+
+        # Create symbolic links of rgw-fid files created by hare.
+        # e.g rgw-0x7200000000000001\:0x9c -> rgw-1 , rgw-0x7200000000000001\:0x5b -> rgw-2
+        index = 1
+        for src_path in list_matching:
+            file_name = f'{COMPONENT_NAME}-' + str(index)      # e.g. rgw-1 for rgw file
+            dst_path = os.path.join(sysconfig_file_path, file_name)
+            Rgw._create_symbolic_link(src_path, dst_path)
+            index += 1
+
+    @staticmethod
+    def _create_symbolic_link(src_path: str, dst_path: str):
+        """create symbolic link."""
+        Log.debug(f'symbolic link source path: {src_path}')
+        Log.debug(f'symbolic link destination path: {dst_path}')
+        if os.path.exists(dst_path):
+           Log.debug('symbolic link is already present')
+           os.unlink(dst_path)
+           Log.debug('symbolic link is unlinked')
+        os.symlink(src_path, dst_path)
+        Log.info(f'symbolic link created successfully from {src_path} to {dst_path}')
+
+    @staticmethod
+    def _parse_endpoint_values(conf, rgw_instance_name: str):
+        """Read sysconfig file generated by hare
+         1) Read symblink file '{rgw_instance_name}' as default endpoints in config phase.
+         2) fetch endpoint values for running radosgw-admin tool.
+        """
+        base_config_path = conf.get(CONFIG_PATH_KEY)
+        sysconfig_file_path = os.path.join(base_config_path, COMPONENT_NAME,
+            'sysconfig', Rgw._machine_id)
+        endpoint_file = os.path.join(sysconfig_file_path, rgw_instance_name)
+        endpoints = {}
+        with open(endpoint_file) as ep_file:
+            for line in ep_file:
+                ep_name, ep_value = line.partition('=')[::2]
+                endpoints[ep_name.strip()] = str(ep_value.strip())
+
+        return endpoints
+
+    @staticmethod
+    def _update_rgw_config_with_endpoints(conf, endpoints: dict):
+        """Update endpoint values to rgw config file."""
+        rgw_config_dir = Rgw._get_rgw_config_dir(conf)
+        rgw_config_file = os.path.join(rgw_config_dir, RGW_CONF_FILE)
+        Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{rgw_config_file}')
+
+        for ep_value, key in RgwEndpoint._value2member_map_.items() :
+            Conf.set(Rgw._rgw_conf_idx, f'client>{ep_value}', endpoints[key.name])
+
+        Conf.set(Rgw._rgw_conf_idx, f'client>{RGW_ADMIN_PARAMETERS["ADMIN_MOTR_FID"]}',
+            endpoints[RgwEndpoint.MOTR_PROCESS_FID.name])
+        Conf.set(Rgw._rgw_conf_idx, f'client>{RGW_ADMIN_PARAMETERS["ADMIN_MOTR_ENDPOINT"]}',
+            endpoints[RgwEndpoint.MOTR_RGW_EP.name])
+
+        Conf.save(Rgw._rgw_conf_idx)
+
+    @staticmethod
+    def _validate_endpoint_paramters(endpoints: dict):
+        """Validate endpoint values provided by hare sysconfig file."""
+
+        for ep_value, key in  RgwEndpoint._value2member_map_.items() :
+            if key.name not in endpoints or not endpoints.get(key.name):
+               raise SetupError(errno.EINVAL, f'Failed to validate hare endpoint values.'
+                   f'endpoint {key.name} or its value is not present.')
