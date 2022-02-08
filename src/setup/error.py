@@ -19,6 +19,6 @@ from cortx.utils.errors import BaseError
 class SetupError(BaseError):
     """Generic Exception with error code and output."""
 
-    def __init__(self, rc, message_id, *message_args):
-        """Initalize error message paramters."""
-        super().__init__(rc, message_id=message_id, *message_args)
+    def __init__(self, rc, desc, message_id=None, *message_args):
+        """Initialize error message paramters."""
+        super().__init__(rc, desc, message_id, *message_args)

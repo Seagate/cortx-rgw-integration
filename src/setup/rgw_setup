@@ -14,25 +14,40 @@
 # For any questions about this software or licensing,
 # please email opensource@seagate.com or cortx-questions@seagate.com.
 
+import os
 import sys
 import errno
 import traceback
 
 from cortx.utils.log import Log
 from cortx.utils.cmd_framework import Cmd
-from setup import Rgw
-from error import SetupError
+from cortx.utils.conf_store import Conf, MappedConf
+from src.setup.rgw import Rgw
+from src.setup.error import SetupError
+from src.const import SERVICE_NAME, LOG_PATH_KEY
 
 class SetupCmdBase(Cmd):
     """Setup cmd base class."""
 
-    def __init__(self, *args):
+    def __init__(self, args):
         """Initialize super class members."""
-        super().__init__(*args)
+        super().__init__(args)
+        config_url = args.config
+        self._conf = MappedConf(config_url)
 
     def add_args(parser):
         parser.add_argument('--services', default='services', help='services')
         parser.add_argument('--config', default='config_url', help='config')
+
+    def _initialize_logging(self, conf: MappedConf):
+        """Initialize Logging."""
+        log_path = conf.get(LOG_PATH_KEY)
+        if log_path is None:
+            raise SetupError(errno.EINVAL, 'Log path is None.')
+        rgw_log_path = os.path.join(log_path, 'rgw', Conf.machine_id)
+        os.makedirs(rgw_log_path, exist_ok=True)
+        Log.init(SERVICE_NAME, rgw_log_path, console_output=True)
+
 
 class PostInstallCmd(SetupCmdBase):
     """PostInstall Setup Cmd."""
@@ -44,8 +59,9 @@ class PostInstallCmd(SetupCmdBase):
         super().__init__(args)
 
     def process(self):
+        self._initialize_logging(self._conf)
         Rgw.validate('post_install')
-        rc = Rgw.post_install(self._url)
+        rc = Rgw.post_install(self._conf)
         return rc
 
 
@@ -58,8 +74,9 @@ class PrepareCmd(SetupCmdBase):
         super().__init__(args)
 
     def process(self):
+        self._initialize_logging(self._conf)
         Rgw.validate('prepare')
-        rc = Rgw.prepare(self._url)
+        rc = Rgw.prepare(self._conf)
         return rc
 
 
@@ -72,8 +89,9 @@ class ConfigCmd(SetupCmdBase):
         super().__init__(args)
 
     def process(self):
+        self._initialize_logging(self._conf)
         Rgw.validate('config')
-        rc = Rgw.config(self._url)
+        rc = Rgw.config(self._conf)
         return rc
 
 
@@ -84,11 +102,11 @@ class InitCmd(SetupCmdBase):
     def __init__(self, args):
         """Initialize super class members."""
         super().__init__(args)
-        self.config_path = args.config
 
     def process(self):
+        self._initialize_logging(self._conf)
         Rgw.validate('init')
-        rc = Rgw.init(self.config_path)
+        rc = Rgw.init(self._conf)
         return rc
 
 
@@ -99,13 +117,13 @@ class TestCmd(SetupCmdBase):
     def __init__(self, args):
         """Initialize super class members."""
         super().__init__(args)
-        self.config_path = args.config
         # Default test_plan is 'sanity'
         self.test_plan = args.plan
 
     def process(self):
+        self._initialize_logging(self._conf)
         Rgw.validate('test')
-        rc = Rgw.test(self.config_path, self.test_plan)
+        rc = Rgw.test(self._conf, self.test_plan)
         return rc
 
 
@@ -116,11 +134,11 @@ class ResetCmd(SetupCmdBase):
     def __init__(self, args):
         """ Initialize super class members."""
         super().__init__(args)
-        self.config_path = args.config
 
     def process(self):
+        self._initialize_logging(self._conf)
         Rgw.validate('reset')
-        rc = Rgw.reset(self.config_path)
+        rc = Rgw.reset(self._conf)
         return rc
 
 
@@ -131,11 +149,11 @@ class CleanupCmd(SetupCmdBase):
     def __init__(self, args: dict):
         """Initialize super class members."""
         super().__init__(args)
-        self.config_path = args.config
 
     def process(self):
+        self._initialize_logging(self._conf)
         Rgw.validate('cleanup')
-        rc = Rgw.cleanup(self.config_path)
+        rc = Rgw.cleanup(self._conf)
         return rc
 
 
@@ -146,36 +164,37 @@ class UpgradeCmd(SetupCmdBase):
     def __init__(self, args: dict):
         """Initialize super class members."""
         super().__init__(args)
-        self.config_path = args.config
 
     def process(self):
+        self._initialize_logging(self._conf)
         Rgw.validate('upgrade')
-        rc = Rgw.upgrade(self.config_path)
+        rc = Rgw.upgrade(self._conf)
         return rc
 
 
 def main():
     argv = sys.argv
 
-    Log.init() # TODO
-
     try:
         desc = "CORTX Rgw Setup command"
-        command = Cmd.get_command(desc, argv[1:])
+        command = Cmd.get_command(sys.modules[__name__], desc, argv[1:])
         rc = command.process()
 
     except SetupError as e:
         sys.stderr.write("error: %s\n\n" % str(e))
         sys.stderr.write("%s\n" % traceback.format_exc())
-        Cmd.usage(argv[0])
-        rc = e.rc
+        Log.error(f'Command {argv[1]} failed :{str(e)}')
+        rc = e.rc()
 
     except Exception as e:
         sys.stderr.write("error: %s\n\n" % str(e))
         sys.stderr.write("%s\n" % traceback.format_exc())
+        Log.error(f'Command {argv[1]} failed :{str(e)}')
         rc = errno.EINVAL
 
-    Log.info(f"Command {command} {argv[1]} completed with rc:{rc}")
+    Log.info(f"Command {argv[1]} completed with rc:{rc}")
+    return rc
+
 
 if __name__ == '__main__':
     sys.exit(main())

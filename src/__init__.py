@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 # CORTX Python common library.
 # Copyright (c) 2022 Seagate Technology LLC and/or its Affiliates
 # This program is free software: you can redistribute it and/or modify
