@@ -36,6 +36,19 @@ with open('README.md', 'r') as rf:
 # Get list of mini-provisioner classes
 mini_prov_files = glob.glob('./src/setup/*.py')
 
+
+# Get list of required RPMS.
+def get_install_requirements() -> list:
+    """ Returns pre-requisite """
+    install_requires = []
+    try:
+        with open('requirements.txt') as req:
+            install_requires = [line.strip() for line in req]
+    except Exception:
+        pass
+    return install_requires
+
+
 setup(name='cortx-rgw-integration',
       version=rgw_intg_version,
       url='https://github.com/Seagate/cortx-rgw-integration',
@@ -63,4 +76,5 @@ setup(name='cortx-rgw-integration',
                     ('%s/mini-provisioner' % RGW_INSTALL_PATH,['VERSION']),
                     ('%s/conf' % RGW_INSTALL_PATH,['conf/cortx_rgw.conf'])
                   ],
+      install_requires=get_install_requirements()
       )

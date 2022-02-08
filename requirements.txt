@@ -1,0 +1,5 @@
+cortx-hare
+cortx-motr
+cortx-py-utils
+cortx-provisioner
+ceph-radosgw
