@@ -74,7 +74,7 @@ cd "$BASE_DIR"
 
 requirements=$(sed -z 's/\n/,/g' requirements.txt | sed -e 's/,$//')
 
-/usr/bin/python3.6 setup.py bdist_rpm --release="$REL" --requires $requirements
+/usr/bin/python3.6 setup.py bdist_rpm --release="$REL" --requires "$requirements"
 
 if [ $? -ne 0 ]; then
   echo "ERROR !!! cortx-rgw-integration rpm build failed !!!"

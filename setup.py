@@ -36,7 +36,6 @@ with open('README.md', 'r') as rf:
 # Get list of mini-provisioner classes
 mini_prov_files = glob.glob('./src/setup/*.py')
 
-
 setup(name='cortx-rgw-integration',
       version=rgw_intg_version,
       url='https://github.com/Seagate/cortx-rgw-integration',
