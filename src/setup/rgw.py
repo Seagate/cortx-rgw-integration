@@ -89,18 +89,16 @@ class Rgw:
 
         Log.info('Config phase started.')
 
-        Log.info("create symbolic link of FID config files started")
+        Log.info('create symbolic link of FID config files started')
         Rgw._create_symbolic_link_fid(conf)
-        Log.info("create symbolic link of FID config files completed")
-        Log.info("fetching endpoint values from hare sysconfig file.")
+        Log.info('create symbolic link of FID config files completed')
+        Log.info('fetching endpoint values from hare sysconfig file.')
         # for running radosgw-admin tool, we are using endpoints mentioned
         # in first symlink file 'rgw-1' as a default endpoint vlaues.
         rgw_service_endpoints = Rgw._parse_endpoint_values(conf, 'rgw-1')
-        Log.info("updating endpoint values in rgw config file.")
-        Rgw.update_rgw_config_with_endpoints(conf, rgw_service_endpoints)
+        Log.info('updating endpoint values in rgw config file.')
+        Rgw._update_rgw_config_with_endpoints(conf, rgw_service_endpoints)
 
-        # TODO: Inside [client.rgw.<hostname>] section and
-        # add motr,hax endpoints and rgw client related parameters.
         Log.info('Config phase completed.')
         return 0
 
@@ -279,9 +277,9 @@ class Rgw:
         for name in glob.glob(file_name):
             list_matching.append(name)
         count = len(list_matching)
-        Log.info(f"rgw FID file count : {count}")
+        Log.info(f'rgw FID file count : {count}')
         if count < 1:
-           raise Exception(f"HARE-sysconfig file is missing at {sysconfig_file_path}")
+           raise Exception(f'HARE-sysconfig file is missing at {sysconfig_file_path}')
 
         # Create symbolic links of rgw-fid files created by hare.
         # e.g rgw-0x7200000000000001\:0x9c -> rgw-1 , rgw-0x7200000000000001\:0x5b -> rgw-2
@@ -295,14 +293,14 @@ class Rgw:
     @staticmethod
     def _create_symbolic_link(src_path: str, dst_path: str):
         """create symbolic link."""
-        Log.info(f"symbolic link source path: {src_path}")
-        Log.info(f"symbolic link destination path: {dst_path}")
+        Log.info(f'symbolic link source path: {src_path}')
+        Log.info(f'symbolic link destination path: {dst_path}')
         if os.path.exists(dst_path):
-           Log.info(f"symbolic link is already present")
+           Log.info('symbolic link is already present')
            os.unlink(dst_path)
-           Log.info("symbolic link is unlinked")
+           Log.info('symbolic link is unlinked')
         os.symlink(src_path, dst_path)
-        Log.info(f"symbolic link created successfully")
+        Log.info(f'symbolic link created successfully')
 
     @staticmethod
     def _parse_endpoint_values(conf, rgw_instance_name: str):
@@ -310,12 +308,13 @@ class Rgw:
          1) Read symblink file '{rgw_instance_name}' as default endpoints in config phase.
          2) fetch endpoint values for running radosgw-admin tool.
         """
-        rgw_config_dir = Rgw._get_rgw_config_dir(conf)
-        endpoint_file = os.path.join(rgw_config_dir, rgw_instance_name)
+        base_config_path = conf.get(CONFIG_PATH_KEY)
+        sysconfig_file_path = os.path.join(base_config_path, 'rgw', 'sysconfig', Rgw._machine_id)
+        endpoint_file = os.path.join(sysconfig_file_path, rgw_instance_name)
         endpoints = {}
         with open(endpoint_file) as ep_file:
             for line in ep_file:
-                ep_name, ep_value = line.partition("=")[::2]
+                ep_name, ep_value = line.partition('=')[::2]
                 endpoints[ep_name.strip()] = str(ep_value.strip())
 
         return endpoints
@@ -326,10 +325,10 @@ class Rgw:
         rgw_config_dir = Rgw._get_rgw_config_dir(conf)
         rgw_config_file = os.path.join(rgw_config_dir, RGW_CONF_FILE)
         Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{rgw_config_file}')
-        Conf.set(Rgw._rgw_conf_idx, 'client>motr profile fid',endpoints['MOTR_PROFILE_FID'])
-        Conf.set(Rgw._rgw_conf_idx, 'client>motr ha endpoint',endpoints['MOTR_HA_EP'])
-        Conf.set(Rgw._rgw_conf_idx, 'client>motr my endpoint',endpoints['MOTR_RGW_EP'])
-        Conf.set(Rgw._rgw_conf_idx, 'client>motr my fid',endpoints['MOTR_PROCESS_FID'])
-        Conf.set(Rgw._rgw_conf_idx, 'client>admin motr fid',endpoints['MOTR_PROCESS_FID'])
-        Conf.set(Rgw._rgw_conf_idx, 'client>admin motr endpoint',endpoints['MOTR_RGW_EP'])
+        Conf.set(Rgw._rgw_conf_idx, 'client>motr profile fid', endpoints['MOTR_PROFILE_FID'])
+        Conf.set(Rgw._rgw_conf_idx, 'client>motr ha endpoint', endpoints['MOTR_HA_EP'])
+        Conf.set(Rgw._rgw_conf_idx, 'client>motr my endpoint', endpoints['MOTR_RGW_EP'])
+        Conf.set(Rgw._rgw_conf_idx, 'client>motr my fid', endpoints['MOTR_PROCESS_FID'])
+        Conf.set(Rgw._rgw_conf_idx, 'client>admin motr fid', endpoints['MOTR_PROCESS_FID'])
+        Conf.set(Rgw._rgw_conf_idx, 'client>admin motr endpoint', endpoints['MOTR_RGW_EP'])
         Conf.save(Rgw._rgw_conf_idx)
