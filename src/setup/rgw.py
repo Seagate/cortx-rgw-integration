@@ -17,7 +17,6 @@
 import os
 import time
 import errno
-import shutil
 from urllib.parse import urlparse
 from cortx.utils.validator.v_pkg import PkgV
 from cortx.utils.conf_store import Conf, MappedConf
@@ -68,16 +67,12 @@ class Rgw:
 
         try:
             rgw_config_path = Rgw._get_rgw_config_path(conf)
-            # Copy cortx_rgw to <config> dir.
-            # TODO: Use Conf.copy() api once the
-            # https://github.com/Seagate/cortx-utils/pull/728 PR is merge.
-
-            # rgw_tmpl_idx = 'rgw_conf_tmpl'
-            # rgw_tmpl_url = f'ini://{RGW_CONF_TMPL}'
-            # Rgw._load_rgw_config(rgw_tmpl_idx, rgw_tmpl_url)
-            # RGW._load_rgw_config(RGW._rgw_conf_idx, f'ini://{rgw_conf_file_path}')
-            # Conf.copy(rgw_tmpl_idx, RGW._rgw_conf_idx)
-            shutil.copyfile(RGW_CONF_TMPL, rgw_config_path)
+            rgw_tmpl_idx = 'rgw_conf_tmpl'
+            rgw_tmpl_url = f'ini://{RGW_CONF_TMPL}'
+            Rgw._load_rgw_config(rgw_tmpl_idx, rgw_tmpl_url)
+            Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{rgw_config_path}')
+            Conf.copy(rgw_tmpl_idx, Rgw._rgw_conf_idx)
+            Conf.save(Rgw._rgw_conf_idx)
             Log.info(f'{RGW_CONF_TMPL} config copied to {rgw_config_path}.')
 
         except Exception as e:
@@ -156,12 +151,10 @@ class Rgw:
                 break
         if rgw_lock is True:
             Log.info('Creating admin user.')
-            # TODO: Add rgw admin user creation.
             # Before creating user check if user is already created.
-            # If user is present in user list then skip the user creation.
-            # RGW._create_rgw_user(conf)
+            Rgw._create_rgw_user(conf)
             Log.info('User is created.')
-            Log.info(f'Deleting rgw_lock key {rgw_lock_key}.')
+            Log.debug(f'Deleting rgw_lock key {rgw_lock_key}.')
             Conf.delete(rgw_consul_idx, rgw_lock_key)
             Log.info(f'{rgw_lock_key} key is deleted')
 
@@ -246,14 +239,15 @@ class Rgw:
         user_name = conf.get('cortx>rgw>auth_user')
         access_key = conf.get('cortx>rgw>auth_admin')
         auth_secret = conf.get('cortx>rgw>auth_secret')
+        err_str = f'user: {user_name} exists'
         rgw_config = Rgw._get_rgw_config_path(conf)
         create_usr_cmd = f'sudo radosgw-admin user create --uid={user_name} --access-key \
-            {access_key} --secret {auth_secret} --display-name="{user_name}" -c {rgw_config}'
-        check_user_cmd = f'radosgw-admin user info --uid {user_name} --no-mon-config -c {rgw_config}'
-        _, _, rc, = SimpleProcess(check_user_cmd).run()
-        if rc == 0:
-            Log.info(f'RGW adin user {user_name} is already created, skipping user creation.')
-            return 0
+            {access_key} --secret {auth_secret} --display-name="{user_name}" -c {rgw_config} --no-mon-config'
         _, err, rc, = SimpleProcess(create_usr_cmd).run()
-        if rc != 0:
-            raise SetupError(rc, f'"{create_usr_cmd}" failed with error {err}.')
+        if rc == 0:
+            Log.info(f'RGW admin user {user_name} is created.')
+        elif rc != 0:
+            if err and err_str in err.decode():
+                Log.info(f'RGW admin user {user_name} is already created. skipping user creation.')
+            else:
+                raise SetupError(rc, f'"{create_usr_cmd}" failed with error {err}.')
