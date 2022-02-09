@@ -72,7 +72,9 @@ echo "Creating cortx-rgw-integration RPM with version $VER, release $REL"
 # Building rpm using setuptool utility
 cd "$BASE_DIR"
 
-/usr/bin/python3.6 setup.py bdist_rpm --release="$REL"
+requirements=$(sed -z 's/\n/,/g' requirements.txt | sed -e 's/,$//')
+
+/usr/bin/python3.6 setup.py bdist_rpm --release="$REL" --requires "$requirements"
 
 if [ $? -ne 0 ]; then
   echo "ERROR !!! cortx-rgw-integration rpm build failed !!!"
