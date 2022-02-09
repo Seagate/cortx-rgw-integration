@@ -26,7 +26,7 @@ from cortx.utils.process import SimpleProcess
 from cortx.utils.log import Log
 from src.setup.error import SetupError
 from src.const import (
-    CORTX_RPMS, CEPH_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
+    REQUIRED_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
     COMPONENT_NAME, RGW_ADMIN_PARAMETERS, RgwEndpoint)
 
 
@@ -44,7 +44,7 @@ class Rgw:
 
         if phase == 'post_install':
             # Perform RPM validations
-            for rpms in [CORTX_RPMS, CEPH_RPMS]:
+            for rpms in [REQUIRED_RPMS]:
                 PkgV().validate('rpms', rpms)
             Log.info(f'All RGW required RPMs are installed on {Rgw._machine_id} node.')
         elif phase == 'prepare':
