@@ -25,12 +25,7 @@ RGW_CONF_TMPL = f'{RGW_INSTALL_PATH}/conf/cortx_{COMPONENT_NAME}.conf'
 # e.g RGW_CONF_TMPL will be /opt/seagate/cortx/rgw/cof/cortx_rgw.conf
 RGW_CONF_FILE = f'cortx_{COMPONENT_NAME}.conf'
 # e.g. RGW_CONFI_FILE path will be cortx_rgw.conf
-CEPH_RPMS = ['ceph-radosgw', 'ceph-common', 'ceph-base', 'gperftools-libs',
-            'libcephfs2', 'libicu', 'liboath','librabbitmq','librados2',
-            'libradosstriper1','librbd1','librgw2','libunwind', 'mailcap',
-            'python3-ceph-argparse','python3-ceph-common', 'python3-cephfs',
-            'python3-rados','python3-rbd','python3-rgw']
-CORTX_RPMS = ['cortx-hare', 'cortx-motr-devel', 'cortx-motr', 'cortx-py-utils']
+REQUIRED_RPMS = ['cortx-hare', 'cortx-py-utils', 'ceph-radosgw']
 LOG_PATH_KEY = 'cortx>common>storage>log'
 CONFIG_PATH_KEY = 'cortx>common>storage>config'
 RGW_ADMIN_PARAMETERS = {'ADMIN_MOTR_FID':'admin motr fid', 'ADMIN_MOTR_ENDPOINT':'admin motr endpoint'}
