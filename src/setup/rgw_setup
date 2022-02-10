@@ -110,6 +110,21 @@ class InitCmd(SetupCmdBase):
         return rc
 
 
+class StartCmd(SetupCmdBase):
+    """Start Setup Cmd."""
+    name = 'start'
+
+    def __init__(self, args):
+        """Initialize super class members."""
+        super().__init__(args)
+
+    def process(self):
+        self._initialize_logging(self._conf)
+        Rgw.validate('start')
+        rc = Rgw.start(self._conf)
+        return rc
+
+
 class TestCmd(SetupCmdBase):
     """Test Setup Cmd."""
     name = 'test'

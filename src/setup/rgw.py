@@ -114,10 +114,10 @@ class Rgw:
         return 0
 
     @staticmethod
-    def init(conf: MappedConf):
-        """Perform initialization."""
+    def start(conf: MappedConf):
+        """Create rgw admin user and start rgw service."""
 
-        Log.info('Init phase started.')
+        Log.info('Create rgw admin user and start rgw service.')
         # TODO: Create admin user.
         # admin user should be created only on one node.
         # 1. While creating admin user, global lock created in consul kv store.
@@ -177,6 +177,20 @@ class Rgw:
             Log.debug(f'Deleting rgw_lock key {rgw_lock_key}.')
             Conf.delete(rgw_consul_idx, rgw_lock_key)
             Log.info(f'{rgw_lock_key} key is deleted')
+
+        Log.info('Starting radosgw service.')
+        try:
+            os.system("sh /opt/seagate/cortx/rgw/bin/rgw_service")
+        except OSError as e:
+            Log.error(f"Failed to start radosgw service:{e}")
+            raise SetupError(e.errno, 'Failed to start radosgw service. %s', e)
+        Log.info('Started radosgw service.')
+
+        return 0
+
+    @staticmethod
+    def init(conf: MappedConf):
+        """Perform initialization."""
 
         Log.info('Init phase completed.')
         return 0
