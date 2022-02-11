@@ -25,7 +25,6 @@ from cortx.utils.conf_store.error import ConfError
 from cortx.utils.process import SimpleProcess
 from cortx.utils.log import Log
 from src.setup.error import SetupError
-from src.setup.rgw_start import RgwStart
 from src.const import (
     REQUIRED_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
     COMPONENT_NAME, RGW_ADMIN_PARAMETERS, RgwEndpoint)
@@ -115,10 +114,10 @@ class Rgw:
         return 0
 
     @staticmethod
-    def start(conf: MappedConf):
-        """Create rgw admin user and start rgw service."""
+    def init(conf: MappedConf):
+        """Perform initialization."""
 
-        Log.info('Create rgw admin user and start rgw service.')
+        Log.info('Init phase started.')
         # TODO: Create admin user.
         # admin user should be created only on one node.
         # 1. While creating admin user, global lock created in consul kv store.
@@ -178,14 +177,6 @@ class Rgw:
             Log.debug(f'Deleting rgw_lock key {rgw_lock_key}.')
             Conf.delete(rgw_consul_idx, rgw_lock_key)
             Log.info(f'{rgw_lock_key} key is deleted')
-
-        RgwStart.start_rgw(conf)
-
-        return 0
-
-    @staticmethod
-    def init(conf: MappedConf):
-        """Perform initialization."""
 
         Log.info('Init phase completed.')
         return 0
