@@ -28,9 +28,16 @@ RGW_CONF_FILE = f'cortx_{COMPONENT_NAME}.conf'
 # e.g. RGW_CONFI_FILE path will be cortx_rgw.conf
 CRASHDUMP_DIR = '/var/lib/ceph/crash'
 REQUIRED_RPMS = ['cortx-hare', 'cortx-py-utils', 'ceph-radosgw']
+RGW_ADMIN_PARAMETERS = {'MOTR_ADMIN_FID':'motr admin fid', 'MOTR_ADMIN_ENDPOINT':'motr admin endpoint'}
+
+
+# CORTX cluster confstore keys
 LOG_PATH_KEY = 'cortx>common>storage>log'
 CONFIG_PATH_KEY = 'cortx>common>storage>config'
-RGW_ADMIN_PARAMETERS = {'MOTR_ADMIN_FID':'motr admin fid', 'MOTR_ADMIN_ENDPOINT':'motr admin endpoint'}
+TOTAL_CLIENTS_KEY = 'cortx>motr>num_clients'
+CLIENT_INSTANCE_NAME_KEY = 'cortx>motr>clients[%s]>name'
+CLIENT_INSTANCE_NUMBER_KEY = 'cortx>motr>clients[%s]>num_instances'
+CONSUL_ENDPOINT_KEY = 'cortx>external>consul>endpoints'
 
 class RgwEndpoint(Enum):
     """Enum class to define rgw endpoints provided by hare."""
@@ -40,3 +47,4 @@ class RgwEndpoint(Enum):
     MOTR_CLIENT_EP   = 'motr my endpoint'
     MOTR_PROCESS_FID = 'motr my fid'
     MOTR_CLIENT_PORT = 'motr client port'
+
