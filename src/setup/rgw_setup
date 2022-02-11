@@ -37,7 +37,7 @@ class SetupCmdBase(Cmd):
 
     def add_args(parser):
         parser.add_argument('--services', default='services', help='services')
-        parser.add_argument('--config', default='config_url', help='config')
+        parser.add_argument('-c', '--config', default='config_url', help='config')
 
     def _initialize_logging(self, conf: MappedConf):
         """Initialize Logging."""

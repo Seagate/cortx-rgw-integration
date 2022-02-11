@@ -25,6 +25,7 @@ from cortx.utils.conf_store.error import ConfError
 from cortx.utils.process import SimpleProcess
 from cortx.utils.log import Log
 from src.setup.error import SetupError
+from src.setup.rgw_start import RgwStart
 from src.const import (
     REQUIRED_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
     COMPONENT_NAME, RGW_ADMIN_PARAMETERS, RgwEndpoint)
@@ -178,13 +179,7 @@ class Rgw:
             Conf.delete(rgw_consul_idx, rgw_lock_key)
             Log.info(f'{rgw_lock_key} key is deleted')
 
-        Log.info('Starting radosgw service.')
-        try:
-            os.system("sh /opt/seagate/cortx/rgw/bin/rgw_service")
-        except OSError as e:
-            Log.error(f"Failed to start radosgw service:{e}")
-            raise SetupError(e.errno, 'Failed to start radosgw service. %s', e)
-        Log.info('Started radosgw service.')
+        RgwStart.start_rgw(conf)
 
         return 0
 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/python3
 
 # Copyright (c) 2022 Seagate Technology LLC and/or its Affiliates
 # This program is free software: you can redistribute it and/or modify
@@ -14,10 +14,23 @@
 # For any questions about this software or licensing,
 # please email opensource@seagate.com or cortx-questions@seagate.com.
 
-function start_rgw {
-  machine_id=$(cat /etc/machine-id)
-  # TODO: To use log dir from config
-  exec sudo /usr/bin/radosgw -f --name client.rgw -c /etc/cortx/rgw/"$machine_id"/cortx_rgw.conf --no-mon-config &> /var/log/ceph/rgw.log &
-}
+import os
+from cortx.utils.log import Log
+from src.setup.error import SetupError
+from cortx.utils.conf_store import MappedConf
 
-start_rgw
+
+class RgwStart:
+    """Entrypoint class for RGW."""
+
+    @staticmethod
+    def start_rgw(conf: MappedConf):
+        """Start rgw service independently."""
+        Log.info('Starting radosgw service.')
+        try:
+            # TODO: To replace os.system with SimpleProcess calls
+            os.system(f"sh /opt/seagate/cortx/rgw/bin/rgw_service")
+        except OSError as e:
+            Log.error(f"Failed to start radosgw service:{e}")
+            raise SetupError(e.errno, 'Failed to start radosgw service. %s', e)
+        Log.info('Started radosgw service.')
