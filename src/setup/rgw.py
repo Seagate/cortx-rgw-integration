@@ -356,7 +356,7 @@ class Rgw:
         Conf.set(Rgw._rgw_conf_idx, f'client>{RGW_ADMIN_PARAMETERS["ADMIN_MOTR_FID"]}',
             endpoints[RgwEndpoint.MOTR_PROCESS_FID.name])
         Conf.set(Rgw._rgw_conf_idx, f'client>{RGW_ADMIN_PARAMETERS["ADMIN_MOTR_ENDPOINT"]}',
-            endpoints[RgwEndpoint.MOTR_RGW_EP.name])
+            endpoints[RgwEndpoint.MOTR_CLIENT_EP.name])
 
         Conf.save(Rgw._rgw_conf_idx)
 
