@@ -29,7 +29,7 @@ class RgwStart:
         Log.info('Starting radosgw service.')
         try:
             # TODO: To replace os.system with SimpleProcess calls
-            os.system(f"sh /opt/seagate/cortx/rgw/bin/rgw_service")
+            os.system("sh /opt/seagate/cortx/rgw/bin/rgw_service")
         except OSError as e:
             Log.error(f"Failed to start radosgw service:{e}")
             raise SetupError(e.errno, 'Failed to start radosgw service. %s', e)
