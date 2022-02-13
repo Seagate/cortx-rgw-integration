@@ -1,0 +1,4 @@
+# Git ignore list of rgw files
+build/
+cortx_rgw_integration.egg-info/
+dist/
