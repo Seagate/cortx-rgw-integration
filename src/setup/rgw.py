@@ -303,7 +303,7 @@ class Rgw:
             raise SetupError(errno.EINVAL, f'auth_secret decryption failed. {e}')
         rgw_config = Rgw._get_rgw_config_path(conf)
         create_usr_cmd = f'sudo radosgw-admin user create --uid={user_name} --access-key \
-            {access_key} --secret {password} --display-name="{user_name}" \
+            {access_key} --secret {auth_secret} --display-name="{user_name}" \
             --caps="users=*;metadata=*;usage=*;zone=*" \
             -c {rgw_config} -n client.radosgw-admin --no-mon-config'
         _, err, rc, = SimpleProcess(create_usr_cmd).run()
