@@ -179,6 +179,9 @@ class Rgw:
             Conf.delete(rgw_consul_idx, rgw_lock_key)
             Log.info(f'{rgw_lock_key} key is deleted')
 
+        # For reusing the same motr endpoint, hax needs 30 sec time to sync & release
+        # for re-use by other process like radosgw here.
+        time.sleep(30)
         RgwStart.start_rgw(conf)
 
         return 0
