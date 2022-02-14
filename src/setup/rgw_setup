@@ -38,6 +38,7 @@ class SetupCmdBase(Cmd):
     def add_args(parser):
         parser.add_argument('--services', default='services', help='services')
         parser.add_argument('-c', '--config', default='config_url', help='config')
+        parser.add_argument('--index', default='1', help='index')
 
     def _initialize_logging(self, conf: MappedConf):
         """Initialize Logging."""
@@ -117,11 +118,12 @@ class StartCmd(SetupCmdBase):
     def __init__(self, args):
         """Initialize super class members."""
         super().__init__(args)
+        self._index = args.index
 
     def process(self):
         self._initialize_logging(self._conf)
         Rgw.validate('start')
-        rc = Rgw.start(self._conf)
+        rc = Rgw.start(self._conf, self._index)
         return rc
 
 
