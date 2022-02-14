@@ -30,7 +30,7 @@ from cortx.utils.process import SimpleProcess
 from cortx.utils.conf_store.conf_store import Conf, MappedConf
 from src.const import (
     CONFIG_PATH_KEY, LOG_PATH_KEY, COMPONENT_NAME,
-    RGW_CONF_FILE, RGW_CRASHDUMP_DIR)
+    RGW_CONF_FILE, CRASHDUMP_DIR)
 
 
 class SupportBundleError(BaseError):
@@ -79,8 +79,8 @@ class RGWSupportBundle:
 
         # copy ceph crash-dump files
         if coredumps:
-            if os.path.exists(RGW_CRASHDUMP_DIR):
-                shutil.copytree(RGW_CRASHDUMP_DIR,\
+            if os.path.exists(CRASHDUMP_DIR):
+                shutil.copytree(CRASHDUMP_DIR,\
                     os.path.join(RGWSupportBundle._tmp_src, 'crash'))
 
         # add cortx components rpm version
