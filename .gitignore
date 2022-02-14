@@ -1,0 +1,6 @@
+# Git ignore list of rgw files
+# below are the directories generated as a part of rpm build process,
+# hence we can ignore them.
+build/
+cortx_rgw_integration.egg-info/
+dist/
