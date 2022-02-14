@@ -28,7 +28,7 @@ RGW_CONF_FILE = f'cortx_{COMPONENT_NAME}.conf'
 REQUIRED_RPMS = ['cortx-hare', 'cortx-py-utils', 'ceph-radosgw']
 LOG_PATH_KEY = 'cortx>common>storage>log'
 CONFIG_PATH_KEY = 'cortx>common>storage>config'
-RGW_ADMIN_PARAMETERS = {'ADMIN_MOTR_FID':'admin motr fid', 'ADMIN_MOTR_ENDPOINT':'admin motr endpoint'}
+RGW_ADMIN_PARAMETERS = {'MOTR_ADMIN_FID':'motr admin fid', 'MOTR_ADMIN_ENDPOINT':'motr admin endpoint'}
 
 class RgwEndpoint(Enum):
     """Enum class to define rgw endpoints provided by hare."""

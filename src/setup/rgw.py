@@ -353,9 +353,9 @@ class Rgw:
         for ep_value, key in RgwEndpoint._value2member_map_.items() :
             Conf.set(Rgw._rgw_conf_idx, f'client>{ep_value}', endpoints[key.name])
 
-        Conf.set(Rgw._rgw_conf_idx, f'client>{RGW_ADMIN_PARAMETERS["ADMIN_MOTR_FID"]}',
+        Conf.set(Rgw._rgw_conf_idx, f'client>{RGW_ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}',
             endpoints[RgwEndpoint.MOTR_PROCESS_FID.name])
-        Conf.set(Rgw._rgw_conf_idx, f'client>{RGW_ADMIN_PARAMETERS["ADMIN_MOTR_ENDPOINT"]}',
+        Conf.set(Rgw._rgw_conf_idx, f'client>{RGW_ADMIN_PARAMETERS["MOTR_ADMIN_ENDPOINT"]}',
             endpoints[RgwEndpoint.MOTR_CLIENT_EP.name])
 
         Conf.save(Rgw._rgw_conf_idx)
