@@ -52,15 +52,15 @@ class RGWSupportBundle:
         cortx_config_store = MappedConf(cluster_conf)
         log_base = cortx_config_store.get(LOG_PATH_KEY)
         config_path = cortx_config_store.get(CONFIG_PATH_KEY)
-        rgw_config_dir = os.path.join(config_path, COMPONENT_NAME, machine_id)
-        rgw_config_file = os.path.join(rgw_config_dir, RGW_CONF_FILE)
+        config_dir = os.path.join(config_path, COMPONENT_NAME, machine_id)
+        config_file = os.path.join(config_dir, RGW_CONF_FILE)
 
         if os.path.exists(RGWSupportBundle._tmp_src):
             RGWSupportBundle._cleanup()
         os.makedirs(RGWSupportBundle._tmp_src, exist_ok=True)
         # copy configuration files
         try:
-            shutil.copyfile(rgw_config_file,\
+            shutil.copyfile(config_file,\
                 os.path.join(RGWSupportBundle._tmp_src, RGW_CONF_FILE))
         except FileNotFoundError as fe:
             raise SupportBundleError(errno.ENOENT, "File not found %s", fe)
