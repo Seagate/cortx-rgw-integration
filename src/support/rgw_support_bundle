@@ -28,6 +28,9 @@ import argparse
 from cortx.utils.errors import BaseError
 from cortx.utils.process import SimpleProcess
 from cortx.utils.conf_store.conf_store import Conf, MappedConf
+from src.const import (
+    CONFIG_PATH_KEY, LOG_PATH_KEY, COMPONENT_NAME,
+    RGW_CONF_FILE, CRASHDUMP_DIR)
 
 
 class SupportBundleError(BaseError):
@@ -39,32 +42,33 @@ class SupportBundleError(BaseError):
 
 class RGWSupportBundle:
     """Generate rgw specific support bundle."""
-    _ceph_conf_file = '/etc/ceph/ceph.conf'
-    _ceph_crashdump_dir = '/var/log/ceph/crash'
     _tmp_src = '/tmp/rgw/'
 
     @staticmethod
     def generate(bundle_id: str, target_path: str, cluster_conf: str, **filters):
         """ Generate a tar file. """
         coredumps = filters.get('coredumps', False)
-        cortx_config_store = MappedConf(cluster_conf)
-        log_base = cortx_config_store.get('cortx>common>storage>log')
         machine_id = Conf.machine_id
+        cortx_config_store = MappedConf(cluster_conf)
+        log_base = cortx_config_store.get(LOG_PATH_KEY)
+        config_path = cortx_config_store.get(CONFIG_PATH_KEY)
+        config_dir = os.path.join(config_path, COMPONENT_NAME, machine_id)
+        config_file = os.path.join(config_dir, RGW_CONF_FILE)
 
         if os.path.exists(RGWSupportBundle._tmp_src):
             RGWSupportBundle._cleanup()
         os.makedirs(RGWSupportBundle._tmp_src, exist_ok=True)
         # copy configuration files
         try:
-            shutil.copyfile(RGWSupportBundle._ceph_conf_file,\
-                os.path.join(RGWSupportBundle._tmp_src, 'ceph.conf'))
+            shutil.copyfile(config_file,\
+                os.path.join(RGWSupportBundle._tmp_src, RGW_CONF_FILE))
         except FileNotFoundError as fe:
             raise SupportBundleError(errno.ENOENT, "File not found %s", fe)
 
         # copy rgw client log files
         log_dir = os.path.join(log_base, f'rgw/{machine_id}')
         if os.path.exists(log_dir):
-            regex = re.compile('(rgw.client.*log)')
+            regex = re.compile('(rgw.client.*log)|(rgw_setup.*log)')
             for file in os.listdir(log_dir):
                 if regex.match(file):
                     infile = os.path.join(log_dir, file)
@@ -75,8 +79,8 @@ class RGWSupportBundle:
 
         # copy ceph crash-dump files
         if coredumps:
-            if os.path.exists(RGWSupportBundle._ceph_crashdump_dir):
-                shutil.copytree(RGWSupportBundle._ceph_crashdump_dir,\
+            if os.path.exists(CRASHDUMP_DIR):
+                shutil.copytree(CRASHDUMP_DIR,\
                     os.path.join(RGWSupportBundle._tmp_src, 'crash'))
 
         # add cortx components rpm version

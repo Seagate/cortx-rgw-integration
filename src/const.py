@@ -25,6 +25,7 @@ RGW_CONF_TMPL = f'{RGW_INSTALL_PATH}/conf/cortx_{COMPONENT_NAME}.conf'
 # e.g RGW_CONF_TMPL will be /opt/seagate/cortx/rgw/cof/cortx_rgw.conf
 RGW_CONF_FILE = f'cortx_{COMPONENT_NAME}.conf'
 # e.g. RGW_CONFI_FILE path will be cortx_rgw.conf
+CRASHDUMP_DIR = '/var/lib/ceph/crash'
 REQUIRED_RPMS = ['cortx-hare', 'cortx-py-utils', 'ceph-radosgw']
 LOG_PATH_KEY = 'cortx>common>storage>log'
 CONFIG_PATH_KEY = 'cortx>common>storage>config'
