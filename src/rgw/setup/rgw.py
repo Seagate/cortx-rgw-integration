@@ -24,9 +24,9 @@ from cortx.utils.conf_store import Conf, MappedConf
 from cortx.utils.conf_store.error import ConfError
 from cortx.utils.process import SimpleProcess
 from cortx.utils.log import Log
-from src.setup.error import SetupError
-from src.setup.rgw_start import RgwStart
-from src.const import (
+from cortx.rgw.setup.error import SetupError
+from cortx.rgw.setup.rgw_start import RgwStart
+from cortx.rgw.const import (
     REQUIRED_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
     COMPONENT_NAME, RGW_ADMIN_PARAMETERS, RgwEndpoint)
 

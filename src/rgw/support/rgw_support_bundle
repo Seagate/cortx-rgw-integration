@@ -28,7 +28,7 @@ import argparse
 from cortx.utils.errors import BaseError
 from cortx.utils.process import SimpleProcess
 from cortx.utils.conf_store.conf_store import Conf, MappedConf
-from src.const import (
+from cortx.rgw.const import (
     CONFIG_PATH_KEY, LOG_PATH_KEY, COMPONENT_NAME,
     RGW_CONF_FILE, CRASHDUMP_DIR)
 

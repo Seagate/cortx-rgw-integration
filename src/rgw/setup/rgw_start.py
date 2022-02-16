@@ -16,7 +16,7 @@
 
 import os
 from cortx.utils.log import Log
-from src.setup.error import SetupError
+from cortx.rgw.setup.error import SetupError
 from cortx.utils.conf_store import MappedConf
 
 

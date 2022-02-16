@@ -16,7 +16,7 @@
 
 import os
 import glob
-from setuptools import setup, find_packages
+from setuptools import setup
 import sys
 
 RGW_INSTALL_PATH="/opt/seagate/cortx/rgw"
@@ -42,11 +42,11 @@ setup(name='cortx-rgw-integration',
       license='Seagate',
       description='RGW integration code for CORTX',
       package_dir={'cortx': 'src'},
-      packages=find_packages(),
+      packages=['cortx.rgw',
+      'cortx.rgw.setup', 'cortx.rgw.support',
+      ],
       package_data={
         'cortx': ['py.typed'],
-        'cortx.src.setup': ['*.py'],
-        'cortx.src.support': ['*.py'],
       },
       long_description=long_description,
       zip_safe=False,
@@ -59,8 +59,8 @@ setup(name='cortx-rgw-integration',
       },
       data_files =[ ('%s/mini-provisioner' % RGW_INSTALL_PATH, mini_prov_files),
                     ('%s/bin' % RGW_INSTALL_PATH,
-                    ['src/setup/rgw_setup', 'src/support/rgw_support_bundle',
-                     'src/setup/rgw_service']),
+                    ['src/rgw/setup/rgw_setup', 'src/rgw/support/rgw_support_bundle',
+                     'src/rgw/setup/rgw_service']),
                     ('%s/mini-provisioner' % RGW_INSTALL_PATH,['VERSION']),
                     ('%s/conf' % RGW_INSTALL_PATH,['conf/cortx_rgw.conf'])
                   ],
