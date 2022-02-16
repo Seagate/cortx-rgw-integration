@@ -292,6 +292,7 @@ class Rgw:
         rgw_config = Rgw._get_rgw_config_path(conf)
         create_usr_cmd = f'sudo radosgw-admin user create --uid={user_name} --access-key \
             {access_key} --secret {password} --display-name="{user_name}" \
+            --caps="users=*;metadata=*;usage=*;zone=*" \
             -c {rgw_config} --no-mon-config'
         _, err, rc, = SimpleProcess(create_usr_cmd).run()
         if rc == 0:
