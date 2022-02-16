@@ -29,7 +29,7 @@ from src.setup.error import SetupError
 from src.setup.rgw_start import RgwStart
 from src.const import (
     REQUIRED_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
-    COMPONENT_NAME, RGW_ADMIN_PARAMETERS, PWD_DECRYPTION_KEY, RgwEndpoint)
+    COMPONENT_NAME, RGW_ADMIN_PARAMETERS, DECRYPTION_KEY, RgwEndpoint)
 
 
 class Rgw:
@@ -284,7 +284,7 @@ class Rgw:
             cluster_id = conf.get('cluster>id')
             if cluster_id is None:
                 raise SetupError(errno.EINVAL, 'cluster id is None')
-            cipher_key = Cipher.gen_key(cluster_id, PWD_DECRYPTION_KEY)
+            cipher_key = Cipher.gen_key(cluster_id, DECRYPTION_KEY)
             password = Cipher.decrypt(cipher_key, auth_secret.encode('utf-8'))
             password = password.decode('utf-8')
         except CipherInvalidToken as e:
