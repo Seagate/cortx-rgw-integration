@@ -24,11 +24,12 @@ from cortx.utils.conf_store import Conf, MappedConf
 from cortx.utils.conf_store.error import ConfError
 from cortx.utils.process import SimpleProcess
 from cortx.utils.log import Log
+from cortx.utils.security.cipher import Cipher, CipherInvalidToken
 from src.setup.error import SetupError
 from src.setup.rgw_start import RgwStart
 from src.const import (
     REQUIRED_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
-    COMPONENT_NAME, RGW_ADMIN_PARAMETERS, RgwEndpoint)
+    COMPONENT_NAME, RGW_ADMIN_PARAMETERS, DECRYPTION_KEY, RgwEndpoint)
 
 
 class Rgw:
@@ -278,9 +279,19 @@ class Rgw:
         access_key = conf.get(f'cortx>{COMPONENT_NAME}>auth_admin')
         auth_secret = conf.get(f'cortx>{COMPONENT_NAME}>auth_secret')
         err_str = f'user: {user_name} exists'
+        # decrypt secret key.
+        try:
+            cluster_id = conf.get('cluster>id')
+            if cluster_id is None:
+                raise SetupError(errno.EINVAL, 'cluster id is None')
+            cipher_key = Cipher.gen_key(cluster_id, DECRYPTION_KEY)
+            password = Cipher.decrypt(cipher_key, auth_secret.encode('utf-8'))
+            password = password.decode('utf-8')
+        except CipherInvalidToken as e:
+            raise SetupError(errno.EINVAL, f'auth_secret decryption failed. {e}')
         rgw_config = Rgw._get_rgw_config_path(conf)
         create_usr_cmd = f'sudo radosgw-admin user create --uid={user_name} --access-key \
-            {access_key} --secret {auth_secret} --display-name="{user_name}" \
+            {access_key} --secret {password} --display-name="{user_name}" \
             -c {rgw_config} --no-mon-config'
         _, err, rc, = SimpleProcess(create_usr_cmd).run()
         if rc == 0:
