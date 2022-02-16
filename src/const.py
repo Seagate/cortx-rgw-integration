@@ -17,6 +17,7 @@
 from enum import Enum
 
 COMPONENT_NAME = 'rgw'
+PWD_DECRYPTION_KEY = 'cortx'
 SERVICE_NAME = f'{COMPONENT_NAME}_setup' # rgw_setup
 INSTALL_PATH = '/opt/seagate/cortx'
 RGW_INSTALL_PATH = f'{INSTALL_PATH}/{COMPONENT_NAME}'
