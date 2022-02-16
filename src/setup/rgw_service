@@ -40,3 +40,6 @@ done
 function start_rgw {
   machine_id=$(cat /etc/machine-id)
   exec sudo /usr/bin/radosgw -f --name client.rgw-"$index" -c "$rgw_config_file" --no-mon-config &> "$log_file" &
+}
+
+start_rgw
