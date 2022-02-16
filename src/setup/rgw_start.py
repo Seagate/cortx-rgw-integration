@@ -24,12 +24,12 @@ class RgwStart:
     """Entrypoint class for RGW."""
 
     @staticmethod
-    def start_rgw(conf: MappedConf, index: str = '1'):
+    def start_rgw(conf: MappedConf, config_file, log_file, index: str = '1',):
         """Start rgw service independently."""
         Log.info("Starting radosgw service.")
         try:
             # TODO: To replace os.system with SimpleProcess calls
-            os.system(f"sh /opt/seagate/cortx/rgw/bin/rgw_service {index}")
+            os.system(f"sh /opt/seagate/cortx/rgw/bin/rgw_service -i {index} -c {config_file} -l {log_file}")
         except OSError as e:
             Log.error(f"Failed to start radosgw service:{e}")
             raise SetupError(e.errno, "Failed to start radosgw service. %s", e)
