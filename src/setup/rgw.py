@@ -19,6 +19,8 @@ import time
 import errno
 import glob
 from urllib.parse import urlparse
+from cortx.utils.security.certificate import Certificate
+from cortx.utils.errors import SSLCertificateError
 from cortx.utils.validator.v_pkg import PkgV
 from cortx.utils.conf_store import Conf, MappedConf
 from cortx.utils.conf_store.error import ConfError
@@ -30,7 +32,8 @@ from src.setup.rgw_start import RgwStart
 from src.const import (
     REQUIRED_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
     CLIENT_INSTANCE_NAME_KEY, CLIENT_INSTANCE_NUMBER_KEY, CONSUL_ENDPOINT_KEY,
-    COMPONENT_NAME, ADMIN_PARAMETERS, LOG_PATH_KEY, DECRYPTION_KEY, RgwEndpoint)
+    COMPONENT_NAME, ADMIN_PARAMETERS, LOG_PATH_KEY, DECRYPTION_KEY,
+    SSL_CERT_CONFIGS, SSL_DNS_LIST, RgwEndpoint)
 
 
 class Rgw:
@@ -92,6 +95,9 @@ class Rgw:
         """Performs configurations."""
 
         Log.info('Config phase started.')
+
+        # Create ssl certificate
+        Rgw._generate_ssl_cert(conf)
 
         Log.info('create symbolic link of FID config files started')
         sysconfig_file_path = Rgw._get_sysconfig_file_path(conf)
@@ -399,9 +405,13 @@ class Rgw:
         # TODO: read port value from endpoint url define in cluster.conf
         port = 8000
         port = port + (instance - 1)
+        ssl_port = 8443
+        ssl_port = ssl_port + (instance - 1)
+        ssl_cert_path = Rgw._get_cortx_conf(conf, 'cortx>common>security>ssl_certificate')
         Conf.set(
             Rgw._rgw_conf_idx,
-            f'client.rgw-{instance}>{ADMIN_PARAMETERS["RGW_FRONTENDS"]}', f'beast port={port}')
+            f'client.rgw-{instance}>{ADMIN_PARAMETERS["RGW_FRONTENDS"]}',
+            f'beast port={port} ssl_port={ssl_port} ssl_certificate={ssl_cert_path}, ssl_private_key={ssl_cert_path}')
         Conf.save(Rgw._rgw_conf_idx)
 
     @staticmethod
@@ -442,9 +452,29 @@ class Rgw:
             client_idx = client_idx + 1
         return num_instances
 
+    @staticmethod
     def _get_cortx_conf(conf: MappedConf, key: str):
         """Read value from cluster config for given key"""
         val = conf.get(key)
         if val is None:
             raise SetupError(errno.EINVAL, f'Value for {key} key is None.')
         return val
+
+    @staticmethod
+    def _generate_ssl_cert(conf: MappedConf):
+        """Generate SSL certificate."""
+        ssl_cert_path = Rgw._get_cortx_conf(conf, 'cortx>common>security>ssl_certificate')
+        endpoints = Rgw._get_cortx_conf(conf, 'cortx>rgw>s3>endpoints')
+        https_endpoints = list(filter(lambda x: urlparse(x).scheme == 'https', endpoints))
+        if len(https_endpoints) > 0 and not os.path.exists(ssl_cert_path):
+            # Generate SSL cert.
+            Log.info(f'"https" is enabled and SSL certificate is not present at {ssl_cert_path}.')
+            Log.info('Generating SSL certificate.')
+            try:
+                SSL_DNS_LIST.append(urlparse(https_endpoints[0]).hostname)
+                ssl_cert_configs = SSL_CERT_CONFIGS
+                ssl_cert_obj = Certificate.init('ssl')
+                ssl_cert_obj.generate(
+                    cert_path=ssl_cert_path, dns_list=SSL_DNS_LIST, **ssl_cert_configs)
+            except SSLCertificateError as e:
+                raise SetupError(errno.EINVAL, f'Failed to generate self signed ssl certificate: {e}')

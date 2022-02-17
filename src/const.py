@@ -37,6 +37,11 @@ CLIENT_INSTANCE_NAME_KEY = 'cortx>motr>clients[%s]>name'
 CLIENT_INSTANCE_NUMBER_KEY = 'cortx>motr>clients[%s]>num_instances'
 CONSUL_ENDPOINT_KEY = 'cortx>external>consul>endpoints'
 
+# SSL certificate parameters
+SSL_CERT_CONFIGS = {"country" : "IN", "state" : "MH", "locality" : "Pune",
+    "organization" : "Seagate Technology", "CN" : "seagate.com"}
+SSL_DNS_LIST = [u'*.seagate.com', u'localhost', u'*.localhost']
+
 class RgwEndpoint(Enum):
     """Enum class to define rgw endpoints provided by hare."""
 
