@@ -29,7 +29,8 @@ from src.setup.error import SetupError
 from src.setup.rgw_start import RgwStart
 from src.const import (
     REQUIRED_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
-    COMPONENT_NAME, RGW_ADMIN_PARAMETERS, DECRYPTION_KEY, RgwEndpoint)
+    CLIENT_INSTANCE_NAME_KEY, CLIENT_INSTANCE_NUMBER_KEY, CONSUL_ENDPOINT_KEY,
+    COMPONENT_NAME, ADMIN_PARAMETERS, LOG_PATH_KEY, DECRYPTION_KEY, RgwEndpoint)
 
 
 class Rgw:
@@ -93,34 +94,36 @@ class Rgw:
         Log.info('Config phase started.')
 
         Log.info('create symbolic link of FID config files started')
-        Rgw._create_symbolic_link_fid(conf)
+        sysconfig_file_path = Rgw._get_sysconfig_file_path(conf)
+        client_instance_count = Rgw._get_num_client_instances(conf)
+        Rgw._create_symbolic_link_fid(client_instance_count, sysconfig_file_path)
         Log.info('create symbolic link of FID config files completed')
         Log.info('fetching endpoint values from hare sysconfig file.')
         # For running rgw service and radosgw-admin tool,
         # we are using same endpoints mentioned in first symlink file 'rgw-1' as default endpoints,
         # given radosgw-admin tool & rgw service not expected to run simultaneously.
-        # Radosgw-admin is used only in mini provisioner phase i.e in Init container,
-        # and then later rgw service container boots up.
-        # TODO : explore on index based symlinks, to span across multiple instances,
-        # even when we plan to use 1 instance of RGW today.
-        rgw_service_endpoints = Rgw._parse_endpoint_values(conf, f'{COMPONENT_NAME}-1')  # e.g.(conf, rgw-1)
 
-        Log.debug('Validating endpoint entries provided by hare sysconfig file')
-        Rgw._validate_endpoint_paramters(rgw_service_endpoints)
-        Log.info('Validated endpoint entries provided by hare sysconfig file successfully.')
+        # Update motr fid,endpoint config in cortx_rgw.conf, based on instance based symlink.
+        instance = 1
+        while instance <= client_instance_count:
+            client_instance_file = sysconfig_file_path + f'/{COMPONENT_NAME}-{instance}'
+            service_endpoints = Rgw._parse_endpoint_values(client_instance_file)  # e.g.(rgw-1)
+            Log.debug(f'Validating endpoint entries provided by "{client_instance_file}" file.')
+            Rgw._validate_endpoint_paramters(service_endpoints)
+            Log.info(f'Validated endpoint entries provided by "{client_instance_file}" file successfully.')
 
-        Log.info('updating endpoint values in rgw config file.')
-        Rgw._update_rgw_config_with_endpoints(conf, rgw_service_endpoints)
+            Log.info('Updating endpoint values in rgw config file.')
+            Rgw._update_rgw_config_with_endpoints(conf, service_endpoints, instance)
+            instance = instance + 1
 
         Log.info('Config phase completed.')
         return 0
 
     @staticmethod
-    def start(conf: MappedConf):
+    def start(conf: MappedConf, index: str):
         """Create rgw admin user and start rgw service."""
 
         Log.info('Create rgw admin user and start rgw service.')
-        # TODO: Create admin user.
         # admin user should be created only on one node.
         # 1. While creating admin user, global lock created in consul kv store.
         # (rgw_consul_index, cortx>rgw>volatile>rgw_lock, machine_id)
@@ -183,7 +186,10 @@ class Rgw:
         # For reusing the same motr endpoint, hax needs 30 sec time to sync & release
         # for re-use by other process like radosgw here.
         time.sleep(30)
-        RgwStart.start_rgw(conf)
+        log_path = Rgw._get_log_dir_path(conf)
+        log_file = os.path.join(log_path, f'{COMPONENT_NAME}-{index}')
+        config_file = Rgw._get_rgw_config_path(conf)
+        RgwStart.start_rgw(conf, config_file, log_file, index)
 
         return 0
 
@@ -228,7 +234,7 @@ class Rgw:
     def _get_consul_url(conf: MappedConf, seq: int = 0):
         """Return consul url."""
 
-        endpoints = conf.get('cortx>external>consul>endpoints')
+        endpoints = Rgw._get_cortx_conf(conf, CONSUL_ENDPOINT_KEY)
         http_endpoints = list(filter(lambda x: urlparse(x).scheme == 'http', endpoints))
         if len(http_endpoints) == 0:
             raise SetupError(errno.EINVAL,
@@ -252,7 +258,7 @@ class Rgw:
         try:
             if conf_url is None:
                 raise SetupError(errno.EINVAL, 'Conf url is None.')
-            Conf.load(conf_idx, conf_url, skip_reload=True)
+            Conf.load(conf_idx, conf_url, fail_reload=False)
         except (AssertionError, ConfError) as e:
             raise SetupError(errno.EINVAL,
                 f'Error occurred while adding the key in {conf_url} config. {e}')
@@ -268,22 +274,28 @@ class Rgw:
     @staticmethod
     def _get_rgw_config_dir(conf: MappedConf):
         """Return RGW config directory path."""
-        config_path = conf.get(CONFIG_PATH_KEY)
+        config_path = Rgw._get_cortx_conf(conf, CONFIG_PATH_KEY)
         rgw_config_dir = os.path.join(config_path, COMPONENT_NAME, Rgw._machine_id)
         return rgw_config_dir
 
     @staticmethod
-    def _create_rgw_user(conf):
+    def _get_log_dir_path(conf: MappedConf):
+        """Return log dir path."""
+        log_path = Rgw._get_cortx_conf(conf, LOG_PATH_KEY)
+        log_dir_path = os.path.join(log_path, COMPONENT_NAME, Rgw._machine_id)
+        os.makedirs(log_dir_path, exist_ok=True)
+        return log_dir_path
+
+    @staticmethod
+    def _create_rgw_user(conf: MappedConf):
         """Create RGW admin user."""
-        user_name = conf.get(f'cortx>{COMPONENT_NAME}>auth_user')
-        access_key = conf.get(f'cortx>{COMPONENT_NAME}>auth_admin')
-        auth_secret = conf.get(f'cortx>{COMPONENT_NAME}>auth_secret')
+        user_name = Rgw._get_cortx_conf(conf, f'cortx>{COMPONENT_NAME}>auth_user')
+        access_key = Rgw._get_cortx_conf(conf, f'cortx>{COMPONENT_NAME}>auth_admin')
+        auth_secret = Rgw._get_cortx_conf(conf, f'cortx>{COMPONENT_NAME}>auth_secret')
         err_str = f'user: {user_name} exists'
         # decrypt secret key.
         try:
-            cluster_id = conf.get('cluster>id')
-            if cluster_id is None:
-                raise SetupError(errno.EINVAL, 'cluster id is None')
+            cluster_id = Rgw._get_cortx_conf(conf, 'cluster>id')
             cipher_key = Cipher.gen_key(cluster_id, DECRYPTION_KEY)
             password = Cipher.decrypt(cipher_key, auth_secret.encode('utf-8'))
             password = password.decode('utf-8')
@@ -293,7 +305,7 @@ class Rgw:
         create_usr_cmd = f'sudo radosgw-admin user create --uid={user_name} --access-key \
             {access_key} --secret {password} --display-name="{user_name}" \
             --caps="users=*;metadata=*;usage=*;zone=*" \
-            -c {rgw_config} --no-mon-config'
+            -c {rgw_config} -n client.radosgw-admin --no-mon-config'
         _, err, rc, = SimpleProcess(create_usr_cmd).run()
         if rc == 0:
             Log.info(f'RGW admin user {user_name} is created.')
@@ -305,24 +317,20 @@ class Rgw:
                 raise SetupError(rc, f'"{create_usr_cmd}" failed with error {err}.')
 
     @staticmethod
-    def _create_symbolic_link_fid(conf: MappedConf):
+    def _create_symbolic_link_fid(client_instance_count: int, sysconfig_file_path: str):
         """ Create symbolic link of FID sysconfig files."""
-        base_config_path = conf.get(CONFIG_PATH_KEY)
-        sysconfig_file_path = os.path.join(base_config_path, COMPONENT_NAME,
-            'sysconfig', Rgw._machine_id)
-        file_name = sysconfig_file_path + f'/{COMPONENT_NAME}-0x*'
-        list_matching = []
-        for name in glob.glob(file_name):
-            list_matching.append(name)
-        count = len(list_matching)
+        hare_generated_fid_files = Rgw._get_files(sysconfig_file_path + f'/{COMPONENT_NAME}-0x*')
+        count = len(hare_generated_fid_files)
         Log.info(f'{COMPONENT_NAME} FID file count : {count}')
-        if count < 1:
-           raise Exception(f'HARE-sysconfig file is missing at {sysconfig_file_path}')
+        Log.info(f'Number of {COMPONENT_NAME} client instances - {client_instance_count}')
+        if count < client_instance_count:
+            raise SetupError(errno.EINVAL,
+                f'HARE-sysconfig file does not match {COMPONENT_NAME} client instances.')
 
         # Create symbolic links of rgw-fid files created by hare.
         # e.g rgw-0x7200000000000001\:0x9c -> rgw-1 , rgw-0x7200000000000001\:0x5b -> rgw-2
         index = 1
-        for src_path in list_matching:
+        for src_path in hare_generated_fid_files:
             file_name = f'{COMPONENT_NAME}-' + str(index)      # e.g. rgw-1 for rgw file
             dst_path = os.path.join(sysconfig_file_path, file_name)
             Rgw._create_symbolic_link(src_path, dst_path)
@@ -334,24 +342,20 @@ class Rgw:
         Log.debug(f'symbolic link source path: {src_path}')
         Log.debug(f'symbolic link destination path: {dst_path}')
         if os.path.exists(dst_path):
-           Log.debug('symbolic link is already present')
-           os.unlink(dst_path)
-           Log.debug('symbolic link is unlinked')
+            Log.debug('symbolic link is already present')
+            os.unlink(dst_path)
+            Log.debug('symbolic link is unlinked')
         os.symlink(src_path, dst_path)
         Log.info(f'symbolic link created successfully from {src_path} to {dst_path}')
 
     @staticmethod
-    def _parse_endpoint_values(conf, rgw_instance_name: str):
+    def _parse_endpoint_values(client_instance_file: str):
         """Read sysconfig file generated by hare
-         1) Read symblink file '{rgw_instance_name}' as default endpoints in config phase.
+         1) Read symblink file '{client_instance_file}' as default endpoints in config phase.
          2) fetch endpoint values for running radosgw-admin tool.
         """
-        base_config_path = conf.get(CONFIG_PATH_KEY)
-        sysconfig_file_path = os.path.join(base_config_path, COMPONENT_NAME,
-            'sysconfig', Rgw._machine_id)
-        endpoint_file = os.path.join(sysconfig_file_path, rgw_instance_name)
         endpoints = {}
-        with open(endpoint_file) as ep_file:
+        with open(client_instance_file) as ep_file:
             for line in ep_file:
                 ep_name, ep_value = line.partition('=')[::2]
                 endpoints[ep_name.strip()] = str(ep_value.strip())
@@ -359,27 +363,88 @@ class Rgw:
         return endpoints
 
     @staticmethod
-    def _update_rgw_config_with_endpoints(conf, endpoints: dict):
-        """Update endpoint values to rgw config file."""
+    def _update_rgw_config_with_endpoints(conf: MappedConf, endpoints: dict, instance: int):
+        """Update endpoints,port and log path values to rgw config file."""
         rgw_config_dir = Rgw._get_rgw_config_dir(conf)
         rgw_config_file = os.path.join(rgw_config_dir, RGW_CONF_FILE)
         Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{rgw_config_file}')
+        log_path = Rgw._get_log_dir_path(conf)
+        service_instance_log_file = os.path.join(log_path, f'{COMPONENT_NAME}-{instance}.log')
 
-        for ep_value, key in RgwEndpoint._value2member_map_.items() :
-            Conf.set(Rgw._rgw_conf_idx, f'client>{ep_value}', endpoints[key.name])
+        # Update client.radosgw-admin section only once,
+        # Update this with same config that is define for 1st instance.
+        if instance == 1:
+            radosgw_admin_log_file = os.path.join(
+                log_path, COMPONENT_NAME, Rgw._machine_id, 'radosgw-admin.log')
+            for ep_value, key in RgwEndpoint._value2member_map_.items():
+                Conf.set(Rgw._rgw_conf_idx,
+                    f'client.radosgw-admin>{ep_value}', endpoints[key.name])
+            Conf.set(Rgw._rgw_conf_idx,
+                f'client.radosgw-admin>{ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}',
+                endpoints[RgwEndpoint.MOTR_PROCESS_FID.name])
+            Conf.set(
+                Rgw._rgw_conf_idx,
+                f'client.radosgw-admin>{ADMIN_PARAMETERS["MOTR_ADMIN_ENDPOINT"]}',
+                endpoints[RgwEndpoint.MOTR_CLIENT_EP.name])
+            Conf.set(Rgw._rgw_conf_idx, f'client.radosgw-admin>log file', radosgw_admin_log_file)
 
-        Conf.set(Rgw._rgw_conf_idx, f'client>{RGW_ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}',
-            endpoints[RgwEndpoint.MOTR_PROCESS_FID.name])
-        Conf.set(Rgw._rgw_conf_idx, f'client>{RGW_ADMIN_PARAMETERS["MOTR_ADMIN_ENDPOINT"]}',
-            endpoints[RgwEndpoint.MOTR_CLIENT_EP.name])
-
+        # Create separate section for each service instance in cortx_rgw.conf file.
+        for ep_value, key in RgwEndpoint._value2member_map_.items():
+            Conf.set(Rgw._rgw_conf_idx, f'client.rgw-{instance}>{ep_value}', endpoints[key.name])
+        Conf.set(Rgw._rgw_conf_idx, f'client.rgw-{instance}>log file', service_instance_log_file)
+        # For each instance increase port value by 1.
+        # for eg. for 1st instance. port=8000
+        # for 2nd instance port=8000 + 1
+        # port = <port> + (instance - 1)
+        # TODO: read port value from endpoint url define in cluster.conf
+        port = 8000
+        port = port + (instance - 1)
+        Conf.set(
+            Rgw._rgw_conf_idx,
+            f'client.rgw-{instance}>{ADMIN_PARAMETERS["RGW_FRONTENDS"]}', f'beast port={port}')
         Conf.save(Rgw._rgw_conf_idx)
 
     @staticmethod
     def _validate_endpoint_paramters(endpoints: dict):
         """Validate endpoint values provided by hare sysconfig file."""
 
-        for ep_value, key in  RgwEndpoint._value2member_map_.items() :
+        for ep_value, key in RgwEndpoint._value2member_map_.items():
             if key.name not in endpoints or not endpoints.get(key.name):
-               raise SetupError(errno.EINVAL, f'Failed to validate hare endpoint values.'
-                   f'endpoint {key.name} or its value is not present.')
+                raise SetupError(errno.EINVAL, f'Failed to validate hare endpoint values.'
+                    f'endpoint {key.name} or its value is not present.')
+
+    @staticmethod
+    def _get_files(substr_pattern: str):
+        """Return all files present in path that matches with given pattern."""
+        list_matching = []
+        for name in glob.glob(substr_pattern):
+            list_matching.append(name)
+        return list_matching
+
+    @staticmethod
+    def _get_sysconfig_file_path(conf: MappedConf):
+        """Return hare generated sysconfig file path."""
+        base_config_path = Rgw._get_cortx_conf(conf, CONFIG_PATH_KEY)
+        sysconfig_file_path = os.path.join(base_config_path, COMPONENT_NAME,
+            'sysconfig', Rgw._machine_id)
+        return sysconfig_file_path
+
+    @staticmethod
+    def _get_num_client_instances(conf: MappedConf):
+        """Read number of client instances."""
+        client_idx = 0
+        num_instances = 1
+        while conf.get(CLIENT_INSTANCE_NAME_KEY % client_idx) is not None:
+            name = Rgw._get_cortx_conf(conf, CLIENT_INSTANCE_NAME_KEY % client_idx)
+            if name == COMPONENT_NAME:
+                num_instances = int(Rgw._get_cortx_conf(conf, CLIENT_INSTANCE_NUMBER_KEY % client_idx))
+                break
+            client_idx = client_idx + 1
+        return num_instances
+
+    def _get_cortx_conf(conf: MappedConf, key: str):
+        """Read value from cluster config for given key"""
+        val = conf.get(key)
+        if val is None:
+            raise SetupError(errno.EINVAL, f'Value for {key} key is None.')
+        return val
