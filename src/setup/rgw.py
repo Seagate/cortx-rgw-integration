@@ -295,9 +295,7 @@ class Rgw:
         err_str = f'user: {user_name} exists'
         # decrypt secret key.
         try:
-            cluster_id = conf.get('cluster>id')
-            if cluster_id is None:
-                raise SetupError(errno.EINVAL, 'cluster id is None')
+            cluster_id = Rgw._get_cortx_conf(conf, 'cluster>id')
             cipher_key = Cipher.gen_key(cluster_id, DECRYPTION_KEY)
             password = Cipher.decrypt(cipher_key, auth_secret.encode('utf-8'))
             password = password.decode('utf-8')
@@ -305,7 +303,7 @@ class Rgw:
             raise SetupError(errno.EINVAL, f'auth_secret decryption failed. {e}')
         rgw_config = Rgw._get_rgw_config_path(conf)
         create_usr_cmd = f'sudo radosgw-admin user create --uid={user_name} --access-key \
-            {access_key} --secret {auth_secret} --display-name="{user_name}" \
+            {access_key} --secret {password} --display-name="{user_name}" \
             --caps="users=*;metadata=*;usage=*;zone=*" \
             -c {rgw_config} -n client.radosgw-admin --no-mon-config'
         _, err, rc, = SimpleProcess(create_usr_cmd).run()
@@ -326,7 +324,7 @@ class Rgw:
         Log.info(f'{COMPONENT_NAME} FID file count : {count}')
         Log.info(f'Number of {COMPONENT_NAME} client instances - {client_instance_count}')
         if count < client_instance_count:
-            raise SetupError(
+            raise SetupError(errno.EINVAL,
                 f'HARE-sysconfig file does not match {COMPONENT_NAME} client instances.')
 
         # Create symbolic links of rgw-fid files created by hare.
@@ -437,7 +435,7 @@ class Rgw:
         client_idx = 0
         num_instances = 1
         while conf.get(CLIENT_INSTANCE_NAME_KEY % client_idx) is not None:
-            name = conf.get(CLIENT_INSTANCE_NAME_KEY % client_idx)
+            name = Rgw._get_cortx_conf(conf, CLIENT_INSTANCE_NAME_KEY % client_idx)
             if name == COMPONENT_NAME:
                 num_instances = int(Rgw._get_cortx_conf(conf, CLIENT_INSTANCE_NUMBER_KEY % client_idx))
                 break
