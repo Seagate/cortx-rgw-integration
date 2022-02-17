@@ -23,9 +23,13 @@ INSTALL_PATH = '/opt/seagate/cortx'
 RGW_INSTALL_PATH = f'{INSTALL_PATH}/{COMPONENT_NAME}'
 
 RGW_CONF_TMPL = f'{RGW_INSTALL_PATH}/conf/cortx_{COMPONENT_NAME}.conf'
-# e.g RGW_CONF_TMPL will be /opt/seagate/cortx/rgw/cof/cortx_rgw.conf
+LOGROTATE_TMPL = f'{RGW_INSTALL_PATH}/conf/{COMPONENT_NAME}.logrotate.tmpl'
+# e.g RGW_CONF_TMPL will be /opt/seagate/cortx/rgw/conf/cortx_rgw.conf
+# e.g LOGROTATE_TMPL will be /opt/seagate/cortx/rgw/conf/rgw.logrotate.tmpl
 RGW_CONF_FILE = f'cortx_{COMPONENT_NAME}.conf'
 # e.g. RGW_CONFI_FILE path will be cortx_rgw.conf
+LOGROTATE_DIR = "/etc/logrotate.d"
+LOGROTATE_CONF = f'{LOGROTATE_DIR}/ceph'
 CRASHDUMP_DIR = '/var/lib/ceph/crash'
 REQUIRED_RPMS = ['cortx-hare', 'cortx-py-utils', 'ceph-radosgw']
 ADMIN_PARAMETERS = {'MOTR_ADMIN_FID':'motr admin fid', 'MOTR_ADMIN_ENDPOINT':'motr admin endpoint', 'RGW_FRONTENDS': 'rgw frontends'}

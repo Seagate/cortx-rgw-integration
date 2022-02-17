@@ -33,7 +33,8 @@ from src.const import (
     REQUIRED_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
     CLIENT_INSTANCE_NAME_KEY, CLIENT_INSTANCE_NUMBER_KEY, CONSUL_ENDPOINT_KEY,
     COMPONENT_NAME, ADMIN_PARAMETERS, LOG_PATH_KEY, DECRYPTION_KEY,
-    SSL_CERT_CONFIGS, SSL_DNS_LIST, RgwEndpoint)
+    SSL_CERT_CONFIGS, SSL_DNS_LIST, RgwEndpoint,
+    LOGROTATE_TMPL, LOGROTATE_CONF)
 
 
 class Rgw:
@@ -85,6 +86,8 @@ class Rgw:
 
         except Exception as e:
             raise SetupError(errno.EINVAL, f'Error ocurred while fetching node ip, {e}')
+        Log.info(f'Configure logrotate for {COMPONENT_NAME}')
+        Rgw._logrotate_generic(conf)
 
         Log.info('Prepare phase completed.')
 
@@ -478,3 +481,16 @@ class Rgw:
                     cert_path=ssl_cert_path, dns_list=SSL_DNS_LIST, **ssl_cert_configs)
             except SSLCertificateError as e:
                 raise SetupError(errno.EINVAL, f'Failed to generate self signed ssl certificate: {e}')
+
+    def _logrotate_generic(conf):
+        """ Configure logrotate utility for rgw logs."""
+        log_dir = conf.get(LOG_PATH_KEY)
+        log_file_path = os.path.join(log_dir, COMPONENT_NAME, Rgw._machine_id)
+        try:
+            with open(LOGROTATE_TMPL, 'r') as f:
+                content = f.read()
+            content = content.replace('TMP_LOG_PATH', log_file_path)
+            with open(LOGROTATE_CONF, 'w') as f:
+                f.write(content)
+        except Exception as e:
+            Log.error(f"Failed to configure logrotate for {COMPONENT_NAME}. ERROR:{e}")

@@ -1,0 +1,13 @@
+TMP_LOG_PATH/*.log
+{
+    rotate 7
+    maxsize 50M
+    weekly
+    compress
+    missingok
+    copytruncate
+    postrotate
+        killall -q -1 ceph-mon ceph-mgr ceph-mds ceph-osd ceph-fuse radosgw rbd-mirror cephfs-mirror || pkill -1 -x "ceph-mon|ceph-mgr|ceph-mds|ceph-osd|ceph-fuse|radosgw|rbd-mirror|cephfs-mirror" || true
+    endscript
+    su root ceph
+}
