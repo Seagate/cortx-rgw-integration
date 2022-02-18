@@ -18,6 +18,8 @@ import os
 import time
 import errno
 import glob
+import json
+import socket
 from urllib.parse import urlparse
 from cortx.utils.security.certificate import Certificate
 from cortx.utils.errors import SSLCertificateError
@@ -122,14 +124,30 @@ class Rgw:
             Rgw._update_rgw_config_with_endpoints(conf, service_endpoints, instance)
             instance = instance + 1
 
-        Log.info('Config phase completed.')
-        return 0
+        # Read Motr HA endpoint from data pod using hctl fetch-fids and update in config file
+        Log.info('Reading motr_ha_endpoint from data pod')
+        config_path = Rgw._get_cortx_conf(conf, CONFIG_PATH_KEY)
+        hare_config_dir = os.path.join(config_path, 'hare', 'config', Rgw._machine_id)
+        data_pod_hostname = socket.gethostname().replace('server', 'data')
 
-    @staticmethod
-    def start(conf: MappedConf, index: str):
-        """Create rgw admin user and start rgw service."""
+        fetch_fids_cmd = f'hctl fetch-fids -c {hare_config_dir} --node {data_pod_hostname}'
+        out, err, rc = SimpleProcess(fetch_fids_cmd).run()
+        if rc != 0:
+            Log.error(f'Unable to read fid information for hostname: '
+                f'{data_pod_hostname}. {err}')
+            raise SetupError(rc, 'Unable to read fid information for hostname: '
+                '%s. %s', data_pod_hostname, err)
+        decoded_out = json.loads(out.decode('utf-8'))
+        motr_ha_endpoint = [endpoints['ep'] for endpoints in decoded_out \
+            if 'hax' in endpoints.values()][0]
+        Log.info(f'Fetched motr_ha_endpoint from data pod. Endpoint: {motr_ha_endpoint}')
 
-        Log.info('Create rgw admin user and start rgw service.')
+        rgw_config_path = Rgw._get_rgw_config_path(conf)
+        Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{rgw_config_path}')
+        Conf.set(Rgw._rgw_conf_idx, RgwEndpoint.MOTR_HA_EP.value, motr_ha_endpoint)
+        Conf.save(Rgw._rgw_conf_idx)
+
+        Log.info(f'Updated motr_ha_endpoint in config file {rgw_config_path}')
         # admin user should be created only on one node.
         # 1. While creating admin user, global lock created in consul kv store.
         # (rgw_consul_index, cortx>rgw>volatile>rgw_lock, machine_id)
@@ -151,7 +169,7 @@ class Rgw:
         # it will wait for sometime(time.sleep(3)) and in next iteration all nodes will
         # get lock value as node-id of node who has updated the lock key at last.
         # and then only that node will perform the user creation operation.
-        while(True):
+        while True:
             try:
                 rgw_lock_val = Conf.get(rgw_consul_idx, rgw_lock_key)
                 Log.info(f'rgw_lock value - {rgw_lock_val}')
@@ -189,13 +207,21 @@ class Rgw:
             Conf.delete(rgw_consul_idx, rgw_lock_key)
             Log.info(f'{rgw_lock_key} key is deleted')
 
-        # For reusing the same motr endpoint, hax needs 30 sec time to sync & release
-        # for re-use by other process like radosgw here.
-        time.sleep(30)
+        Log.info('Config phase completed.')
+        return 0
+
+    @staticmethod
+    def start(conf: MappedConf, index: str):
+        """Create rgw admin user and start rgw service."""
+
+        Log.info('Starting radosgw service.')
+
         log_path = Rgw._get_log_dir_path(conf)
         log_file = os.path.join(log_path, f'{COMPONENT_NAME}-{index}')
         config_file = Rgw._get_rgw_config_path(conf)
         RgwStart.start_rgw(conf, config_file, log_file, index)
+
+        Log.info("Started radosgw service.")
 
         return 0
 
