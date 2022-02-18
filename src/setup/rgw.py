@@ -144,7 +144,8 @@ class Rgw:
 
         rgw_config_path = Rgw._get_rgw_config_path(conf)
         Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{rgw_config_path}')
-        Conf.set(Rgw._rgw_conf_idx, RgwEndpoint.MOTR_HA_EP.value, motr_ha_endpoint)
+        Conf.set(Rgw._rgw_conf_idx, \
+            f'client.radosgw-admin>{RgwEndpoint.MOTR_HA_EP.value}', motr_ha_endpoint)
         Conf.save(Rgw._rgw_conf_idx)
 
         Log.info(f'Updated motr_ha_endpoint in config file {rgw_config_path}')
