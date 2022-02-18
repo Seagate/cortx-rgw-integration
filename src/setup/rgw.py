@@ -488,10 +488,11 @@ class Rgw:
         log_file_path = os.path.join(log_dir, COMPONENT_NAME, Rgw._machine_id)
         # rename ceph logrotate file to component's name logrotate.
         # For eg:
-        # '/etc/logrotate.d/ceph' -> '/etc/logrotate.d/cortx_<component_name>'
-        # currently component_name is 'rgw', file='/etc/logrotate.d/cortx_rgw'
+        # '/etc/logrotate.d/ceph' -> '/etc/logrotate.d/radosgw'
+        # currently component_name is 'rgw', file='/etc/logrotate.d/radosgw'
         old_file = os.path.join(LOGROTATE_DIR, 'ceph')
-        os.rename(old_file, LOGROTATE_CONF)
+        new_file = os.path.join(LOGROTATE_DIR, 'radosgw')
+        os.rename(old_file, new_file)
         try:
             with open(LOGROTATE_TMPL, 'r') as f:
                 content = f.read()
