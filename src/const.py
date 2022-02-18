@@ -29,7 +29,7 @@ LOGROTATE_TMPL = f'{RGW_INSTALL_PATH}/conf/{COMPONENT_NAME}.logrotate.tmpl'
 RGW_CONF_FILE = f'cortx_{COMPONENT_NAME}.conf'
 # e.g. RGW_CONFI_FILE path will be cortx_rgw.conf
 LOGROTATE_DIR = "/etc/logrotate.d"
-LOGROTATE_CONF = f'{LOGROTATE_DIR}/cortx_{COMPONENT_NAME}'
+LOGROTATE_CONF = f'{LOGROTATE_DIR}/radosgw'
 CRASHDUMP_DIR = '/var/lib/ceph/crash'
 REQUIRED_RPMS = ['cortx-hare', 'cortx-py-utils', 'ceph-radosgw']
 ADMIN_PARAMETERS = {'MOTR_ADMIN_FID':'motr admin fid', 'MOTR_ADMIN_ENDPOINT':'motr admin endpoint', 'RGW_FRONTENDS': 'rgw frontends'}
