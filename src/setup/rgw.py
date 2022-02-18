@@ -34,7 +34,7 @@ from src.const import (
     CLIENT_INSTANCE_NAME_KEY, CLIENT_INSTANCE_NUMBER_KEY, CONSUL_ENDPOINT_KEY,
     COMPONENT_NAME, ADMIN_PARAMETERS, LOG_PATH_KEY, DECRYPTION_KEY,
     SSL_CERT_CONFIGS, SSL_DNS_LIST, RgwEndpoint,
-    LOGROTATE_TMPL, LOGROTATE_DIR, LOGROTATE_CONF)
+    LOGROTATE_TMPL, LOGROTATE_DIR, LOGROTATE_CONF, BACKEND_STORE)
 
 
 class Rgw:
@@ -99,6 +99,10 @@ class Rgw:
 
         Log.info('Config phase started.')
 
+        config_file = Rgw._get_rgw_config_path(conf)
+        if not os.path.exists(config_file):
+            raise SetupError(errno.EINVAL, f'"{config_file}" config file is not present.')
+
         # Create ssl certificate
         Rgw._generate_ssl_cert(conf)
 
@@ -131,6 +135,13 @@ class Rgw:
     @staticmethod
     def start(conf: MappedConf, index: str):
         """Create rgw admin user and start rgw service."""
+
+        # Before creating user/starting service,Verify backend store value=motr in rgw config file.
+        config_file = Rgw._get_rgw_config_path(conf)
+        Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{config_file}')
+        if not Conf.get(Rgw._rgw_conf_idx, 'client>rgw backend store') == BACKEND_STORE:
+            raise SetupError(errno.EINVAL,
+                f'In {config_file}, "client>rgw backend store" key value should be "{BACKEND_STORE}".')
 
         Log.info('Create rgw admin user and start rgw service.')
         # admin user should be created only on one node.
