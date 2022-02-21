@@ -124,89 +124,24 @@ class Rgw:
             Rgw._update_rgw_config_with_endpoints(conf, service_endpoints, instance)
             instance = instance + 1
 
-        # Read Motr HA endpoint from data pod using hctl fetch-fids and update in config file
-        Log.info('Reading motr_ha_endpoint from data pod')
-        config_path = Rgw._get_cortx_conf(conf, CONFIG_PATH_KEY)
-        hare_config_dir = os.path.join(config_path, 'hare', 'config', Rgw._machine_id)
-        data_pod_hostname = socket.gethostname().replace('server', 'data')
-
-        fetch_fids_cmd = f'hctl fetch-fids -c {hare_config_dir} --node {data_pod_hostname}'
-        out, err, rc = SimpleProcess(fetch_fids_cmd).run()
-        if rc != 0:
-            Log.error(f'Unable to read fid information for hostname: '
-                f'{data_pod_hostname}. {err}')
-            raise SetupError(rc, 'Unable to read fid information for hostname: '
-                '%s. %s', data_pod_hostname, err)
-        decoded_out = json.loads(out.decode('utf-8'))
-        motr_ha_endpoint = [endpoints['ep'] for endpoints in decoded_out \
-            if 'hax' in endpoints.values()][0]
-        Log.info(f'Fetched motr_ha_endpoint from data pod. Endpoint: {motr_ha_endpoint}')
-
-        rgw_config_path = Rgw._get_rgw_config_path(conf)
-        Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{rgw_config_path}')
-        Conf.set(Rgw._rgw_conf_idx, \
-            f'client.radosgw-admin>{RgwEndpoint.MOTR_HA_EP.value}', motr_ha_endpoint)
-        Conf.save(Rgw._rgw_conf_idx)
-
-        Log.info(f'Updated motr_ha_endpoint in config file {rgw_config_path}')
-        # admin user should be created only on one node.
-        # 1. While creating admin user, global lock created in consul kv store.
-        # (rgw_consul_index, cortx>rgw>volatile>rgw_lock, machine_id)
-        # 2. Before creating admin user.
-        #    a. Check for rgw_lock in consul kv store.
-        #    b. Create user only if lock value is None/machine-id.
-
-        rgw_lock = False
-        rgw_lock_key = f'component>{COMPONENT_NAME}>volatile>{COMPONENT_NAME}_lock'
-        rgw_consul_idx = f'{COMPONENT_NAME}_consul_idx'
-        # Get consul url from cortx config.
-        consul_url = Rgw._get_consul_url(conf)
-        # Check for rgw_lock in consul kv store.
-        Log.info('Checking for rgw lock in consul kv store.')
-        Conf.load(rgw_consul_idx, consul_url)
-
-        # if in case try-catch block code executed at the same time on all the nodes,
-        # then all nodes will try to update rgw lock-key in consul, after updating key
-        # it will wait for sometime(time.sleep(3)) and in next iteration all nodes will
-        # get lock value as node-id of node who has updated the lock key at last.
-        # and then only that node will perform the user creation operation.
-        while True:
-            try:
-                rgw_lock_val = Conf.get(rgw_consul_idx, rgw_lock_key)
-                Log.info(f'rgw_lock value - {rgw_lock_val}')
-                # TODO: Explore consul lock - https://www.consul.io/commands/lock
-                if rgw_lock_val is None:
-                    Log.info(f'Setting confstore value for key :{rgw_lock_key}'
-                        f' and value as :{Rgw._machine_id}')
-                    Rgw._load_rgw_config(rgw_consul_idx, consul_url)
-                    Conf.set(rgw_consul_idx, rgw_lock_key, Rgw._machine_id)
-                    Conf.save(rgw_consul_idx)
-                    Log.info('Updated confstore with latest value')
-                    time.sleep(3)
-                    continue
-                elif rgw_lock_val == Rgw._machine_id:
-                    Log.info('Found lock acquired successfully hence processing'
-                        ' with RGW admin user creation.')
-                    rgw_lock = True
+        # Read Motr HA(HAX) endpoint from data pod using hctl fetch-fids and update in config file
+        # Use remote hax endpoint running on data pod which will be available during rgw
+        # config phase since data pod starts before server pod.
+        current_data_node = socket.gethostname().replace('server', 'data')
+        status = Rgw._update_hax_endpoint_and_create_admin(conf, current_data_node)
+        if status != 0:
+            machine_ids = Rgw._get_cortx_conf(conf, 'cluster>storage_set[0]>nodes')
+            data_pod_hostnames = [machine_id for machine_id in machine_ids if \
+                Rgw._get_cortx_conf(conf, f'node>{machine_id}>type') == 'data_node']
+            for data_pod_hostname in data_pod_hostnames:
+                status = Rgw._update_hax_endpoint_and_create_admin(conf, \
+                    data_pod_hostname)
+                if status == 0:
                     break
-                elif rgw_lock_val != Rgw._machine_id:
-                    Log.info('Skipping rgw user creation, as rgw lock is already'
-                        f' acquired by {rgw_lock_val}')
-                    rgw_lock = False
-                    break
-
-            except Exception as e:
-                Log.error('Exception occured while connecting to consul service'
-                    f' endpoint {e}')
-                break
-        if rgw_lock is True:
-            Log.info('Creating admin user.')
-            # Before creating user check if user is already created.
-            Rgw._create_rgw_user(conf)
-            Log.info('User is created.')
-            Log.debug(f'Deleting rgw_lock key {rgw_lock_key}.')
-            Conf.delete(rgw_consul_idx, rgw_lock_key)
-            Log.info(f'{rgw_lock_key} key is deleted')
+                else:
+                    if data_pod_hostname == data_pod_hostnames[-1]:
+                        raise SetupError(status, 'Admin user creation failed ' \
+                            'with all data pods')
 
         Log.info('Config phase completed.')
         return 0
@@ -342,12 +277,15 @@ class Rgw:
         _, err, rc, = SimpleProcess(create_usr_cmd).run()
         if rc == 0:
             Log.info(f'RGW admin user {user_name} is created.')
+            return 0
         elif rc != 0:
             if err and err_str in err.decode():
                 Log.info(f'RGW admin user {user_name} is already created. \
                     skipping user creation.')
+                return 0
             else:
-                raise SetupError(rc, f'"{create_usr_cmd}" failed with error {err}.')
+                Log.error(f'"{create_usr_cmd}" failed with error {err}.')
+                return rc
 
     @staticmethod
     def _create_symbolic_link_fid(client_instance_count: int, sysconfig_file_path: str):
@@ -505,3 +443,92 @@ class Rgw:
                     cert_path=ssl_cert_path, dns_list=SSL_DNS_LIST, **ssl_cert_configs)
             except SSLCertificateError as e:
                 raise SetupError(errno.EINVAL, f'Failed to generate self signed ssl certificate: {e}')
+
+    @staticmethod
+    def _update_hax_endpoint_and_create_admin(conf: MappedConf, data_pod_hostname: str):
+        """Update motr_ha(hax) endpoint values to rgw config file."""
+        Log.info('Reading motr_ha_endpoint from data pod')
+        config_path = Rgw._get_cortx_conf(conf, CONFIG_PATH_KEY)
+        hare_config_dir = os.path.join(config_path, 'hare', 'config', Rgw._machine_id)
+
+        fetch_fids_cmd = f'hctl fetch-fids -c {hare_config_dir} --node {data_pod_hostname}'
+        out, err, rc = SimpleProcess(fetch_fids_cmd).run()
+        if rc != 0:
+            Log.error(f'Unable to read fid information for hostname: '
+                f'{data_pod_hostname}. {err}')
+            raise SetupError(rc, 'Unable to read fid information for hostname: '
+                '%s. %s', data_pod_hostname, err)
+        decoded_out = json.loads(out.decode('utf-8'))
+        motr_ha_endpoint = [endpoints['ep'] for endpoints in decoded_out \
+            if 'hax' in endpoints.values()][0]
+        Log.info(f'Fetched motr_ha_endpoint from data pod. Endpoint: {motr_ha_endpoint}')
+
+        rgw_config_path = Rgw._get_rgw_config_path(conf)
+        Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{rgw_config_path}')
+        Conf.set(Rgw._rgw_conf_idx, \
+            f'client.radosgw-admin>{RgwEndpoint.MOTR_HA_EP.value}', motr_ha_endpoint)
+        Conf.save(Rgw._rgw_conf_idx)
+
+        Log.info(f'Updated motr_ha_endpoint in config file {rgw_config_path}')
+
+        # admin user should be created only on one node.
+        # 1. While creating admin user, global lock created in consul kv store.
+        # (rgw_consul_index, cortx>rgw>volatile>rgw_lock, machine_id)
+        # 2. Before creating admin user.
+        #    a. Check for rgw_lock in consul kv store.
+        #    b. Create user only if lock value is None/machine-id.
+
+        rgw_lock = False
+        rgw_lock_key = f'component>{COMPONENT_NAME}>volatile>{COMPONENT_NAME}_lock'
+        rgw_consul_idx = f'{COMPONENT_NAME}_consul_idx'
+        # Get consul url from cortx config.
+        consul_url = Rgw._get_consul_url(conf)
+        # Check for rgw_lock in consul kv store.
+        Log.info('Checking for rgw lock in consul kv store.')
+        Conf.load(rgw_consul_idx, consul_url)
+
+        # if in case try-catch block code executed at the same time on all the nodes,
+        # then all nodes will try to update rgw lock-key in consul, after updating key
+        # it will wait for sometime(time.sleep(3)) and in next iteration all nodes will
+        # get lock value as node-id of node who has updated the lock key at last.
+        # and then only that node will perform the user creation operation.
+        while True:
+            try:
+                rgw_lock_val = Conf.get(rgw_consul_idx, rgw_lock_key)
+                Log.info(f'rgw_lock value - {rgw_lock_val}')
+                # TODO: Explore consul lock - https://www.consul.io/commands/lock
+                if rgw_lock_val is None:
+                    Log.info(f'Setting confstore value for key :{rgw_lock_key}'
+                             f' and value as :{Rgw._machine_id}')
+                    Rgw._load_rgw_config(rgw_consul_idx, consul_url)
+                    Conf.set(rgw_consul_idx, rgw_lock_key, Rgw._machine_id)
+                    Conf.save(rgw_consul_idx)
+                    Log.info('Updated confstore with latest value')
+                    time.sleep(3)
+                    continue
+                elif rgw_lock_val == Rgw._machine_id:
+                    Log.info('Found lock acquired successfully hence processing'
+                             ' with RGW admin user creation.')
+                    rgw_lock = True
+                    break
+                elif rgw_lock_val != Rgw._machine_id:
+                    Log.info(
+                        'Skipping rgw user creation, as rgw lock is already'
+                        f' acquired by {rgw_lock_val}')
+                    rgw_lock = False
+                    break
+
+            except Exception as e:
+                Log.error('Exception occured while connecting to consul service'
+                          f' endpoint {e}')
+                break
+        if rgw_lock is True:
+            Log.info('Creating admin user.')
+            # Before creating user check if user is already created.
+            status = Rgw._create_rgw_user(conf)
+            if status == 0:
+                Log.info('User is created.')
+                Log.debug(f'Deleting rgw_lock key {rgw_lock_key}.')
+                Conf.delete(rgw_consul_idx, rgw_lock_key)
+                Log.info(f'{rgw_lock_key} key is deleted')
+            return status
