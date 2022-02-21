@@ -137,12 +137,15 @@ class Rgw:
         # Read Motr HA(HAX) endpoint from data pod using hctl fetch-fids and update in config file
         # Use remote hax endpoint running on data pod which will be available during rgw
         # config phase since data pod starts before server pod.
+        # Try HAX endpoint from data pod of same node first & if it doesnt work,
+        # from other data pods in cluster
         current_data_node = socket.gethostname().replace('server', 'data')
         status = Rgw._update_hax_endpoint_and_create_admin(conf, current_data_node)
         if status != 0:
             machine_ids = Rgw._get_cortx_conf(conf, 'cluster>storage_set[0]>nodes')
             data_pod_hostnames = [machine_id for machine_id in machine_ids if \
                 Rgw._get_cortx_conf(conf, f'node>{machine_id}>type') == 'data_node']
+            data_pod_hostnames.remove(current_data_node)
             for data_pod_hostname in data_pod_hostnames:
                 status = Rgw._update_hax_endpoint_and_create_admin(conf, \
                     data_pod_hostname)
@@ -513,7 +516,7 @@ class Rgw:
                     Rgw._load_rgw_config(rgw_consul_idx, consul_url)
                     Conf.set(rgw_consul_idx, rgw_lock_key, Rgw._machine_id)
                     Conf.save(rgw_consul_idx)
-                    Log.info('Updated confstore with latest value')
+                    Log.info(f'Updated confstore with latest value {Rgw._machine_id}')
                     time.sleep(3)
                     continue
                 elif rgw_lock_val == Rgw._machine_id:
@@ -524,7 +527,7 @@ class Rgw:
                 elif rgw_lock_val != Rgw._machine_id:
                     Log.info(
                         'Skipping rgw user creation, as rgw lock is already'
-                        f' acquired by {rgw_lock_val}')
+                        f' acquired by other machine with id {rgw_lock_val}')
                     rgw_lock = False
                     break
 
