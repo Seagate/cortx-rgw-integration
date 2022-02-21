@@ -371,21 +371,23 @@ class Rgw:
         for ep_value, key in const.RgwEndpoint._value2member_map_.items():
             Conf.set(Rgw._conf_idx, f'client.rgw-{instance}>{ep_value}', endpoints[key.name])
         Conf.set(Rgw._conf_idx, f'client.rgw-{instance}>log file', service_instance_log_file)
-        # For each instance increase port value by 1.
-        # for eg. for 1st instance. port=8000
-        # for 2nd instance port=8000 + 1
-        # port = <port> + (instance - 1)
-        # TODO: read port value from endpoint url define in cluster.conf
-        port = 8000
-        port = port + (instance - 1)
-        ssl_port = 8443
-        ssl_port = ssl_port + (instance - 1)
+        # Removed port increment support for service multiple instances.
+        # (in case of multiple instances port value needs to be incremented.)
+        http_port = Rgw._get_service_port(conf, 'http')
+        https_port = Rgw._get_service_port(conf, 'https')
         ssl_cert_path = Rgw._get_cortx_conf(conf, const.SSL_CERT_PATH_KEY)
         Conf.set(
             Rgw._conf_idx,
             f'client.rgw-{instance}>{const.ADMIN_PARAMETERS["RGW_FRONTENDS"]}',
-            f'beast port={port} ssl_port={ssl_port} ssl_certificate={ssl_cert_path} ssl_private_key={ssl_cert_path}')
+            f'beast port={http_port} ssl_port={https_port} ssl_certificate={ssl_cert_path} ssl_private_key={ssl_cert_path}')
         Conf.save(Rgw._conf_idx)
+
+    @staticmethod
+    def _get_service_port(conf: MappedConf, protocol: str):
+        """Return rgw service port value."""
+        service_endpoints = Rgw._fetch_endpoint_url(conf, const.SVC_ENDPOINT_KEY, protocol)
+        port = urlparse(service_endpoints[0]).port
+        return port
 
     @staticmethod
     def _validate_endpoint_paramters(endpoints: dict):
