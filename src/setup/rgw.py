@@ -88,8 +88,6 @@ class Rgw:
 
         except Exception as e:
             raise SetupError(errno.EINVAL, f'Error ocurred while fetching node ip, {e}')
-        Log.info(f'Configure logrotate for {COMPONENT_NAME}')
-        Rgw._logrotate_generic(conf)
 
         Log.info('Prepare phase completed.')
 
@@ -156,6 +154,8 @@ class Rgw:
                         raise SetupError(status, 'Admin user creation failed ' \
                             'with all data pods')
 
+        Log.info(f'Configure logrotate for {COMPONENT_NAME} at path: {LOGROTATE_CONF}')
+        Rgw._logrotate_generic(conf)
         Log.info('Config phase completed.')
         return 0
 
@@ -551,10 +551,9 @@ class Rgw:
         """ Configure logrotate utility for rgw logs."""
         log_dir = conf.get(LOG_PATH_KEY)
         log_file_path = os.path.join(log_dir, COMPONENT_NAME, Rgw._machine_id)
-        # rename ceph logrotate file to component's name logrotate.
+        # create radosgw logrotate file.
         # For eg:
-        # '/etc/logrotate.d/ceph' -> '/etc/logrotate.d/radosgw'
-        # currently component_name is 'rgw', file='/etc/logrotate.d/radosgw'
+        # filepath='/etc/logrotate.d/radosgw'
         old_file = os.path.join(LOGROTATE_DIR, 'ceph')
         if os.path.exists(old_file):
             os.remove(old_file)
