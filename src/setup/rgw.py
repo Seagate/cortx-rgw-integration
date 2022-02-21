@@ -556,8 +556,8 @@ class Rgw:
         # '/etc/logrotate.d/ceph' -> '/etc/logrotate.d/radosgw'
         # currently component_name is 'rgw', file='/etc/logrotate.d/radosgw'
         old_file = os.path.join(LOGROTATE_DIR, 'ceph')
-        new_file = os.path.join(LOGROTATE_DIR, 'radosgw')
-        os.rename(old_file, new_file)
+        if os.path.exists(old_file):
+            os.remove(old_file)
         try:
             with open(LOGROTATE_TMPL, 'r') as f:
                 content = f.read()
