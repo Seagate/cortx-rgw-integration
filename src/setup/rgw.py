@@ -35,7 +35,8 @@ from src.const import (
     REQUIRED_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
     CLIENT_INSTANCE_NAME_KEY, CLIENT_INSTANCE_NUMBER_KEY, CONSUL_ENDPOINT_KEY,
     COMPONENT_NAME, ADMIN_PARAMETERS, LOG_PATH_KEY, DECRYPTION_KEY,
-    SSL_CERT_CONFIGS, SSL_DNS_LIST, RgwEndpoint)
+    SSL_CERT_CONFIGS, SSL_DNS_LIST, RgwEndpoint,
+    LOGROTATE_TMPL, LOGROTATE_DIR, LOGROTATE_CONF, SUPPORTED_BACKEND_STORES)
 
 
 class Rgw:
@@ -87,6 +88,8 @@ class Rgw:
 
         except Exception as e:
             raise SetupError(errno.EINVAL, f'Error ocurred while fetching node ip, {e}')
+        Log.info(f'Configure logrotate for {COMPONENT_NAME}')
+        Rgw._logrotate_generic(conf)
 
         Log.info('Prepare phase completed.')
 
@@ -97,6 +100,10 @@ class Rgw:
         """Performs configurations."""
 
         Log.info('Config phase started.')
+
+        config_file = Rgw._get_rgw_config_path(conf)
+        if not os.path.exists(config_file):
+            raise SetupError(errno.EINVAL, f'"{config_file}" config file is not present.')
 
         # Create ssl certificate
         Rgw._generate_ssl_cert(conf)
@@ -124,6 +131,9 @@ class Rgw:
             Rgw._update_rgw_config_with_endpoints(conf, service_endpoints, instance)
             instance = instance + 1
 
+        # Before user creation,Verify backend store value=motr in rgw config file.
+        Rgw._verify_backend_store_value(conf)
+
         # Read Motr HA(HAX) endpoint from data pod using hctl fetch-fids and update in config file
         # Use remote hax endpoint running on data pod which will be available during rgw
         # config phase since data pod starts before server pod.
@@ -149,14 +159,14 @@ class Rgw:
     @staticmethod
     def start(conf: MappedConf, index: str):
         """Create rgw admin user and start rgw service."""
+        # Before starting service,Verify backend store value=motr in rgw config file.
+        Rgw._verify_backend_store_value(conf)
 
         Log.info('Starting radosgw service.')
-
         log_path = Rgw._get_log_dir_path(conf)
         log_file = os.path.join(log_path, f'{COMPONENT_NAME}-{index}')
         config_file = Rgw._get_rgw_config_path(conf)
         RgwStart.start_rgw(conf, config_file, log_file, index)
-
         Log.info("Started radosgw service.")
 
         return 0
@@ -532,3 +542,35 @@ class Rgw:
                 Conf.delete(rgw_consul_idx, rgw_lock_key)
                 Log.info(f'{rgw_lock_key} key is deleted')
             return status
+
+    @staticmethod
+    def _logrotate_generic(conf: MappedConf):
+        """ Configure logrotate utility for rgw logs."""
+        log_dir = conf.get(LOG_PATH_KEY)
+        log_file_path = os.path.join(log_dir, COMPONENT_NAME, Rgw._machine_id)
+        # rename ceph logrotate file to component's name logrotate.
+        # For eg:
+        # '/etc/logrotate.d/ceph' -> '/etc/logrotate.d/radosgw'
+        # currently component_name is 'rgw', file='/etc/logrotate.d/radosgw'
+        old_file = os.path.join(LOGROTATE_DIR, 'ceph')
+        new_file = os.path.join(LOGROTATE_DIR, 'radosgw')
+        os.rename(old_file, new_file)
+        try:
+            with open(LOGROTATE_TMPL, 'r') as f:
+                content = f.read()
+            content = content.replace('TMP_LOG_PATH', log_file_path)
+            with open(LOGROTATE_CONF, 'w') as f:
+                f.write(content)
+        except Exception as e:
+            Log.error(f"Failed to configure logrotate for {COMPONENT_NAME}. ERROR:{e}")
+
+    @staticmethod
+    def _verify_backend_store_value(conf: MappedConf):
+        """Verify backed store value as motr."""
+        config_file = Rgw._get_rgw_config_path(conf)
+        Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{config_file}')
+        backend_store = Conf.get(Rgw._rgw_conf_idx, 'client>rgw backend store')
+        if not backend_store in SUPPORTED_BACKEND_STORES:
+            raise SetupError(errno.EINVAL,
+                f'Supported rgw backend store are {SUPPORTED_BACKEND_STORES},'
+                f' currently configured one is {backend_store}')
