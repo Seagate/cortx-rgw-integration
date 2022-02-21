@@ -17,19 +17,35 @@
 from enum import Enum
 
 COMPONENT_NAME = 'rgw'
+DECRYPTION_KEY = 'cortx'
 SERVICE_NAME = f'{COMPONENT_NAME}_setup' # rgw_setup
 INSTALL_PATH = '/opt/seagate/cortx'
 RGW_INSTALL_PATH = f'{INSTALL_PATH}/{COMPONENT_NAME}'
 
 RGW_CONF_TMPL = f'{RGW_INSTALL_PATH}/conf/cortx_{COMPONENT_NAME}.conf'
-# e.g RGW_CONF_TMPL will be /opt/seagate/cortx/rgw/cof/cortx_rgw.conf
+LOGROTATE_TMPL = f'{RGW_INSTALL_PATH}/conf/{COMPONENT_NAME}.logrotate.tmpl'
+# e.g RGW_CONF_TMPL will be /opt/seagate/cortx/rgw/conf/cortx_rgw.conf
+# e.g LOGROTATE_TMPL will be /opt/seagate/cortx/rgw/conf/rgw.logrotate.tmpl
 RGW_CONF_FILE = f'cortx_{COMPONENT_NAME}.conf'
+SUPPORTED_BACKEND_STORES = ['motr']
 # e.g. RGW_CONFI_FILE path will be cortx_rgw.conf
+LOGROTATE_DIR = "/etc/logrotate.d"
+LOGROTATE_CONF = f'{LOGROTATE_DIR}/radosgw'
 CRASHDUMP_DIR = '/var/lib/ceph/crash'
 REQUIRED_RPMS = ['cortx-hare', 'cortx-py-utils', 'ceph-radosgw']
+ADMIN_PARAMETERS = {'MOTR_ADMIN_FID':'motr admin fid', 'MOTR_ADMIN_ENDPOINT':'motr admin endpoint', 'RGW_FRONTENDS': 'rgw frontends'}
+
+# CORTX cluster confstore keys
 LOG_PATH_KEY = 'cortx>common>storage>log'
 CONFIG_PATH_KEY = 'cortx>common>storage>config'
-RGW_ADMIN_PARAMETERS = {'MOTR_ADMIN_FID':'motr admin fid', 'MOTR_ADMIN_ENDPOINT':'motr admin endpoint'}
+CLIENT_INSTANCE_NAME_KEY = 'cortx>motr>clients[%s]>name'
+CLIENT_INSTANCE_NUMBER_KEY = 'cortx>motr>clients[%s]>num_instances'
+CONSUL_ENDPOINT_KEY = 'cortx>external>consul>endpoints'
+
+# SSL certificate parameters
+SSL_CERT_CONFIGS = {"country" : "IN", "state" : "MH", "locality" : "Pune",
+    "organization" : "Seagate Technology", "CN" : "seagate.com"}
+SSL_DNS_LIST = [u'*.seagate.com', u'localhost', u'*.localhost']
 
 class RgwEndpoint(Enum):
     """Enum class to define rgw endpoints provided by hare."""
@@ -39,3 +55,4 @@ class RgwEndpoint(Enum):
     MOTR_CLIENT_EP   = 'motr my endpoint'
     MOTR_PROCESS_FID = 'motr my fid'
     MOTR_CLIENT_PORT = 'motr client port'
+
