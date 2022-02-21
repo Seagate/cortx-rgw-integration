@@ -30,7 +30,7 @@ class RgwStart:
         Log.info("Starting radosgw service.")
         try:
             #os.system(f"sh /opt/seagate/cortx/rgw/bin/rgw_service -i {index} -c {config_file} -l {log_file}")
-            cmd = f"/usr/bin/radosgw -f --name client.rgw-{index} -c {rgw_config_file} --no-mon-config &> {log_file} &"
+            cmd = f"/usr/bin/radosgw -f --name client.rgw-{index} -c {config_file} --no-mon-config &> {log_file} &"
             result = SimpleProcess(cmd).run(shell=True)
         except OSError as e:
             Log.error(f"Failed to start radosgw service:{e}")
