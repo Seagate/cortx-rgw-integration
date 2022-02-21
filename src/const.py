@@ -27,6 +27,7 @@ LOGROTATE_TMPL = f'{RGW_INSTALL_PATH}/conf/{COMPONENT_NAME}.logrotate.tmpl'
 # e.g RGW_CONF_TMPL will be /opt/seagate/cortx/rgw/conf/cortx_rgw.conf
 # e.g LOGROTATE_TMPL will be /opt/seagate/cortx/rgw/conf/rgw.logrotate.tmpl
 RGW_CONF_FILE = f'cortx_{COMPONENT_NAME}.conf'
+SUPPORTED_BACKEND_STORES = ['motr']
 # e.g. RGW_CONFI_FILE path will be cortx_rgw.conf
 LOGROTATE_DIR = "/etc/logrotate.d"
 LOGROTATE_CONF = f'{LOGROTATE_DIR}/radosgw'
