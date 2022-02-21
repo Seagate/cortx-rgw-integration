@@ -34,7 +34,7 @@ from src.const import (
     CLIENT_INSTANCE_NAME_KEY, CLIENT_INSTANCE_NUMBER_KEY, CONSUL_ENDPOINT_KEY,
     COMPONENT_NAME, ADMIN_PARAMETERS, LOG_PATH_KEY, DECRYPTION_KEY,
     SSL_CERT_CONFIGS, SSL_DNS_LIST, RgwEndpoint,
-    LOGROTATE_TMPL, LOGROTATE_DIR, LOGROTATE_CONF, BACKEND_STORE)
+    LOGROTATE_TMPL, LOGROTATE_DIR, LOGROTATE_CONF, SUPPORTED_BACKEND_STORES)
 
 
 class Rgw:
@@ -139,9 +139,11 @@ class Rgw:
         # Before creating user/starting service,Verify backend store value=motr in rgw config file.
         config_file = Rgw._get_rgw_config_path(conf)
         Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{config_file}')
-        if not Conf.get(Rgw._rgw_conf_idx, 'client>rgw backend store') == BACKEND_STORE:
+        backend_store = Conf.get(Rgw._rgw_conf_idx, 'client>rgw backend store')
+        if not backend_store in SUPPORTED_BACKEND_STORES:
             raise SetupError(errno.EINVAL,
-                f'In {config_file}, "client>rgw backend store" key value should be "{BACKEND_STORE}".')
+                f'Supported rgw backend store are {SUPPORTED_BACKEND_STORES},'
+                f' currently configured one is {backend_store}')
 
         Log.info('Create rgw admin user and start rgw service.')
         # admin user should be created only on one node.
