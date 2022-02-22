@@ -167,7 +167,7 @@ class Rgw:
 
         Log.info('Starting radosgw service.')
         log_path = Rgw._get_log_dir_path(conf)
-        log_file = os.path.join(log_path, f'{COMPONENT_NAME}-{index}')
+        log_file = os.path.join(log_path, f'{COMPONENT_NAME}-{index}.log')
         config_file = Rgw._get_rgw_config_path(conf)
         RgwStart.start_rgw(conf, config_file, log_file, index)
         Log.info("Started radosgw service.")
@@ -359,7 +359,7 @@ class Rgw:
         # Update this with same config that is define for 1st instance.
         if instance == 1:
             radosgw_admin_log_file = os.path.join(
-                log_path, COMPONENT_NAME, Rgw._machine_id, 'radosgw-admin.log')
+                log_path, 'radosgw-admin.log')
             for ep_value, key in RgwEndpoint._value2member_map_.items():
                 Conf.set(Rgw._rgw_conf_idx,
                     f'client.radosgw-admin>{ep_value}', endpoints[key.name])
