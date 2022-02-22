@@ -19,7 +19,7 @@ from cortx.utils.log import Log
 from src.setup.error import SetupError
 from cortx.utils.conf_store import MappedConf
 from cortx.utils.process import SimpleProcess
-
+from src.const import SERVICE_RETRIES
 
 class RgwStart:
     """Entrypoint class for RGW."""
@@ -29,10 +29,14 @@ class RgwStart:
         """Start rgw service independently."""
         Log.info("Starting radosgw service.")
         try:
-            #os.system(f"sh /opt/seagate/cortx/rgw/bin/rgw_service -i {index} -c {config_file} -l {log_file}")
             cmd = f"/usr/bin/radosgw -f --name client.rgw-{index} -c {config_file} --no-mon-config &> {log_file} &"
-            result = SimpleProcess(cmd).run(shell=True)
-        except OSError as e:
+            for _ in range(SERVICE_RETRIES):
+                stdout, stderr, rc = result = SimpleProcess(cmd).run()
+                if rc != 0:
+                    Log.error(stderr)
+            else:
+                raise Exception
+        except Exception as e:
             Log.error(f"Failed to start radosgw service:{e}")
             raise SetupError(e.errno, "Failed to start radosgw service. %s", e)
         Log.info("Started radosgw service.")
