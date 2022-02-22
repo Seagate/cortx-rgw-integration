@@ -14,7 +14,6 @@
 # For any questions about this software or licensing,
 # please email opensource@seagate.com or cortx-questions@seagate.com.
 
-import os
 from cortx.utils.log import Log
 from src.setup.error import SetupError
 from cortx.utils.conf_store import MappedConf
@@ -28,13 +27,13 @@ class RgwStart:
     def start_rgw(conf: MappedConf, config_file, log_file, index: str = '1',):
         """Start rgw service independently."""
         try:
-            cmd = f"/usr/bin/radosgw -f --name client.rgw-{index} -c {config_file} --no-mon-config &> {log_file} &"
+            cmd = f"/usr/bin/radosgw -f --name client.rgw-{index} -c {config_file} --no-mon-config &> {log_file}"
             for _ in range(SERVICE_RETRIES):
-                stdout, stderr, rc = result = SimpleProcess(cmd).run()
+                _, stderr, rc = SimpleProcess(cmd).run()
                 if rc != 0:
                     Log.error(stderr)
             else:
-                raise Exception
+                raise Exception(stderr)
         except Exception as e:
             Log.error(f"Failed to start radosgw service:{e}")
-            raise SetupError(e.errno, "Failed to start radosgw service. %s", e)
+            raise SetupError(rc, "Failed to start radosgw service. %s", e)
