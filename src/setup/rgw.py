@@ -137,8 +137,7 @@ class Rgw:
         # config phase since data pod starts before server pod.
         # Try HAX endpoint from data pod of same node first & if it doesnt work,
         # from other data pods in cluster
-        current_data_node = Rgw._get_current_data_node()
-        Rgw._update_hax_endpoint_and_create_admin(conf, current_data_node)
+        Rgw._update_hax_endpoint_and_create_admin(conf)
 
         Log.info(f'Configure logrotate for {COMPONENT_NAME} at path: {LOGROTATE_CONF}')
         Rgw._logrotate_generic(conf)
@@ -444,8 +443,8 @@ class Rgw:
                 raise SetupError(errno.EINVAL, f'Failed to generate self signed ssl certificate: {e}')
 
     @staticmethod
-    def _update_hax_endpoint_and_create_admin(conf: MappedConf, data_pod_hostname: str):
-        """Update motr_ha(hax) endpoint values to rgw config file."""
+    def _update_hax_endpoint(conf: MappedConf, data_pod_hostname: str):
+        """Update hax endpoint values in rgw config file."""
         Log.info('Reading motr_ha_endpoint from data pod')
         config_path = Rgw._get_cortx_conf(conf, CONFIG_PATH_KEY)
         hare_config_dir = os.path.join(config_path, 'hare', 'config', Rgw._machine_id)
@@ -470,6 +469,11 @@ class Rgw:
 
         Log.info(f'Updated motr_ha_endpoint in config file {rgw_config_path}')
 
+    @staticmethod
+    def _update_hax_endpoint_and_create_admin(conf: MappedConf):
+        """Update motr_ha(hax) endpoint values to rgw config file."""
+        current_data_node = socket.gethostname().replace('server', 'data')
+        Rgw._update_hax_endpoint(conf, current_data_node)
         # admin user should be created only on one node.
         # 1. While creating admin user, global lock created in consul kv store.
         # (rgw_consul_index, cortx>rgw>volatile>rgw_lock, machine_id)
@@ -527,15 +531,14 @@ class Rgw:
             user_status = Rgw._create_rgw_user(conf)
 
             if user_status != 0:
-                current_data_node = Rgw._get_current_data_node()
                 machine_ids = Rgw._get_cortx_conf(conf, 'cluster>storage_set[0]>nodes')
                 data_pod_hostnames = [Rgw._get_cortx_conf(conf, \
                     f'node>{machine_id}>hostname') for machine_id in machine_ids if \
                     Rgw._get_cortx_conf(conf, f'node>{machine_id}>type') == 'data_node']
                 data_pod_hostnames.remove(current_data_node)
                 for data_pod_hostname in data_pod_hostnames:
-                    status = Rgw._update_hax_endpoint_and_create_admin(conf, \
-                        data_pod_hostname)
+                    Rgw._update_hax_endpoint(conf, data_pod_hostname)
+                    status = Rgw._create_rgw_user(conf)
                     if status == 0:
                         break
                     else:
@@ -579,8 +582,3 @@ class Rgw:
             raise SetupError(errno.EINVAL,
                 f'Supported rgw backend store are {SUPPORTED_BACKEND_STORES},'
                 f' currently configured one is {backend_store}')
-
-    @staticmethod
-    def _get_current_data_node():
-        """Returns data node of current pod."""
-        return socket.gethostname().replace('server', 'data')
