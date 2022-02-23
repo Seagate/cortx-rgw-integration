@@ -547,7 +547,6 @@ class Rgw:
                 Log.debug(f'Deleting rgw_lock key {rgw_lock_key}.')
                 Conf.delete(rgw_consul_idx, rgw_lock_key)
                 Log.info(f'{rgw_lock_key} key is deleted')
-            return user_status
 
     @staticmethod
     def _logrotate_generic(conf: MappedConf):
