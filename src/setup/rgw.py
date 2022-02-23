@@ -137,22 +137,8 @@ class Rgw:
         # config phase since data pod starts before server pod.
         # Try HAX endpoint from data pod of same node first & if it doesnt work,
         # from other data pods in cluster
-        current_data_node = socket.gethostname().replace('server', 'data')
-        status = Rgw._update_hax_endpoint_and_create_admin(conf, current_data_node)
-        if status != 0:
-            machine_ids = Rgw._get_cortx_conf(conf, 'cluster>storage_set[0]>nodes')
-            data_pod_hostnames = [machine_id for machine_id in machine_ids if \
-                Rgw._get_cortx_conf(conf, f'node>{machine_id}>type') == 'data_node']
-            data_pod_hostnames.remove(current_data_node)
-            for data_pod_hostname in data_pod_hostnames:
-                status = Rgw._update_hax_endpoint_and_create_admin(conf, \
-                    data_pod_hostname)
-                if status == 0:
-                    break
-                else:
-                    if data_pod_hostname == data_pod_hostnames[-1]:
-                        raise SetupError(status, 'Admin user creation failed ' \
-                            'with all data pods')
+        current_data_node = Rgw._get_current_data_node()
+        Rgw._update_hax_endpoint_and_create_admin(conf, current_data_node)
 
         Log.info(f'Configure logrotate for {COMPONENT_NAME} at path: {LOGROTATE_CONF}')
         Rgw._logrotate_generic(conf)
@@ -538,13 +524,30 @@ class Rgw:
         if rgw_lock is True:
             Log.info('Creating admin user.')
             # Before creating user check if user is already created.
-            status = Rgw._create_rgw_user(conf)
-            if status == 0:
+            user_status = Rgw._create_rgw_user(conf)
+
+            if user_status != 0:
+                current_data_node = Rgw._get_current_data_node()
+                machine_ids = Rgw._get_cortx_conf(conf, 'cluster>storage_set[0]>nodes')
+                data_pod_hostnames = [machine_id for machine_id in machine_ids if \
+                    Rgw._get_cortx_conf(conf, f'node>{machine_id}>type') == 'data_node']
+                data_pod_hostnames.remove(current_data_node)
+                for data_pod_hostname in data_pod_hostnames:
+                    status = Rgw._update_hax_endpoint_and_create_admin(conf, \
+                        data_pod_hostname)
+                    if status == 0:
+                        break
+                    else:
+                        if data_pod_hostname == data_pod_hostnames[-1]:
+                            raise SetupError(status, 'Admin user creation failed ' \
+                                'with all data pods')
+
+            if user_status == 0:
                 Log.info('User is created.')
                 Log.debug(f'Deleting rgw_lock key {rgw_lock_key}.')
                 Conf.delete(rgw_consul_idx, rgw_lock_key)
                 Log.info(f'{rgw_lock_key} key is deleted')
-            return status
+            return user_status
 
     @staticmethod
     def _logrotate_generic(conf: MappedConf):
@@ -576,3 +579,8 @@ class Rgw:
             raise SetupError(errno.EINVAL,
                 f'Supported rgw backend store are {SUPPORTED_BACKEND_STORES},'
                 f' currently configured one is {backend_store}')
+
+    @staticmethod
+    def _get_current_data_node():
+        """Returns data node of current pod."""
+        return socket.gethostname().replace('server', 'data')
