@@ -529,7 +529,8 @@ class Rgw:
             if user_status != 0:
                 current_data_node = Rgw._get_current_data_node()
                 machine_ids = Rgw._get_cortx_conf(conf, 'cluster>storage_set[0]>nodes')
-                data_pod_hostnames = [machine_id for machine_id in machine_ids if \
+                data_pod_hostnames = [Rgw._get_cortx_conf(conf, \
+                    f'node>{machine_id}>hostname') for machine_id in machine_ids if \
                     Rgw._get_cortx_conf(conf, f'node>{machine_id}>type') == 'data_node']
                 data_pod_hostnames.remove(current_data_node)
                 for data_pod_hostname in data_pod_hostnames:
