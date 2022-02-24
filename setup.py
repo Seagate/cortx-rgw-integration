@@ -35,7 +35,7 @@ with open('README.md', 'r') as rf:
 
 # Get list of mini-provisioner classes
 mini_prov_files = glob.glob('./src/setup/*.py')
-logrotate_tmpl_file = 'src/setup/templates/rgw.logrotate.tmpl'
+logrotate_tmpl_file = 'src/rgw/setup/templates/rgw.logrotate.tmpl'
 
 setup(name='cortx-rgw-integration',
       version=rgw_intg_version,
