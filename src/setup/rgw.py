@@ -167,7 +167,7 @@ class Rgw:
 
         Log.info('Starting radosgw service.')
         log_path = Rgw._get_log_dir_path(conf)
-        log_file = os.path.join(log_path, f'{COMPONENT_NAME}-{index}.log')
+        log_file = os.path.join(log_path, f'{COMPONENT_NAME}_startup.log')
         config_file = Rgw._get_rgw_config_path(conf)
         RgwStart.start_rgw(conf, config_file, log_file, index)
         Log.info("Started radosgw service.")
