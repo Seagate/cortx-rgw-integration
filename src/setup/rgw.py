@@ -480,7 +480,7 @@ class Rgw:
         try:
             Rgw._update_hax_endpoint(conf, current_data_node)
         except Exception:
-            return
+            pass
         # admin user should be created only on one node.
         # 1. While creating admin user, global lock created in consul kv store.
         # (rgw_consul_index, cortx>rgw>volatile>rgw_lock, machine_id)
