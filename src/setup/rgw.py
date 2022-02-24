@@ -446,6 +446,10 @@ class Rgw:
     def _update_hax_endpoint(conf: MappedConf, data_pod_hostname: str):
         """Update hax endpoint values in rgw config file."""
         Log.info('Reading motr_ha_endpoint from data pod')
+
+        if not data_pod_hostname:
+            raise SetupError(errno.EINVAL, 'Invalid data pod hostname: %s', data_pod_hostname)
+        
         config_path = Rgw._get_cortx_conf(conf, CONFIG_PATH_KEY)
         hare_config_dir = os.path.join(config_path, 'hare', 'config', Rgw._machine_id)
 
