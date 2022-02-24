@@ -449,7 +449,7 @@ class Rgw:
 
         if not data_pod_hostname:
             raise SetupError(errno.EINVAL, 'Invalid data pod hostname: %s', data_pod_hostname)
-        
+
         config_path = Rgw._get_cortx_conf(conf, CONFIG_PATH_KEY)
         hare_config_dir = os.path.join(config_path, 'hare', 'config', Rgw._machine_id)
 
@@ -477,7 +477,10 @@ class Rgw:
     def _update_hax_endpoint_and_create_admin(conf: MappedConf):
         """Update motr_ha(hax) endpoint values to rgw config file."""
         current_data_node = socket.gethostname().replace('server', 'data')
-        Rgw._update_hax_endpoint(conf, current_data_node)
+        try:
+            Rgw._update_hax_endpoint(conf, current_data_node)
+        except Exception:
+            return
         # admin user should be created only on one node.
         # 1. While creating admin user, global lock created in consul kv store.
         # (rgw_consul_index, cortx>rgw>volatile>rgw_lock, machine_id)
@@ -541,7 +544,10 @@ class Rgw:
                     Rgw._get_cortx_conf(conf, f'node>{machine_id}>type') == 'data_node']
                 data_pod_hostnames.remove(current_data_node)
                 for data_pod_hostname in data_pod_hostnames:
-                    Rgw._update_hax_endpoint(conf, data_pod_hostname)
+                    try:
+                        Rgw._update_hax_endpoint(conf, data_pod_hostname)
+                    except Exception:
+                        break
                     status = Rgw._create_rgw_user(conf)
                     if status == 0:
                         break
