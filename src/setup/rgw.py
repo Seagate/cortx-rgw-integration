@@ -30,7 +30,7 @@ from cortx.utils.process import SimpleProcess
 from cortx.utils.log import Log
 from cortx.utils.security.cipher import Cipher, CipherInvalidToken
 from src.setup.error import SetupError
-from src.setup.rgw_start import RgwStart
+from src.setup.rgw_service import RgwService
 from src.const import (
     REQUIRED_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
     CLIENT_INSTANCE_NAME_KEY, CLIENT_INSTANCE_NUMBER_KEY, CONSUL_ENDPOINT_KEY,
@@ -88,8 +88,6 @@ class Rgw:
 
         except Exception as e:
             raise SetupError(errno.EINVAL, f'Error ocurred while fetching node ip, {e}')
-        Log.info(f'Configure logrotate for {COMPONENT_NAME}')
-        Rgw._logrotate_generic(conf)
 
         Log.info('Prepare phase completed.')
 
@@ -139,23 +137,10 @@ class Rgw:
         # config phase since data pod starts before server pod.
         # Try HAX endpoint from data pod of same node first & if it doesnt work,
         # from other data pods in cluster
-        current_data_node = socket.gethostname().replace('server', 'data')
-        status = Rgw._update_hax_endpoint_and_create_admin(conf, current_data_node)
-        if status != 0:
-            machine_ids = Rgw._get_cortx_conf(conf, 'cluster>storage_set[0]>nodes')
-            data_pod_hostnames = [machine_id for machine_id in machine_ids if \
-                Rgw._get_cortx_conf(conf, f'node>{machine_id}>type') == 'data_node']
-            data_pod_hostnames.remove(current_data_node)
-            for data_pod_hostname in data_pod_hostnames:
-                status = Rgw._update_hax_endpoint_and_create_admin(conf, \
-                    data_pod_hostname)
-                if status == 0:
-                    break
-                else:
-                    if data_pod_hostname == data_pod_hostnames[-1]:
-                        raise SetupError(status, 'Admin user creation failed ' \
-                            'with all data pods')
+        Rgw._update_hax_endpoint_and_create_admin(conf)
 
+        Log.info(f'Configure logrotate for {COMPONENT_NAME} at path: {LOGROTATE_CONF}')
+        Rgw._logrotate_generic(conf)
         Log.info('Config phase completed.')
         return 0
 
@@ -164,12 +149,12 @@ class Rgw:
         """Create rgw admin user and start rgw service."""
         # Before starting service,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
-
+``
         Log.info('Starting radosgw service.')
         log_path = Rgw._get_log_dir_path(conf)
         log_file = os.path.join(log_path, f'{COMPONENT_NAME}-{index}')
         config_file = Rgw._get_rgw_config_path(conf)
-        RgwStart.start_rgw(conf, config_file, log_file, index)
+        RgwService.start_rgw(conf, config_file, log_file, index)
         Log.info("Started radosgw service.")
 
         return 0
@@ -458,8 +443,8 @@ class Rgw:
                 raise SetupError(errno.EINVAL, f'Failed to generate self signed ssl certificate: {e}')
 
     @staticmethod
-    def _update_hax_endpoint_and_create_admin(conf: MappedConf, data_pod_hostname: str):
-        """Update motr_ha(hax) endpoint values to rgw config file."""
+    def _update_hax_endpoint(conf: MappedConf, data_pod_hostname: str):
+        """Update hax endpoint values in rgw config file."""
         Log.info('Reading motr_ha_endpoint from data pod')
         config_path = Rgw._get_cortx_conf(conf, CONFIG_PATH_KEY)
         hare_config_dir = os.path.join(config_path, 'hare', 'config', Rgw._machine_id)
@@ -484,6 +469,11 @@ class Rgw:
 
         Log.info(f'Updated motr_ha_endpoint in config file {rgw_config_path}')
 
+    @staticmethod
+    def _update_hax_endpoint_and_create_admin(conf: MappedConf):
+        """Update motr_ha(hax) endpoint values to rgw config file."""
+        current_data_node = socket.gethostname().replace('server', 'data')
+        Rgw._update_hax_endpoint(conf, current_data_node)
         # admin user should be created only on one node.
         # 1. While creating admin user, global lock created in consul kv store.
         # (rgw_consul_index, cortx>rgw>volatile>rgw_lock, machine_id)
@@ -538,26 +528,41 @@ class Rgw:
         if rgw_lock is True:
             Log.info('Creating admin user.')
             # Before creating user check if user is already created.
-            status = Rgw._create_rgw_user(conf)
-            if status == 0:
+            user_status = Rgw._create_rgw_user(conf)
+
+            if user_status != 0:
+                machine_ids = Rgw._get_cortx_conf(conf, 'cluster>storage_set[0]>nodes')
+                data_pod_hostnames = [Rgw._get_cortx_conf(conf, \
+                    f'node>{machine_id}>hostname') for machine_id in machine_ids if \
+                    Rgw._get_cortx_conf(conf, f'node>{machine_id}>type') == 'data_node']
+                data_pod_hostnames.remove(current_data_node)
+                for data_pod_hostname in data_pod_hostnames:
+                    Rgw._update_hax_endpoint(conf, data_pod_hostname)
+                    status = Rgw._create_rgw_user(conf)
+                    if status == 0:
+                        break
+                    else:
+                        if data_pod_hostname == data_pod_hostnames[-1]:
+                            raise SetupError(status, 'Admin user creation failed ' \
+                                'with all data pods')
+
+            if user_status == 0:
                 Log.info('User is created.')
                 Log.debug(f'Deleting rgw_lock key {rgw_lock_key}.')
                 Conf.delete(rgw_consul_idx, rgw_lock_key)
                 Log.info(f'{rgw_lock_key} key is deleted')
-            return status
 
     @staticmethod
     def _logrotate_generic(conf: MappedConf):
         """ Configure logrotate utility for rgw logs."""
         log_dir = conf.get(LOG_PATH_KEY)
         log_file_path = os.path.join(log_dir, COMPONENT_NAME, Rgw._machine_id)
-        # rename ceph logrotate file to component's name logrotate.
+        # create radosgw logrotate file.
         # For eg:
-        # '/etc/logrotate.d/ceph' -> '/etc/logrotate.d/radosgw'
-        # currently component_name is 'rgw', file='/etc/logrotate.d/radosgw'
+        # filepath='/etc/logrotate.d/radosgw'
         old_file = os.path.join(LOGROTATE_DIR, 'ceph')
-        new_file = os.path.join(LOGROTATE_DIR, 'radosgw')
-        os.rename(old_file, new_file)
+        if os.path.exists(old_file):
+            os.remove(old_file)
         try:
             with open(LOGROTATE_TMPL, 'r') as f:
                 content = f.read()
