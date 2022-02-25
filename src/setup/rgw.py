@@ -474,13 +474,19 @@ class Rgw:
         Log.info(f'Updated motr_ha_endpoint in config file {rgw_config_path}')
 
     @staticmethod
-    def _update_hax_endpoint_and_create_admin(conf: MappedConf):
-        """Update motr_ha(hax) endpoint values to rgw config file."""
-        current_data_node = socket.gethostname().replace('server', 'data')
+    def _create_admin_on_current_node(conf: MappedConf, current_data_node: str):
         try:
             Rgw._update_hax_endpoint(conf, current_data_node)
+            Log.info('Creating admin user.')
+            # Before creating user check if user is already created.
+            user_status = Rgw._create_rgw_user(conf)
+            return user_status
         except Exception:
-            pass
+            return -1
+
+    @staticmethod
+    def _update_hax_endpoint_and_create_admin(conf: MappedConf):
+        """Update motr_ha(hax) endpoint values to rgw config file and create admin."""
         # admin user should be created only on one node.
         # 1. While creating admin user, global lock created in consul kv store.
         # (rgw_consul_index, cortx>rgw>volatile>rgw_lock, machine_id)
@@ -533,9 +539,8 @@ class Rgw:
                           f' endpoint {e}')
                 break
         if rgw_lock is True:
-            Log.info('Creating admin user.')
-            # Before creating user check if user is already created.
-            user_status = Rgw._create_rgw_user(conf)
+            current_data_node = socket.gethostname().replace('server', 'data')
+            user_status = Rgw._create_admin_on_current_node(conf, current_data_node)
 
             if user_status != 0:
                 machine_ids = Rgw._get_cortx_conf(conf, 'cluster>storage_set[0]>nodes')
