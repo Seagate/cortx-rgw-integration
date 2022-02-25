@@ -54,5 +54,4 @@ class RgwEndpoint(Enum):
     MOTR_HA_EP       = 'motr ha endpoint'
     MOTR_CLIENT_EP   = 'motr my endpoint'
     MOTR_PROCESS_FID = 'motr my fid'
-    MOTR_CLIENT_PORT = 'motr client port'
 
