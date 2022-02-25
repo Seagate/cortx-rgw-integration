@@ -147,6 +147,9 @@ class Rgw:
     @staticmethod
     def start(conf: MappedConf, index: str):
         """Create rgw admin user and start rgw service."""
+
+        Log.info(f'Configure logrotate for {COMPONENT_NAME} at path: {LOGROTATE_CONF}')
+        Rgw._logrotate_generic(conf)
         # Before starting service,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
 
@@ -584,6 +587,7 @@ class Rgw:
             content = content.replace('TMP_LOG_PATH', log_file_path)
             with open(LOGROTATE_CONF, 'w') as f:
                 f.write(content)
+            Log.info(f'{LOGROTATE_TMPL} file copied to {LOGROTATE_CONF}')
         except Exception as e:
             Log.error(f"Failed to configure logrotate for {COMPONENT_NAME}. ERROR:{e}")
 
