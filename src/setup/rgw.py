@@ -446,6 +446,10 @@ class Rgw:
     def _update_hax_endpoint(conf: MappedConf, data_pod_hostname: str):
         """Update hax endpoint values in rgw config file."""
         Log.info('Reading motr_ha_endpoint from data pod')
+
+        if not data_pod_hostname:
+            raise SetupError(errno.EINVAL, 'Invalid data pod hostname: %s', data_pod_hostname)
+
         config_path = Rgw._get_cortx_conf(conf, CONFIG_PATH_KEY)
         hare_config_dir = os.path.join(config_path, 'hare', 'config', Rgw._machine_id)
 
@@ -470,10 +474,19 @@ class Rgw:
         Log.info(f'Updated motr_ha_endpoint in config file {rgw_config_path}')
 
     @staticmethod
+    def _create_admin_on_current_node(conf: MappedConf, current_data_node: str):
+        try:
+            Rgw._update_hax_endpoint(conf, current_data_node)
+            Log.info('Creating admin user.')
+            # Before creating user check if user is already created.
+            user_status = Rgw._create_rgw_user(conf)
+            return user_status
+        except Exception:
+            return -1
+
+    @staticmethod
     def _update_hax_endpoint_and_create_admin(conf: MappedConf):
-        """Update motr_ha(hax) endpoint values to rgw config file."""
-        current_data_node = socket.gethostname().replace('server', 'data')
-        Rgw._update_hax_endpoint(conf, current_data_node)
+        """Update motr_ha(hax) endpoint values to rgw config file and create admin."""
         # admin user should be created only on one node.
         # 1. While creating admin user, global lock created in consul kv store.
         # (rgw_consul_index, cortx>rgw>volatile>rgw_lock, machine_id)
@@ -526,9 +539,8 @@ class Rgw:
                           f' endpoint {e}')
                 break
         if rgw_lock is True:
-            Log.info('Creating admin user.')
-            # Before creating user check if user is already created.
-            user_status = Rgw._create_rgw_user(conf)
+            current_data_node = socket.gethostname().replace('server', 'data')
+            user_status = Rgw._create_admin_on_current_node(conf, current_data_node)
 
             if user_status != 0:
                 machine_ids = Rgw._get_cortx_conf(conf, 'cluster>storage_set[0]>nodes')
@@ -537,7 +549,10 @@ class Rgw:
                     Rgw._get_cortx_conf(conf, f'node>{machine_id}>type') == 'data_node']
                 data_pod_hostnames.remove(current_data_node)
                 for data_pod_hostname in data_pod_hostnames:
-                    Rgw._update_hax_endpoint(conf, data_pod_hostname)
+                    try:
+                        Rgw._update_hax_endpoint(conf, data_pod_hostname)
+                    except Exception:
+                        continue
                     status = Rgw._create_rgw_user(conf)
                     if status == 0:
                         break
