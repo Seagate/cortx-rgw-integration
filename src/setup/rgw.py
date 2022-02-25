@@ -552,7 +552,7 @@ class Rgw:
                     try:
                         Rgw._update_hax_endpoint(conf, data_pod_hostname)
                     except Exception:
-                        break
+                        continue
                     status = Rgw._create_rgw_user(conf)
                     if status == 0:
                         break
