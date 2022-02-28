@@ -49,6 +49,38 @@ CONSUL_ENDPOINT_KEY = 'cortx>external>consul>endpoints'
 SSL_CERT_CONFIGS = {"country" : "IN", "state" : "MH", "locality" : "Pune",
     "organization" : "Seagate Technology", "CN" : "seagate.com"}
 SSL_DNS_LIST = [u'*.seagate.com', u'localhost', u'*.localhost']
+SSL_CERT_PATH_KEY = 'cortx>common>security>ssl_certificate'
+
+# RGW additional paramters.
+# e.g. rgw_keys = ['confstore_key', 'actual_rgw_config_key']
+RGW_THREAD_POOL_SIZE_KEY = ['cortx>rgw>thread_pool_size', 'thread pool size']
+RGW_DATA_PATH_KEY = ['cortx>rgw>data_path', 'data path']
+RGW_INTI_TIMEOUT_KEY = ['cortx>rgw>init_timeout', 'init timeout']
+RGW_GC_MAX_OBJECTS_KEY = ['cortx>rgw>gc_max_objs', 'gc max objs']
+RGW_GC_OBJECT_MIN_WAIT_KEY = ['cortx>rgw>gc_obj_min_wait', 'gc obj min wait']
+RGW_GC_PROCESSOR_MAX_TIME_KEY = ['cortx>rgw>gc_processor_max_time', 'gc processor max time']
+RGW_GC_PROCESSOR_PERIOD_KEY = ['cortx>rgw>gc_processor_period', 'gc processor period']
+
+RGW_PARAM_MAPPING = [RGW_THREAD_POOL_SIZE_KEY, RGW_DATA_PATH_KEY,
+                     RGW_INTI_TIMEOUT_KEY, RGW_GC_MAX_OBJECTS_KEY,
+                     RGW_GC_OBJECT_MIN_WAIT_KEY, RGW_GC_PROCESSOR_MAX_TIME_KEY,
+                     RGW_GC_PROCESSOR_PERIOD_KEY]
+
+# MOTR additional parameters in RGW config file.
+# e.g. rgw_keys = ['confstore_key', 'actual_rgw_config_key']
+
+MOTR_LDAYOUT_ID_KEY = ['cortx>rgw>motr_layout_id', 'motr layout id']
+MOTR_UNIT_SIZE_KEY = ['cortx>rgw>motr_unit_size', 'motr unit size']
+MOTR_MAX_UNIT_PER_REQUEST_KEY = ['cortx>rgw>motr_max_units_per_request', 'motr max units per request']
+MOTR_MAX_IDX_FETCH_COUNT_KEY = ['cortx>rgw>motr_max_idx_fetch_count', 'motr max idx fetch count']
+MOTR_MAX_RPC_MSG_SIZE_KEY = ['cortx>rgw>motr_max_rpc_msg_size', 'motr max rpc msg size']
+MOTR_SLEEP_DURING_RECONNECT_KEY = ['cortx>rgw>motr_sleep_during_reconnect', 'motr sleep during reconnect']
+MOTR_RECONNECT_RETRY_COUNT_KEY = ['cortx>rgw>motr_reconnect_retry_count', 'motr reconnect retry count']
+
+RGW_MOTR_PARAM_MAPPING = [MOTR_LDAYOUT_ID_KEY, MOTR_UNIT_SIZE_KEY,
+                      MOTR_MAX_UNIT_PER_REQUEST_KEY, MOTR_MAX_IDX_FETCH_COUNT_KEY,
+                      MOTR_MAX_RPC_MSG_SIZE_KEY, MOTR_SLEEP_DURING_RECONNECT_KEY,
+                      MOTR_RECONNECT_RETRY_COUNT_KEY]
 
 class RgwEndpoint(Enum):
     """Enum class to define rgw endpoints provided by hare."""
