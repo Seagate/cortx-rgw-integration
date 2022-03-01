@@ -35,8 +35,8 @@ from cortx.rgw.const import (
     REQUIRED_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
     CLIENT_INSTANCE_NAME_KEY, CLIENT_INSTANCE_NUMBER_KEY, CONSUL_ENDPOINT_KEY,
     COMPONENT_NAME, ADMIN_PARAMETERS, LOG_PATH_KEY, DECRYPTION_KEY,
-    SSL_CERT_CONFIGS, SSL_DNS_LIST, RgwEndpoint,
-    LOGROTATE_TMPL, LOGROTATE_DIR, LOGROTATE_CONF, SUPPORTED_BACKEND_STORES)
+    SSL_CERT_CONFIGS, SSL_DNS_LIST, RgwEndpoint, LOGROTATE_TMPL, LOGROTATE_DIR,
+    LOGROTATE_CONF, SUPPORTED_BACKEND_STORES, TIMEOUT, CONSUL_LOCK_KEY, USER_CREATED_FLAG_KEY)
 
 
 class Rgw:
@@ -275,7 +275,7 @@ class Rgw:
             {access_key} --secret {password} --display-name="{user_name}" \
             --caps="users=*;metadata=*;usage=*;zone=*" \
             -c {rgw_config} -n client.radosgw-admin --no-mon-config'
-        _, err, rc, = SimpleProcess(create_usr_cmd).run()
+        _, err, rc, = SimpleProcess(create_usr_cmd).run(timeout=TIMEOUT)
         if rc == 0:
             Log.info(f'RGW admin user {user_name} is created.')
             return 0
@@ -494,18 +494,18 @@ class Rgw:
         # 1. While creating admin user, global lock created in consul kv store.
         # (rgw_consul_index, cortx>rgw>volatile>rgw_lock, machine_id)
         # 2. Before creating admin user.
-        #    a. Check for rgw_lock in consul kv store.
-        #    b. Create user only if lock value is None/machine-id.
+        #    a. Check for rgw_lock in consul kv store and user_created flag
+        #    b. Create user only if lock value is equal to machine_id
+        # 3. If user creation failed, set user_created flag = False.
+        # 4. If user creation is successful, delete lock and user_created key.
 
         rgw_lock = False
-        rgw_lock_key = f'component>{COMPONENT_NAME}>volatile>{COMPONENT_NAME}_lock'
         rgw_consul_idx = f'{COMPONENT_NAME}_consul_idx'
         # Get consul url from cortx config.
         consul_url = Rgw._get_consul_url(conf)
         # Check for rgw_lock in consul kv store.
         Log.info('Checking for rgw lock in consul kv store.')
         Conf.load(rgw_consul_idx, consul_url)
-
         # if in case try-catch block code executed at the same time on all the nodes,
         # then all nodes will try to update rgw lock-key in consul, after updating key
         # it will wait for sometime(time.sleep(3)) and in next iteration all nodes will
@@ -513,29 +513,32 @@ class Rgw:
         # and then only that node will perform the user creation operation.
         while True:
             try:
-                rgw_lock_val = Conf.get(rgw_consul_idx, rgw_lock_key)
-                Log.info(f'rgw_lock value - {rgw_lock_val}')
-                # TODO: Explore consul lock - https://www.consul.io/commands/lock
+                rgw_lock_val = Conf.get(rgw_consul_idx, CONSUL_LOCK_KEY)
+                is_user_created = Conf.get(rgw_consul_idx, USER_CREATED_FLAG_KEY)
+                Log.info(f'{CONSUL_LOCK_KEY} value - {rgw_lock_val}')
+                Log.info(f'{USER_CREATED_FLAG_KEY} value - {is_user_created}')
                 if rgw_lock_val is None:
-                    Log.info(f'Setting confstore value for key :{rgw_lock_key}'
-                             f' and value as :{Rgw._machine_id}')
-                    Rgw._load_rgw_config(rgw_consul_idx, consul_url)
-                    Conf.set(rgw_consul_idx, rgw_lock_key, Rgw._machine_id)
-                    Conf.save(rgw_consul_idx)
-                    Log.info(f'Updated confstore with latest value {Rgw._machine_id}')
-                    time.sleep(3)
-                    continue
+                    if is_user_created == 'True':
+                        Log.info('User is already created.')
+                        break
+                    else:
+                        Log.info(f'Setting consul kv store value for key :{CONSUL_LOCK_KEY}'
+                                f' and value as :{Rgw._machine_id}')
+                        Conf.set(rgw_consul_idx, CONSUL_LOCK_KEY, Rgw._machine_id)
+                        Conf.save(rgw_consul_idx)
+                        Log.info(f'Updated consul kv store with latest value {Rgw._machine_id}')
+                        time.sleep(3)
+                        continue
                 elif rgw_lock_val == Rgw._machine_id:
-                    Log.info('Found lock acquired successfully hence processing'
-                             ' with RGW admin user creation.')
+                    Log.info('Found lock acquired successfully, hence proceeding'
+                            f' with RGW admin user creation on node {rgw_lock_val}.')
                     rgw_lock = True
                     break
                 elif rgw_lock_val != Rgw._machine_id:
-                    Log.info(
-                        'Skipping rgw user creation, as rgw lock is already'
-                        f' acquired by other machine with id {rgw_lock_val}')
-                    rgw_lock = False
-                    break
+                    Log.info(f'RGW lock is acquired by "{rgw_lock_val}" node.')
+                    Log.info(f'Waiting for user creation to complete on "{rgw_lock_val}" node')
+                    time.sleep(3)
+                    continue
 
             except Exception as e:
                 Log.error('Exception occured while connecting to consul service'
@@ -545,11 +548,19 @@ class Rgw:
             current_data_node = socket.gethostname().replace('server', 'data')
             user_status = Rgw._create_admin_on_current_node(conf, current_data_node)
 
-            if user_status != 0:
+            if user_status == 0:
+                Log.info(f'User creation is successful on "{Rgw._machine_id}" node.')
+                Rgw._set_user_created_flag(rgw_consul_idx, True)
+            else:
                 machine_ids = Rgw._get_cortx_conf(conf, 'cluster>storage_set[0]>nodes')
-                data_pod_hostnames = [Rgw._get_cortx_conf(conf, \
-                    f'node>{machine_id}>hostname') for machine_id in machine_ids if \
+                data_pod_hostnames = [Rgw._get_cortx_conf(conf,
+                    f'node>{machine_id}>hostname') for machine_id in machine_ids if
                     Rgw._get_cortx_conf(conf, f'node>{machine_id}>type') == 'data_node']
+                if len(data_pod_hostnames) == 1:
+                    Rgw._set_user_created_flag(rgw_consul_idx, False)
+                    raise SetupError(user_status, 'Admin user creation failed on'
+                        f' "{Rgw._machine_id}" node, with all data pods')
+
                 data_pod_hostnames.remove(current_data_node)
                 for data_pod_hostname in data_pod_hostnames:
                     try:
@@ -558,17 +569,26 @@ class Rgw:
                         continue
                     status = Rgw._create_rgw_user(conf)
                     if status == 0:
+                        Log.info(f'User creation is successful on "{Rgw._machine_id}" node.')
+                        Rgw._set_user_created_flag(rgw_consul_idx, True)
                         break
                     else:
                         if data_pod_hostname == data_pod_hostnames[-1]:
-                            raise SetupError(status, 'Admin user creation failed ' \
-                                'with all data pods')
+                            Rgw._set_user_created_flag(rgw_consul_idx, False)
+                            raise SetupError(status, 'Admin user creation failed on'
+                                f' "{Rgw._machine_id}" node, with all data pods')
 
-            if user_status == 0:
-                Log.info('User is created.')
-                Log.debug(f'Deleting rgw_lock key {rgw_lock_key}.')
-                Conf.delete(rgw_consul_idx, rgw_lock_key)
-                Log.info(f'{rgw_lock_key} key is deleted')
+            Log.debug(f'Deleting rgw_lock key {CONSUL_LOCK_KEY}.')
+            Conf.delete(rgw_consul_idx, CONSUL_LOCK_KEY)
+            Log.info(f'{CONSUL_LOCK_KEY} key is deleted')
+
+    @staticmethod
+    def _set_user_created_flag(consul_idx: str, value: bool):
+        """Update user_created key in consul kv store."""
+        Conf.set(consul_idx, USER_CREATED_FLAG_KEY, value)
+        Conf.save(consul_idx)
+        time.sleep(3)
+        Log.info(f'{USER_CREATED_FLAG_KEY} key is set to {value}.')
 
     @staticmethod
     def _logrotate_generic(conf: MappedConf):

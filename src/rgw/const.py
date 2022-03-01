@@ -21,6 +21,9 @@ DECRYPTION_KEY = 'cortx'
 SERVICE_NAME = f'{COMPONENT_NAME}_setup' # rgw_setup
 INSTALL_PATH = '/opt/seagate/cortx'
 RGW_INSTALL_PATH = f'{INSTALL_PATH}/{COMPONENT_NAME}'
+TIMEOUT = 60
+CONSUL_LOCK_KEY = f'component>{COMPONENT_NAME}>volatile>{COMPONENT_NAME}_lock'
+USER_CREATED_FLAG_KEY = f'component>{COMPONENT_NAME}>volatile>user_created'
 
 RGW_CONF_TMPL = f'{RGW_INSTALL_PATH}/conf/cortx_{COMPONENT_NAME}.conf'
 LOGROTATE_TMPL = f'{RGW_INSTALL_PATH}/conf/{COMPONENT_NAME}.logrotate.tmpl'
