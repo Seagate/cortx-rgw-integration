@@ -389,6 +389,10 @@ class Rgw:
                 raise SetupError(errno.EINVAL, f'Failed to validate hare endpoint values.'
                     f'endpoint {key.name} or its value is not present.')
 
+        for ep_key, ep_value in endpoints.items():
+            if eval(ep_value) == '':
+                raise SetupError(errno.EINVAL, f'Invalid values for {ep_key}: {ep_value}')
+
     @staticmethod
     def _get_files(substr_pattern: str):
         """Return all files present in path that matches with given pattern."""
