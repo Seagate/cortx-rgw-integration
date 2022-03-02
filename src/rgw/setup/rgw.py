@@ -436,8 +436,7 @@ class Rgw:
     def _generate_ssl_cert(conf: MappedConf):
         """Generate SSL certificate."""
         ssl_cert_path = Rgw._get_cortx_conf(conf, const.SSL_CERT_PATH_KEY)
-        endpoints = Rgw._get_cortx_conf(conf, 'cortx>rgw>s3>endpoints')
-        https_endpoints = list(filter(lambda x: urlparse(x).scheme == 'https', endpoints))
+        https_endpoints = Rgw._fetch_endpoint_url(conf, const.RGW_ENDPOINT_KEY, 'https')
         if len(https_endpoints) > 0 and not os.path.exists(ssl_cert_path):
             # Generate SSL cert.
             Log.info(f'"https" is enabled and SSL certificate is not present at {ssl_cert_path}.')
@@ -636,8 +635,8 @@ class Rgw:
         Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{rgw_config_file}')
         Log.info(f'adding paramters to {client_section} in {rgw_config_file}')
 
-        # e.g config_key_mapping = [[confstore_key1, actual_config_key1],
-        # [confstore_key2, actual_config_key2], ..]
+        # e.g config_key_mapping = [[confstore_key1, actual_rgw_config_key1],
+        # [confstore_key2, actual_rgw_config_key2], ..]
         for confstore_key, config_key in config_key_mapping:
             # fetch actual value of parameter from confstore.
             config_value = Conf.get(Rgw._rgw_conf_idx, confstore_key)
