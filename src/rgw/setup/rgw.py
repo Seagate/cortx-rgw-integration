@@ -22,6 +22,7 @@ import glob
 import json
 import socket
 from urllib.parse import urlparse
+
 from cortx.utils.security.certificate import Certificate
 from cortx.utils.errors import SSLCertificateError
 from cortx.utils.validator.v_pkg import PkgV
@@ -123,6 +124,10 @@ class Rgw:
             Log.info('Updating endpoint values in rgw config file.')
             Rgw._update_rgw_config_with_endpoints(conf, service_endpoints, instance)
             instance = instance + 1
+
+        # Add additional parameters of RGW & Motr to config file.
+        Rgw._update_rgw_config(conf, 'client', const.RGW_PARAM_MAPPING)
+        Rgw._update_rgw_config(conf, 'client', const.RGW_MOTR_PARAM_MAPPING)
 
         # Before user creation,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
@@ -625,36 +630,22 @@ class Rgw:
 
     @staticmethod
     def _update_rgw_config(conf: MappedConf, client_section: string, config_key_mapping: list):
-        """Update endpoints,port and log path values to rgw config file."""
+        """Update config properties from confstore to rgw config file."""
         rgw_config_dir = Rgw._get_rgw_config_dir(conf)
         rgw_config_file = os.path.join(rgw_config_dir, const.RGW_CONF_FILE)
         Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{rgw_config_file}')
+        Log.info(f'adding paramters to {client_section} in {rgw_config_file}')
 
-        # TODO
-        # Update {client_section} section,
-        #for ep_value, key in const.RgwEndpoint._value2member_map_.items():
-        #    Conf.set(Rgw._rgw_conf_idx,
-        #        f'client.radosgw-admin>{ep_value}', endpoints[key.name])
-        #    Conf.set(Rgw._rgw_conf_idx,
-        #        f'client.radosgw-admin>{const.ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}',
-        #        endpoints[const.RgwEndpoint.MOTR_PROCESS_FID.name])
-        #    Conf.set(
-        #        Rgw._rgw_conf_idx,
-        #        f'client.radosgw-admin>{const.ADMIN_PARAMETERS["MOTR_ADMIN_ENDPOINT"]}',
-        #        endpoints[const.RgwEndpoint.MOTR_CLIENT_EP.name])
-        #    Conf.set(Rgw._rgw_conf_idx, f'client.radosgw-admin>log file', radosgw_admin_log_file)
+        # e.g config_key_mapping = [[confstore_key1, actual_config_key1],
+        # [confstore_key2, actual_config_key2], ..]
+        for confstore_key, config_key in config_key_mapping:
+            # fetch actual value of parameter from confstore.
+            config_value = Conf.get(Rgw._rgw_conf_idx, confstore_key)
+            if not config_value :
+                raise SetupError(errno.EINVAL,
+                    f'Confstore key/value is missing for key {confstore_key}')
+            else:
+                Conf.set(Rgw._rgw_conf_idx, f'{client_section}>{config_key}', {config_value})
 
-        # Create separate section for each service instance in cortx_rgw.conf file.
-        #for ep_value, key in const.RgwEndpoint._value2member_map_.items():
-        #    Conf.set(Rgw._rgw_conf_idx, f'client.rgw-{instance}>{ep_value}', endpoints[key.name])
-        #Conf.set(Rgw._rgw_conf_idx, f'client.rgw-{instance}>log file', service_instance_log_file)
-        # For each instance increase port value by 1.
-        # for eg. for 1st instance. port=8000
-        # for 2nd instance port=8000 + 1
-        # port = <port> + (instance - 1)
-        # TODO: read port value from endpoint url define in cluster.conf
-        #Conf.set(
-        #    Rgw._rgw_conf_idx,
-        #    f'client.rgw-{instance}>{const.ADMIN_PARAMETERS["RGW_FRONTENDS"]}',
-        #    f'beast port={port} ssl_port={ssl_port} ssl_certificate={ssl_cert_path}, ssl_private_key={ssl_cert_path}')
         Conf.save(Rgw._rgw_conf_idx)
+        Log.info(f'added paramters to {client_section} successfully..')
