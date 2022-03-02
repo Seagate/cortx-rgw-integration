@@ -147,12 +147,15 @@ class Rgw:
     @staticmethod
     def start(conf: MappedConf, index: str):
         """Create rgw admin user and start rgw service."""
+
+        Log.info(f'Configure logrotate for {COMPONENT_NAME} at path: {LOGROTATE_CONF}')
+        Rgw._logrotate_generic(conf)
         # Before starting service,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
-``
+        
         Log.info('Starting radosgw service.')
         log_path = Rgw._get_log_dir_path(conf)
-        log_file = os.path.join(log_path, f'{COMPONENT_NAME}-{index}')
+        log_file = os.path.join(log_path, f'{COMPONENT_NAME}_startup.log')
         config_file = Rgw._get_rgw_config_path(conf)
         RgwService.start_rgw(conf, config_file, log_file, index)
         Log.info("Started radosgw service.")
@@ -344,7 +347,7 @@ class Rgw:
         # Update this with same config that is define for 1st instance.
         if instance == 1:
             radosgw_admin_log_file = os.path.join(
-                log_path, COMPONENT_NAME, Rgw._machine_id, 'radosgw-admin.log')
+                log_path, 'radosgw-admin.log')
             for ep_value, key in RgwEndpoint._value2member_map_.items():
                 Conf.set(Rgw._rgw_conf_idx,
                     f'client.radosgw-admin>{ep_value}', endpoints[key.name])
@@ -385,6 +388,10 @@ class Rgw:
             if key.name not in endpoints or not endpoints.get(key.name):
                 raise SetupError(errno.EINVAL, f'Failed to validate hare endpoint values.'
                     f'endpoint {key.name} or its value is not present.')
+
+        for ep_key, ep_value in endpoints.items():
+            if eval(ep_value) == '':
+                raise SetupError(errno.EINVAL, f'Invalid values for {ep_key}: {ep_value}')
 
     @staticmethod
     def _get_files(substr_pattern: str):
@@ -446,6 +453,10 @@ class Rgw:
     def _update_hax_endpoint(conf: MappedConf, data_pod_hostname: str):
         """Update hax endpoint values in rgw config file."""
         Log.info('Reading motr_ha_endpoint from data pod')
+
+        if not data_pod_hostname:
+            raise SetupError(errno.EINVAL, 'Invalid data pod hostname: %s', data_pod_hostname)
+
         config_path = Rgw._get_cortx_conf(conf, CONFIG_PATH_KEY)
         hare_config_dir = os.path.join(config_path, 'hare', 'config', Rgw._machine_id)
 
@@ -470,10 +481,19 @@ class Rgw:
         Log.info(f'Updated motr_ha_endpoint in config file {rgw_config_path}')
 
     @staticmethod
+    def _create_admin_on_current_node(conf: MappedConf, current_data_node: str):
+        try:
+            Rgw._update_hax_endpoint(conf, current_data_node)
+            Log.info('Creating admin user.')
+            # Before creating user check if user is already created.
+            user_status = Rgw._create_rgw_user(conf)
+            return user_status
+        except Exception:
+            return -1
+
+    @staticmethod
     def _update_hax_endpoint_and_create_admin(conf: MappedConf):
-        """Update motr_ha(hax) endpoint values to rgw config file."""
-        current_data_node = socket.gethostname().replace('server', 'data')
-        Rgw._update_hax_endpoint(conf, current_data_node)
+        """Update motr_ha(hax) endpoint values to rgw config file and create admin."""
         # admin user should be created only on one node.
         # 1. While creating admin user, global lock created in consul kv store.
         # (rgw_consul_index, cortx>rgw>volatile>rgw_lock, machine_id)
@@ -526,9 +546,8 @@ class Rgw:
                           f' endpoint {e}')
                 break
         if rgw_lock is True:
-            Log.info('Creating admin user.')
-            # Before creating user check if user is already created.
-            user_status = Rgw._create_rgw_user(conf)
+            current_data_node = socket.gethostname().replace('server', 'data')
+            user_status = Rgw._create_admin_on_current_node(conf, current_data_node)
 
             if user_status != 0:
                 machine_ids = Rgw._get_cortx_conf(conf, 'cluster>storage_set[0]>nodes')
@@ -537,7 +556,10 @@ class Rgw:
                     Rgw._get_cortx_conf(conf, f'node>{machine_id}>type') == 'data_node']
                 data_pod_hostnames.remove(current_data_node)
                 for data_pod_hostname in data_pod_hostnames:
-                    Rgw._update_hax_endpoint(conf, data_pod_hostname)
+                    try:
+                        Rgw._update_hax_endpoint(conf, data_pod_hostname)
+                    except Exception:
+                        continue
                     status = Rgw._create_rgw_user(conf)
                     if status == 0:
                         break
@@ -569,6 +591,7 @@ class Rgw:
             content = content.replace('TMP_LOG_PATH', log_file_path)
             with open(LOGROTATE_CONF, 'w') as f:
                 f.write(content)
+            Log.info(f'{LOGROTATE_TMPL} file copied to {LOGROTATE_CONF}')
         except Exception as e:
             Log.error(f"Failed to configure logrotate for {COMPONENT_NAME}. ERROR:{e}")
 
