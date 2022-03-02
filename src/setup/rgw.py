@@ -152,7 +152,7 @@ class Rgw:
         Rgw._logrotate_generic(conf)
         # Before starting service,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
-        
+
         Log.info('Starting radosgw service.')
         log_path = Rgw._get_log_dir_path(conf)
         log_file = os.path.join(log_path, f'{COMPONENT_NAME}_startup.log')
@@ -388,10 +388,6 @@ class Rgw:
             if key.name not in endpoints or not endpoints.get(key.name):
                 raise SetupError(errno.EINVAL, f'Failed to validate hare endpoint values.'
                     f'endpoint {key.name} or its value is not present.')
-
-        for ep_key, ep_value in endpoints.items():
-            if eval(ep_value) == '':
-                raise SetupError(errno.EINVAL, f'Invalid values for {ep_key}: {ep_value}')
 
     @staticmethod
     def _get_files(substr_pattern: str):
