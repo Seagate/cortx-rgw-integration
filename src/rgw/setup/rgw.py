@@ -377,7 +377,7 @@ class Rgw:
         Conf.set(
             Rgw._rgw_conf_idx,
             f'client.rgw-{instance}>{ADMIN_PARAMETERS["RGW_FRONTENDS"]}',
-            f'beast port={port} ssl_port={ssl_port} ssl_certificate={ssl_cert_path}, ssl_private_key={ssl_cert_path}')
+            f'beast port={port} ssl_port={ssl_port} ssl_certificate={ssl_cert_path} ssl_private_key={ssl_cert_path}')
         Conf.save(Rgw._rgw_conf_idx)
 
     @staticmethod
@@ -388,10 +388,6 @@ class Rgw:
             if key.name not in endpoints or not endpoints.get(key.name):
                 raise SetupError(errno.EINVAL, f'Failed to validate hare endpoint values.'
                     f'endpoint {key.name} or its value is not present.')
-
-        for ep_key, ep_value in endpoints.items():
-            if eval(ep_value) == '':
-                raise SetupError(errno.EINVAL, f'Invalid values for {ep_key}: {ep_value}')
 
     @staticmethod
     def _get_files(substr_pattern: str):
