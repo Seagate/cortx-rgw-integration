@@ -384,10 +384,14 @@ class Rgw:
     def _validate_endpoint_paramters(endpoints: dict):
         """Validate endpoint values provided by hare sysconfig file."""
 
-        for ep_value, key in RgwEndpoint._value2member_map_.items():
+        for _, key in RgwEndpoint._value2member_map_.items():
             if key.name not in endpoints or not endpoints.get(key.name):
                 raise SetupError(errno.EINVAL, f'Failed to validate hare endpoint values.'
                     f'endpoint {key.name} or its value is not present.')
+
+        for ep_key, ep_value in endpoints.items():
+            if eval(ep_value) == '':
+                raise SetupError(errno.EINVAL, f'Invalid values for {ep_key}: {ep_value}')
 
     @staticmethod
     def _get_files(substr_pattern: str):
