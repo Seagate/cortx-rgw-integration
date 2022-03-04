@@ -28,10 +28,10 @@ from cortx.utils.conf_store import Conf, MappedConf
 from cortx.utils.conf_store.error import ConfError
 from cortx.utils.process import SimpleProcess
 from cortx.utils.log import Log
+from cortx.rgw.setup.error import SetupError
+from cortx.rgw.setup.rgw_start import RgwStart
 from cortx.utils.security.cipher import Cipher, CipherInvalidToken
-from src.setup.error import SetupError
-from src.setup.rgw_start import RgwStart
-from src.const import (
+from cortx.rgw.const import (
     REQUIRED_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
     CLIENT_INSTANCE_NAME_KEY, CLIENT_INSTANCE_NUMBER_KEY, CONSUL_ENDPOINT_KEY,
     COMPONENT_NAME, ADMIN_PARAMETERS, LOG_PATH_KEY, DECRYPTION_KEY,
@@ -377,7 +377,7 @@ class Rgw:
         Conf.set(
             Rgw._rgw_conf_idx,
             f'client.rgw-{instance}>{ADMIN_PARAMETERS["RGW_FRONTENDS"]}',
-            f'beast port={port} ssl_port={ssl_port} ssl_certificate={ssl_cert_path}, ssl_private_key={ssl_cert_path}')
+            f'beast port={port} ssl_port={ssl_port} ssl_certificate={ssl_cert_path} ssl_private_key={ssl_cert_path}')
         Conf.save(Rgw._rgw_conf_idx)
 
     @staticmethod
