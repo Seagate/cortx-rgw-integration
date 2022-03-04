@@ -22,9 +22,9 @@ import traceback
 from cortx.utils.log import Log
 from cortx.utils.cmd_framework import Cmd
 from cortx.utils.conf_store import Conf, MappedConf
-from src.setup.rgw import Rgw
-from src.setup.error import SetupError
-from src.const import SERVICE_NAME, LOG_PATH_KEY
+from cortx.rgw.setup.rgw import Rgw
+from cortx.rgw.setup.error import SetupError
+from cortx.rgw.const import SERVICE_NAME, LOG_PATH_KEY
 
 class SetupCmdBase(Cmd):
     """Setup cmd base class."""

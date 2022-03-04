@@ -16,7 +16,7 @@
 
 import os
 import glob
-from setuptools import setup, find_packages
+from setuptools import setup
 import sys
 
 RGW_INSTALL_PATH="/opt/seagate/cortx/rgw"
@@ -35,7 +35,7 @@ with open('README.md', 'r') as rf:
 
 # Get list of mini-provisioner classes
 mini_prov_files = glob.glob('./src/setup/*.py')
-logrotate_tmpl_file = 'src/setup/templates/rgw.logrotate.tmpl'
+logrotate_tmpl_file = 'src/rgw/setup/templates/rgw.logrotate.tmpl'
 
 setup(name='cortx-rgw-integration',
       version=rgw_intg_version,
@@ -43,12 +43,9 @@ setup(name='cortx-rgw-integration',
       license='Seagate',
       description='RGW integration code for CORTX',
       package_dir={'cortx': 'src'},
-      packages=find_packages(),
-      package_data={
-        'cortx': ['py.typed'],
-        'cortx.src.setup': ['*.py'],
-        'cortx.src.support': ['*.py'],
-      },
+      packages=['cortx.rgw',
+      'cortx.rgw.setup', 'cortx.rgw.support',
+      ],
       long_description=long_description,
       zip_safe=False,
       python_requires='>=3.6',
@@ -60,8 +57,8 @@ setup(name='cortx-rgw-integration',
       },
       data_files =[ ('%s/mini-provisioner' % RGW_INSTALL_PATH, mini_prov_files),
                     ('%s/bin' % RGW_INSTALL_PATH,
-                    ['src/setup/rgw_setup', 'src/support/rgw_support_bundle',
-                     'src/setup/rgw_service']),
+                    ['src/rgw/setup/rgw_setup', 'src/rgw/support/rgw_support_bundle',
+                     'src/rgw/setup/rgw_service']),
                     ('%s/mini-provisioner' % RGW_INSTALL_PATH,['VERSION']),
                     ('%s/conf' % RGW_INSTALL_PATH,['conf/cortx_rgw.conf',
                     logrotate_tmpl_file])

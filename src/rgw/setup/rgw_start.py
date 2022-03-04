@@ -1,4 +1,5 @@
-# CORTX Python common library.
+#!/usr/bin/python3
+
 # Copyright (c) 2022 Seagate Technology LLC and/or its Affiliates
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published
@@ -12,3 +13,22 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 # For any questions about this software or licensing,
 # please email opensource@seagate.com or cortx-questions@seagate.com.
+
+import os
+from cortx.utils.log import Log
+from cortx.rgw.setup.error import SetupError
+from cortx.utils.conf_store import MappedConf
+
+
+class RgwStart:
+    """Entrypoint class for RGW."""
+
+    @staticmethod
+    def start_rgw(conf: MappedConf, config_file, log_file, index: str = '1',):
+        """Start rgw service independently."""
+        try:
+            # TODO: To replace os.system with SimpleProcess calls
+            os.system(f"sh /opt/seagate/cortx/rgw/bin/rgw_service -i {index} -c {config_file} -l {log_file}")
+        except OSError as e:
+            Log.error(f"Failed to start radosgw service:{e}")
+            raise SetupError(e.errno, "Failed to start radosgw service. %s", e)
