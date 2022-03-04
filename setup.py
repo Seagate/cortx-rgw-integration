@@ -61,6 +61,6 @@ setup(name='cortx-rgw-integration',
                      'src/rgw/setup/rgw_service']),
                     ('%s/mini-provisioner' % RGW_INSTALL_PATH,['VERSION']),
                     ('%s/conf' % RGW_INSTALL_PATH,['conf/cortx_rgw.conf',
-                    logrotate_tmpl_file])
+                    logrotate_tmpl_file, 'src/rgw/support/support.yaml'])
                   ],
       )
