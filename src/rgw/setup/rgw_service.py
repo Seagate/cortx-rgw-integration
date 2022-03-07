@@ -29,11 +29,12 @@ class RgwService:
     def start(conf: MappedConf, config_file, log_file, index: str = '1',):
         """Start rgw service independently."""
         try:
-            cmd = f"/usr/bin/radosgw -f --name client.rgw-{index} -c {config_file} --no-mon-config &> {log_file}"
-            cmd = shlex.split(cmd)
+            cmd = "/usr/bin/radosgw"
+            args = f"-f --name client.rgw-{index} -c {config_file} --no-mon-config &> {log_file}"
+            args = shlex.split(args)
             sys.stdout.flush()
             sys.stderr.flush()
-            os.execlp(*cmd)
+            os.execl(cmd, cmd, *args)
         except OSError as e:
             Log.error(f"Failed to start radosgw service:{e}")
             raise SetupError(e.errno, "Failed to start radosgw service. %s", e)
