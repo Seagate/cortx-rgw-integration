@@ -15,7 +15,6 @@
 # please email opensource@seagate.com or cortx-questions@seagate.com.
 
 import os
-import string
 import time
 import errno
 import glob
@@ -148,7 +147,7 @@ class Rgw:
     def start(conf: MappedConf, index: str):
         """Create rgw admin user and start rgw service."""
 
-        Log.info(f'Configure logrotate for {COMPONENT_NAME} at path: {LOGROTATE_CONF}')
+        Log.info(f'Configure logrotate for {const.COMPONENT_NAME} at path: {const.LOGROTATE_CONF}')
         Rgw._logrotate_generic(conf)
         # Before starting service,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
@@ -210,7 +209,7 @@ class Rgw:
         return consul_url
 
     @staticmethod
-    def _fetch_endpoint_url(conf: MappedConf, confstore_endpoint_key, endpoint_type):
+    def _fetch_endpoint_url(conf: MappedConf, confstore_endpoint_key: str, endpoint_type: str):
         """Fetch endpoint url based on endpoint type from cortx config."""
         endpoints = Rgw._get_cortx_conf(conf, confstore_endpoint_key)
         endpoints_values = list(filter(lambda x: urlparse(x).scheme == endpoint_type, endpoints))
@@ -612,7 +611,7 @@ class Rgw:
             content = content.replace('TMP_LOG_PATH', log_file_path)
             with open(const.LOGROTATE_CONF, 'w') as f:
                 f.write(content)
-            Log.info(f'{LOGROTATE_TMPL} file copied to {LOGROTATE_CONF}')
+            Log.info(f'{const.LOGROTATE_TMPL} file copied to {const.LOGROTATE_CONF}')
         except Exception as e:
             Log.error(f"Failed to configure logrotate for {const.COMPONENT_NAME}. ERROR:{e}")
 
@@ -628,7 +627,7 @@ class Rgw:
                 f' currently configured one is {backend_store}')
 
     @staticmethod
-    def _update_rgw_config(conf: MappedConf, client_section: string, config_key_mapping: list):
+    def _update_rgw_config(conf: MappedConf, client_section: str, config_key_mapping: list):
         """Update config properties from confstore to rgw config file."""
         rgw_config_dir = Rgw._get_rgw_config_dir(conf)
         rgw_config_file = os.path.join(rgw_config_dir, const.RGW_CONF_FILE)
@@ -639,7 +638,7 @@ class Rgw:
         # [confstore_key2, actual_rgw_config_key2], ..]
         for confstore_key, config_key in config_key_mapping:
             # fetch actual value of parameter from confstore.
-            config_value = Conf.get(Rgw._rgw_conf_idx, confstore_key)
+            config_value = Rgw._get_cortx_conf(conf, confstore_key)
             if not config_value :
                 raise SetupError(errno.EINVAL,
                     f'Confstore key/value is missing for key {confstore_key}')
