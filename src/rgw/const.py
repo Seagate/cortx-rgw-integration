@@ -75,12 +75,12 @@ MOTR_UNIT_SIZE_KEY = [f'cortx>{COMPONENT_NAME}>motr_unit_size', 'motr unit size'
 MOTR_MAX_UNIT_PER_REQUEST_KEY = [f'cortx>{COMPONENT_NAME}>motr_max_units_per_request', 'motr max units per request']
 MOTR_MAX_IDX_FETCH_COUNT_KEY = [f'cortx>{COMPONENT_NAME}>motr_max_idx_fetch_count', 'motr max idx fetch count']
 MOTR_MAX_RPC_MSG_SIZE_KEY = [f'cortx>{COMPONENT_NAME}>motr_max_rpc_msg_size', 'motr max rpc msg size']
-MOTR_SLEEP_DURING_RECONNECT_KEY = [f'cortx>{COMPONENT_NAME}>motr_sleep_during_reconnect', 'motr sleep during reconnect']
+MOTR_RECONNECT_INTERVAL_KEY = [f'cortx>{COMPONENT_NAME}>motr_reconnect_interval', 'motr reconnect interval']
 MOTR_RECONNECT_RETRY_COUNT_KEY = [f'cortx>{COMPONENT_NAME}>motr_reconnect_retry_count', 'motr reconnect retry count']
 
 RGW_MOTR_PARAM_MAPPING = [MOTR_LDAYOUT_ID_KEY, MOTR_UNIT_SIZE_KEY,
                       MOTR_MAX_UNIT_PER_REQUEST_KEY, MOTR_MAX_IDX_FETCH_COUNT_KEY,
-                      MOTR_MAX_RPC_MSG_SIZE_KEY, MOTR_SLEEP_DURING_RECONNECT_KEY,
+                      MOTR_MAX_RPC_MSG_SIZE_KEY, MOTR_RECONNECT_INTERVAL_KEY,
                       MOTR_RECONNECT_RETRY_COUNT_KEY]
 
 class RgwEndpoint(Enum):

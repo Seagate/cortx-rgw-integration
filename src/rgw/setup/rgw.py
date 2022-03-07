@@ -32,7 +32,7 @@ from cortx.utils.log import Log
 from cortx.rgw.setup.error import SetupError
 from cortx.rgw.setup.rgw_service import RgwService
 from cortx.utils.security.cipher import Cipher, CipherInvalidToken
-import cortx.rgw.const as const
+from cortx.rgw import const
 
 class Rgw:
     """Represents RGW and Performs setup related actions."""
@@ -124,9 +124,10 @@ class Rgw:
             Rgw._update_rgw_config_with_endpoints(conf, service_endpoints, instance)
             instance = instance + 1
 
+        # TODO enable this once all kyes are available in Gconf
         # Add additional parameters of RGW & Motr to config file.
-        Rgw._update_rgw_config(conf, 'client', const.RGW_PARAM_MAPPING)
-        Rgw._update_rgw_config(conf, 'client', const.RGW_MOTR_PARAM_MAPPING)
+        #Rgw._update_rgw_config(conf, 'client', const.RGW_PARAM_MAPPING)
+        #Rgw._update_rgw_config(conf, 'client', const.RGW_MOTR_PARAM_MAPPING)
 
         # Before user creation,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
