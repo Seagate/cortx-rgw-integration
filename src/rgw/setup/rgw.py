@@ -216,7 +216,7 @@ class Rgw:
         endpoints_values = list(filter(lambda x: urlparse(x).scheme == endpoint_type, endpoints))
         if len(endpoints_values) == 0:
             raise SetupError(errno.EINVAL,
-                '{endpoint_type} endpoint is not specified in the conf.'
+                f'{endpoint_type} endpoint is not specified in the conf.'
                 f' Listed endpoints: {endpoints_values}')
         return endpoints_values
 
