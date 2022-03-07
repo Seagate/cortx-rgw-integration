@@ -48,6 +48,7 @@ class RGWSupportBundle:
     def generate(bundle_id: str, target_path: str, cluster_conf: str, **filters):
         """ Generate a tar file. """
         coredumps = filters.get('coredumps', False)
+        stacktrace = filters.get('stacktrace', False)
         machine_id = Conf.machine_id
         cortx_config_store = MappedConf(cluster_conf)
         log_base = cortx_config_store.get(LOG_PATH_KEY)
@@ -82,6 +83,13 @@ class RGWSupportBundle:
             if os.path.exists(CRASHDUMP_DIR):
                 shutil.copytree(CRASHDUMP_DIR,\
                     os.path.join(RGWSupportBundle._tmp_src, 'crash'))
+
+        # copy motr trace log files, if stacktrace=True
+        if stacktrace:
+            motr_trace_dir = os.path.join(log_dir, 'm0_client')
+            if os.path.exists(motr_trace_dir):
+                shutil.copytree(motr_trace_dir,\
+                    os.path.join(RGWSupportBundle._tmp_src, 'm0traces'))
 
         # add cortx components rpm version
         cmd = "rpm -qa | grep cortx"
