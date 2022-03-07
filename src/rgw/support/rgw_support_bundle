@@ -86,10 +86,22 @@ class RGWSupportBundle:
 
         # copy motr trace log files, if stacktrace=True
         if stacktrace:
-            motr_trace_dir = os.path.join(log_dir, 'm0_client')
+            motr_trace_dir = os.path.join(log_dir, 'motr_trace_files')
             if os.path.exists(motr_trace_dir):
-                shutil.copytree(motr_trace_dir,\
-                    os.path.join(RGWSupportBundle._tmp_src, 'm0traces'))
+                # include the latest 5 log files of motr traces in support bundle
+                list_of_files = filter(lambda f: os.path.isfile(os.path.join(motr_trace_dir, f)),
+                                os.listdir(motr_trace_dir))
+                # sort the files based on last modification time
+                list_of_files = sorted(list_of_files,
+                                key = lambda f: os.path.getmtime(os.path.join(motr_trace_dir, f)),
+                                reverse=True)
+                list_of_files = list_of_files[0:5]
+                for file in list_of_files:
+                    infile = os.path.join(motr_trace_dir, file)
+                    tmp_motr_trace_dir = os.path.join(RGWSupportBundle._tmp_src, 'motr_trace_files')
+                    os.makedirs(tmp_motr_trace_dir, exist_ok=True)
+                    outfile = os.path.join(tmp_motr_trace_dir, file)
+                    shutil.copyfile(infile, outfile)
 
         # add cortx components rpm version
         cmd = "rpm -qa | grep cortx"
