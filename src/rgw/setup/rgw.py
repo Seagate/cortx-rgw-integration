@@ -36,7 +36,8 @@ from cortx.rgw.const import (
     CLIENT_INSTANCE_NAME_KEY, CLIENT_INSTANCE_NUMBER_KEY, CONSUL_ENDPOINT_KEY,
     COMPONENT_NAME, ADMIN_PARAMETERS, LOG_PATH_KEY, DECRYPTION_KEY,
     SSL_CERT_CONFIGS, SSL_DNS_LIST, RgwEndpoint, LOGROTATE_TMPL, LOGROTATE_DIR,
-    LOGROTATE_CONF, SUPPORTED_BACKEND_STORES, TIMEOUT, CONSUL_LOCK_KEY)
+    LOGROTATE_CONF, SUPPORTED_BACKEND_STORES, ADMIN_CREATION_TIMEOUT,
+    ADMIN_USER_CREATED, CONSUL_LOCK_KEY)
 
 
 class Rgw:
@@ -275,7 +276,7 @@ class Rgw:
             {access_key} --secret {password} --display-name="{user_name}" \
             --caps="users=*;metadata=*;usage=*;zone=*" \
             -c {rgw_config} -n client.radosgw-admin --no-mon-config'
-        _, err, rc, = SimpleProcess(create_usr_cmd).run(timeout=TIMEOUT)
+        _, err, rc, = SimpleProcess(create_usr_cmd).run(timeout=ADMIN_CREATION_TIMEOUT)
         if rc == 0:
             Log.info(f'RGW admin user {user_name} is created.')
             return 0
@@ -495,9 +496,9 @@ class Rgw:
         # (rgw_consul_index, cortx>rgw>volatile>rgw_lock, machine_id)
         # 2. Before creating admin user.
         #    a. Check for rgw_lock in consul kv store
-        #    b. Create user only if lock value is equal to machine_id
-        # 3. If user creation failed, delete the lock value so that other node can aquire lock
-        #    and perform user creation.
+        #    b. Create user only if lock value is equal to **self** machine_id
+        # 3. If user creation attempt failed from this node, delete the lock
+        #    so other node can acquire the lock and try user creation.
         # 4. If user creation is successful, update lock value to 'user_created'.
 
         rgw_lock = False
@@ -522,12 +523,12 @@ class Rgw:
                     Rgw._set_consul_kv(rgw_consul_idx, CONSUL_LOCK_KEY, Rgw._machine_id)
                     continue
                 elif rgw_lock_val == Rgw._machine_id:
-                    Log.info('Found lock acquired successfully, hence proceeding'
-                            f' with RGW admin user creation on node {rgw_lock_val}.')
+                    Log.info('Required lock already possessed, proceeding with RGW '
+                        f'admin user creation on node {rgw_lock_val}')
                     rgw_lock = True
                     break
                 elif rgw_lock_val != Rgw._machine_id:
-                    if rgw_lock_val == 'user_created':
+                    if rgw_lock_val == ADMIN_USER_CREATED:
                         Log.info('User is already created.')
                         break
                     Log.info(f'RGW lock is acquired by "{rgw_lock_val}" node.')
@@ -545,17 +546,17 @@ class Rgw:
 
             if user_status == 0:
                 Log.info(f'User creation is successful on "{Rgw._machine_id}" node.')
-                Rgw._set_consul_kv(rgw_consul_idx, CONSUL_LOCK_KEY, 'user_created')
+                Rgw._set_consul_kv(rgw_consul_idx, CONSUL_LOCK_KEY, ADMIN_USER_CREATED)
             else:
                 machine_ids = Rgw._get_cortx_conf(conf, 'cluster>storage_set[0]>nodes')
                 data_pod_hostnames = [Rgw._get_cortx_conf(conf,
                     f'node>{machine_id}>hostname') for machine_id in machine_ids if
                     Rgw._get_cortx_conf(conf, f'node>{machine_id}>type') == 'data_node']
-                if len(data_pod_hostnames) == 1:
+                if len(data_pod_hostnames) == 1 and current_data_node == data_pod_hostnames[0]:
                     Log.error('Admin user creation failed')
                     Rgw._delete_consul_kv(rgw_consul_idx, CONSUL_LOCK_KEY)
                     raise SetupError(user_status, 'Admin user creation failed on'
-                        f' "{Rgw._machine_id}" node, with all data pods')
+                        f' "{Rgw._machine_id}" node, with all data pods - {data_pod_hostnames}')
 
                 data_pod_hostnames.remove(current_data_node)
                 for data_pod_hostname in data_pod_hostnames:
@@ -566,14 +567,14 @@ class Rgw:
                     status = Rgw._create_rgw_user(conf)
                     if status == 0:
                         Log.info(f'User creation is successful on "{Rgw._machine_id}" node.')
-                        Rgw._set_consul_kv(rgw_consul_idx, CONSUL_LOCK_KEY, 'user_created')
+                        Rgw._set_consul_kv(rgw_consul_idx, CONSUL_LOCK_KEY, ADMIN_USER_CREATED)
                         break
                     else:
                         if data_pod_hostname == data_pod_hostnames[-1]:
-                            Log.error('Admin user creation failed')
+                            Log.error(f'Admin user creation failed with error code - {status}')
                             Rgw._delete_consul_kv(rgw_consul_idx, CONSUL_LOCK_KEY)
                             raise SetupError(status, 'Admin user creation failed on'
-                                f' "{Rgw._machine_id}" node, with all data pods')
+                                f' "{Rgw._machine_id}" node, with all data pods - {data_pod_hostnames}')
 
     @staticmethod
     def _set_consul_kv(consul_idx: str, key: str, value: str):
