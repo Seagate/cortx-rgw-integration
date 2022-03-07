@@ -29,7 +29,7 @@ from cortx.utils.conf_store.error import ConfError
 from cortx.utils.process import SimpleProcess
 from cortx.utils.log import Log
 from cortx.rgw.setup.error import SetupError
-from cortx.rgw.setup.rgw_start import RgwStart
+from cortx.rgw.setup.rgw_service import RgwService
 from cortx.utils.security.cipher import Cipher, CipherInvalidToken
 from cortx.rgw.const import (
     REQUIRED_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
@@ -157,7 +157,7 @@ class Rgw:
         log_path = Rgw._get_log_dir_path(conf)
         log_file = os.path.join(log_path, f'{COMPONENT_NAME}_startup.log')
         config_file = Rgw._get_rgw_config_path(conf)
-        RgwStart.start_rgw(conf, config_file, log_file, index)
+        RgwService.start(conf, config_file, log_file, index)
         Log.info("Started radosgw service.")
 
         return 0
