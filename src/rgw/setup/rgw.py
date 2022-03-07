@@ -125,9 +125,9 @@ class Rgw:
             instance = instance + 1
 
         # TODO enable this once all kyes are available in Gconf
-        # Add additional parameters of RGW & Motr to config file.
-        #Rgw._update_rgw_config(conf, 'client', const.RGW_PARAM_MAPPING)
-        #Rgw._update_rgw_config(conf, 'client', const.RGW_MOTR_PARAM_MAPPING)
+        # Add additional parameters of SVC & Motr to config file.
+        #Rgw._update_svc_config(conf, 'client', const.SVC_PARAM_MAPPING)
+        #Rgw._update_svc_config(conf, 'client', const.SVC_MOTR_PARAM_MAPPING)
 
         # Before user creation,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
@@ -436,7 +436,7 @@ class Rgw:
     def _generate_ssl_cert(conf: MappedConf):
         """Generate SSL certificate."""
         ssl_cert_path = Rgw._get_cortx_conf(conf, const.SSL_CERT_PATH_KEY)
-        https_endpoints = Rgw._fetch_endpoint_url(conf, const.RGW_ENDPOINT_KEY, 'https')
+        https_endpoints = Rgw._fetch_endpoint_url(conf, const.SVC_ENDPOINT_KEY, 'https')
         if len(https_endpoints) > 0 and not os.path.exists(ssl_cert_path):
             # Generate SSL cert.
             Log.info(f'"https" is enabled and SSL certificate is not present at {ssl_cert_path}.')
@@ -628,23 +628,19 @@ class Rgw:
                 f' currently configured one is {backend_store}')
 
     @staticmethod
-    def _update_rgw_config(conf: MappedConf, client_section: str, config_key_mapping: list):
+    def _update_svc_config(conf: MappedConf, client_section: str, config_key_mapping: list):
         """Update config properties from confstore to rgw config file."""
-        rgw_config_dir = Rgw._get_rgw_config_dir(conf)
-        rgw_config_file = os.path.join(rgw_config_dir, const.RGW_CONF_FILE)
-        Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{rgw_config_file}')
-        Log.info(f'adding paramters to {client_section} in {rgw_config_file}')
+        svc_config_dir = Rgw._get_rgw_config_dir(conf)
+        svc_config_file = os.path.join(svc_config_dir, const.RGW_CONF_FILE)
+        Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{svc_config_file}')
+        Log.info(f'adding paramters to {client_section} in {svc_config_file}')
 
-        # e.g config_key_mapping = [[confstore_key1, actual_rgw_config_key1],
-        # [confstore_key2, actual_rgw_config_key2], ..]
+        # e.g config_key_mapping = [[confstore_key1, actual_svc_config_key1],
+        # [confstore_key2, actual_svc_config_key2], ..]
         for confstore_key, config_key in config_key_mapping:
             # fetch actual value of parameter from confstore.
             config_value = Rgw._get_cortx_conf(conf, confstore_key)
-            if not config_value :
-                raise SetupError(errno.EINVAL,
-                    f'Confstore key/value is missing for key {confstore_key}')
-            else:
-                Conf.set(Rgw._rgw_conf_idx, f'{client_section}>{config_key}', {config_value})
+            Conf.set(Rgw._rgw_conf_idx, f'{client_section}>{config_key}', {config_value})
 
         Conf.save(Rgw._rgw_conf_idx)
         Log.info(f'added paramters to {client_section} successfully..')

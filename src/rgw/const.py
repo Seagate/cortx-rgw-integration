@@ -50,25 +50,25 @@ SSL_CERT_CONFIGS = {"country" : "IN", "state" : "MH", "locality" : "Pune",
     "organization" : "Seagate Technology", "CN" : "seagate.com"}
 SSL_DNS_LIST = [u'*.seagate.com', u'localhost', u'*.localhost']
 SSL_CERT_PATH_KEY = 'cortx>common>security>ssl_certificate'
-RGW_ENDPOINT_KEY =  f'cortx>{COMPONENT_NAME}>service>endpoints'
+SVC_ENDPOINT_KEY =  f'cortx>{COMPONENT_NAME}>service>endpoints'
 
-# RGW additional paramters.
-# e.g. rgw_keys = ['confstore_key', 'actual_rgw_config_key']
-RGW_THREAD_POOL_SIZE_KEY = [f'cortx>{COMPONENT_NAME}>thread_pool_size', 'thread pool size']
-RGW_DATA_PATH_KEY = [f'cortx>{COMPONENT_NAME}>data_path', 'data path']
-RGW_INTI_TIMEOUT_KEY = [f'cortx>{COMPONENT_NAME}>init_timeout', 'init timeout']
-RGW_GC_MAX_OBJECTS_KEY = [f'cortx>{COMPONENT_NAME}>gc_max_objs', 'gc max objs']
-RGW_GC_OBJECT_MIN_WAIT_KEY = [f'cortx>{COMPONENT_NAME}>gc_obj_min_wait', 'gc obj min wait']
-RGW_GC_PROCESSOR_MAX_TIME_KEY = [f'cortx>{COMPONENT_NAME}>gc_processor_max_time', 'gc processor max time']
-RGW_GC_PROCESSOR_PERIOD_KEY = [f'cortx>{COMPONENT_NAME}>gc_processor_period', 'gc processor period']
+# SVC additional paramters.
+# e.g. svc_keys = ['confstore_key', 'actual_svc_config_key']
+SVC_THREAD_POOL_SIZE_KEY = [f'cortx>{COMPONENT_NAME}>thread_pool_size', 'thread pool size']
+SVC_DATA_PATH_KEY = [f'cortx>{COMPONENT_NAME}>data_path', 'data path']
+SVC_INTI_TIMEOUT_KEY = [f'cortx>{COMPONENT_NAME}>init_timeout', 'init timeout']
+SVC_GC_MAX_OBJECTS_KEY = [f'cortx>{COMPONENT_NAME}>gc_max_objs', 'gc max objs']
+SVC_GC_OBJECT_MIN_WAIT_KEY = [f'cortx>{COMPONENT_NAME}>gc_obj_min_wait', 'gc obj min wait']
+SVC_GC_PROCESSOR_MAX_TIME_KEY = [f'cortx>{COMPONENT_NAME}>gc_processor_max_time', 'gc processor max time']
+SVC_GC_PROCESSOR_PERIOD_KEY = [f'cortx>{COMPONENT_NAME}>gc_processor_period', 'gc processor period']
 
-RGW_PARAM_MAPPING = [RGW_THREAD_POOL_SIZE_KEY, RGW_DATA_PATH_KEY,
-                     RGW_INTI_TIMEOUT_KEY, RGW_GC_MAX_OBJECTS_KEY,
-                     RGW_GC_OBJECT_MIN_WAIT_KEY, RGW_GC_PROCESSOR_MAX_TIME_KEY,
-                     RGW_GC_PROCESSOR_PERIOD_KEY]
+SVC_PARAM_MAPPING = [SVC_THREAD_POOL_SIZE_KEY, SVC_DATA_PATH_KEY,
+                     SVC_INTI_TIMEOUT_KEY, SVC_GC_MAX_OBJECTS_KEY,
+                     SVC_GC_OBJECT_MIN_WAIT_KEY, SVC_GC_PROCESSOR_MAX_TIME_KEY,
+                     SVC_GC_PROCESSOR_PERIOD_KEY]
 
-# MOTR additional parameters in RGW config file.
-# e.g. rgw_keys = ['confstore_key', 'actual_rgw_config_key']
+# MOTR additional parameters in SVC config file.
+# e.g. svc_keys = ['confstore_key', 'actual_svc_config_key']
 
 MOTR_LDAYOUT_ID_KEY = [f'cortx>{COMPONENT_NAME}>motr_layout_id', 'motr layout id']
 MOTR_UNIT_SIZE_KEY = [f'cortx>{COMPONENT_NAME}>motr_unit_size', 'motr unit size']
@@ -78,7 +78,7 @@ MOTR_MAX_RPC_MSG_SIZE_KEY = [f'cortx>{COMPONENT_NAME}>motr_max_rpc_msg_size', 'm
 MOTR_RECONNECT_INTERVAL_KEY = [f'cortx>{COMPONENT_NAME}>motr_reconnect_interval', 'motr reconnect interval']
 MOTR_RECONNECT_RETRY_COUNT_KEY = [f'cortx>{COMPONENT_NAME}>motr_reconnect_retry_count', 'motr reconnect retry count']
 
-RGW_MOTR_PARAM_MAPPING = [MOTR_LDAYOUT_ID_KEY, MOTR_UNIT_SIZE_KEY,
+SVC_MOTR_PARAM_MAPPING = [MOTR_LDAYOUT_ID_KEY, MOTR_UNIT_SIZE_KEY,
                       MOTR_MAX_UNIT_PER_REQUEST_KEY, MOTR_MAX_IDX_FETCH_COUNT_KEY,
                       MOTR_MAX_RPC_MSG_SIZE_KEY, MOTR_RECONNECT_INTERVAL_KEY,
                       MOTR_RECONNECT_RETRY_COUNT_KEY]
@@ -90,5 +90,5 @@ class RgwEndpoint(Enum):
     MOTR_HA_EP       = 'motr ha endpoint'
     MOTR_CLIENT_EP   = 'motr my endpoint'
     MOTR_PROCESS_FID = 'motr my fid'
-    MOTR_CLIENT_PORT = 'motr client port'
+
 
