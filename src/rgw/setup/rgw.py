@@ -153,12 +153,14 @@ class Rgw:
         Rgw._logrotate_generic(conf)
         # Before starting service,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
+        log_path = Rgw._get_log_dir_path(conf)
+        motr_trace_dir = os.path.join(log_path, 'motr_trace_files')
+        os.makedirs(motr_trace_dir, exist_ok=True)
 
         Log.info('Starting radosgw service.')
-        log_path = Rgw._get_log_dir_path(conf)
         log_file = os.path.join(log_path, f'{COMPONENT_NAME}_startup.log')
         config_file = Rgw._get_rgw_config_path(conf)
-        RgwService.start(conf, config_file, log_file, index)
+        RgwService.start(conf, config_file, log_file, motr_trace_dir, index)
         Log.info("Started radosgw service.")
 
         return 0
