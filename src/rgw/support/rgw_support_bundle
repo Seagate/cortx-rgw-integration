@@ -60,11 +60,9 @@ class RGWSupportBundle:
             RGWSupportBundle._cleanup()
         os.makedirs(RGWSupportBundle._tmp_src, exist_ok=True)
         # copy configuration files
-        try:
+        if os.path.exists(config_file):
             shutil.copyfile(config_file,\
                 os.path.join(RGWSupportBundle._tmp_src, RGW_CONF_FILE))
-        except FileNotFoundError as fe:
-            raise SupportBundleError(errno.ENOENT, "File not found %s", fe)
 
         # copy rgw client log files
         log_dir = os.path.join(log_base, f'rgw/{machine_id}')
