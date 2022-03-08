@@ -21,6 +21,7 @@ import glob
 import json
 import socket
 from urllib.parse import urlparse
+
 from cortx.utils.security.certificate import Certificate
 from cortx.utils.errors import SSLCertificateError
 from cortx.utils.validator.v_pkg import PkgV
@@ -31,20 +32,13 @@ from cortx.utils.log import Log
 from cortx.rgw.setup.error import SetupError
 from cortx.rgw.setup.rgw_service import RgwService
 from cortx.utils.security.cipher import Cipher, CipherInvalidToken
-from cortx.rgw.const import (
-    REQUIRED_RPMS, CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
-    CLIENT_INSTANCE_NAME_KEY, CLIENT_INSTANCE_NUMBER_KEY, CONSUL_ENDPOINT_KEY,
-    COMPONENT_NAME, ADMIN_PARAMETERS, LOG_PATH_KEY, DECRYPTION_KEY,
-    SSL_CERT_CONFIGS, SSL_DNS_LIST, RgwEndpoint, LOGROTATE_TMPL, LOGROTATE_DIR,
-    LOGROTATE_CONF, SUPPORTED_BACKEND_STORES, ADMIN_CREATION_TIMEOUT,
-    ADMIN_USER_CREATED, CONSUL_LOCK_KEY)
-
+from cortx.rgw import const
 
 class Rgw:
     """Represents RGW and Performs setup related actions."""
 
     _machine_id = Conf.machine_id
-    _conf_idx = f'{COMPONENT_NAME}_config'   # e.g. rgw_config
+    _conf_idx = f'{const.COMPONENT_NAME}_config'   # e.g. rgw_config
 
     @staticmethod
     def validate(phase: str):
@@ -54,11 +48,11 @@ class Rgw:
 
         if phase == 'post_install':
             # Perform RPM validations
-            for rpms in [REQUIRED_RPMS]:
+            for rpms in [const.REQUIRED_RPMS]:
                 PkgV().validate('rpms', rpms)
             Log.info(f'All RGW required RPMs are installed on {Rgw._machine_id} node.')
         elif phase == 'prepare':
-            Rgw._file_exist(CONF_TMPL)
+            Rgw._file_exist(const.CONF_TMPL)
 
         Log.info(f'validations completed for {phase} phase.')
 
@@ -79,13 +73,13 @@ class Rgw:
 
         try:
             config_path = Rgw._get_rgw_config_path(conf)
-            tmpl_idx = f'{COMPONENT_NAME}_conf_tmpl'  # e.g. rgw_conf_tmpl
-            tmpl_url = f'ini://{CONF_TMPL}'
+            tmpl_idx = f'{const.COMPONENT_NAME}_conf_tmpl'  # e.g. rgw_conf_tmpl
+            tmpl_url = f'ini://{const.CONF_TMPL}'
             Rgw._load_rgw_config(tmpl_idx, tmpl_url)
             Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_path}')
             Conf.copy(tmpl_idx, Rgw._conf_idx)
             Conf.save(Rgw._conf_idx)
-            Log.info(f'{CONF_TMPL} config copied to {config_path}')
+            Log.info(f'{const.CONF_TMPL} config copied to {config_path}')
 
         except Exception as e:
             raise SetupError(errno.EINVAL, f'Error ocurred while fetching node ip, {e}')
@@ -120,7 +114,7 @@ class Rgw:
         # Update motr fid,endpoint config in cortx_rgw.conf, based on instance based symlink.
         instance = 1
         while instance <= client_instance_count:
-            client_instance_file = sysconfig_file_path + f'/{COMPONENT_NAME}-{instance}'
+            client_instance_file = sysconfig_file_path + f'/{const.COMPONENT_NAME}-{instance}'
             service_endpoints = Rgw._parse_endpoint_values(client_instance_file)  # e.g.(rgw-1)
             Log.debug(f'Validating endpoint entries provided by "{client_instance_file}" file.')
             Rgw._validate_endpoint_paramters(service_endpoints)
@@ -129,6 +123,11 @@ class Rgw:
             Log.info('Updating endpoint values in rgw config file.')
             Rgw._update_rgw_config_with_endpoints(conf, service_endpoints, instance)
             instance = instance + 1
+
+        # TODO enable this once all kyes are available in Gconf
+        # Add additional parameters of SVC & Motr to config file.
+        #Rgw._update_svc_config(conf, 'client', const.SVC_PARAM_MAPPING)
+        #Rgw._update_svc_config(conf, 'client', const.SVC_MOTR_PARAM_MAPPING)
 
         # Before user creation,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
@@ -140,7 +139,7 @@ class Rgw:
         # from other data pods in cluster
         Rgw._update_hax_endpoint_and_create_admin(conf)
 
-        Log.info(f'Configure logrotate for {COMPONENT_NAME} at path: {LOGROTATE_CONF}')
+        Log.info(f'Configure logrotate for {const.COMPONENT_NAME} at path: {const.LOGROTATE_CONF}')
         Rgw._logrotate_generic(conf)
         Log.info('Config phase completed.')
         return 0
@@ -149,7 +148,7 @@ class Rgw:
     def start(conf: MappedConf, index: str):
         """Create rgw admin user and start rgw service."""
 
-        Log.info(f'Configure logrotate for {COMPONENT_NAME} at path: {LOGROTATE_CONF}')
+        Log.info(f'Configure logrotate for {const.COMPONENT_NAME} at path: {const.LOGROTATE_CONF}')
         Rgw._logrotate_generic(conf)
         # Before starting service,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
@@ -158,7 +157,7 @@ class Rgw:
         os.makedirs(motr_trace_dir, exist_ok=True)
 
         Log.info('Starting radosgw service.')
-        log_file = os.path.join(log_path, f'{COMPONENT_NAME}_startup.log')
+        log_file = os.path.join(log_path, f'{const.COMPONENT_NAME}_startup.log')
         config_file = Rgw._get_rgw_config_path(conf)
         RgwService.start(conf, config_file, log_file, motr_trace_dir, index)
         Log.info("Started radosgw service.")
@@ -205,17 +204,21 @@ class Rgw:
     @staticmethod
     def _get_consul_url(conf: MappedConf, seq: int = 0):
         """Return consul url."""
-
-        endpoints = Rgw._get_cortx_conf(conf, CONSUL_ENDPOINT_KEY)
-        http_endpoints = list(filter(lambda x: urlparse(x).scheme == 'http', endpoints))
-        if len(http_endpoints) == 0:
-            raise SetupError(errno.EINVAL,
-                'consul http endpoint is not specified in the conf.'
-                f' Listed endpoints: {endpoints}')
-        # Relace 'http' with 'consul' and port - 8500 in endpoint string.
+        http_endpoints = Rgw._fetch_endpoint_url(conf, const.CONSUL_ENDPOINT_KEY, 'http')
         consul_fqdn = http_endpoints[seq].split(':')[1]
         consul_url = 'consul:' + consul_fqdn + ':8500'
         return consul_url
+
+    @staticmethod
+    def _fetch_endpoint_url(conf: MappedConf, confstore_endpoint_key: str, endpoint_type: str):
+        """Fetch endpoint url based on endpoint type from cortx config."""
+        endpoints = Rgw._get_cortx_conf(conf, confstore_endpoint_key)
+        endpoints_values = list(filter(lambda x: urlparse(x).scheme == endpoint_type, endpoints))
+        if len(endpoints_values) == 0:
+            raise SetupError(errno.EINVAL,
+                f'{endpoint_type} endpoint is not specified in the conf.'
+                f' Listed endpoints: {endpoints_values}')
+        return endpoints_values
 
     @staticmethod
     def _file_exist(file_path: str):
@@ -240,45 +243,45 @@ class Rgw:
         """Return RGW config file path."""
         rgw_config_dir = Rgw._get_rgw_config_dir(conf)
         os.makedirs(rgw_config_dir, exist_ok=True)
-        rgw_conf_file_path = os.path.join(rgw_config_dir, RGW_CONF_FILE)
+        rgw_conf_file_path = os.path.join(rgw_config_dir, const.RGW_CONF_FILE)
         return rgw_conf_file_path
 
     @staticmethod
     def _get_rgw_config_dir(conf: MappedConf):
         """Return RGW config directory path."""
-        config_path = Rgw._get_cortx_conf(conf, CONFIG_PATH_KEY)
-        rgw_config_dir = os.path.join(config_path, COMPONENT_NAME, Rgw._machine_id)
+        config_path = Rgw._get_cortx_conf(conf, const.CONFIG_PATH_KEY)
+        rgw_config_dir = os.path.join(config_path, const.COMPONENT_NAME, Rgw._machine_id)
         return rgw_config_dir
 
     @staticmethod
     def _get_log_dir_path(conf: MappedConf):
         """Return log dir path."""
-        log_path = Rgw._get_cortx_conf(conf, LOG_PATH_KEY)
-        log_dir_path = os.path.join(log_path, COMPONENT_NAME, Rgw._machine_id)
+        log_path = Rgw._get_cortx_conf(conf, const.LOG_PATH_KEY)
+        log_dir_path = os.path.join(log_path, const.COMPONENT_NAME, Rgw._machine_id)
         os.makedirs(log_dir_path, exist_ok=True)
         return log_dir_path
 
     @staticmethod
     def _create_rgw_user(conf: MappedConf):
         """Create RGW admin user."""
-        user_name = Rgw._get_cortx_conf(conf, f'cortx>{COMPONENT_NAME}>auth_user')
-        access_key = Rgw._get_cortx_conf(conf, f'cortx>{COMPONENT_NAME}>auth_admin')
-        auth_secret = Rgw._get_cortx_conf(conf, f'cortx>{COMPONENT_NAME}>auth_secret')
+        user_name = Rgw._get_cortx_conf(conf, f'cortx>{const.COMPONENT_NAME}>auth_user')
+        access_key = Rgw._get_cortx_conf(conf, f'cortx>{const.COMPONENT_NAME}>auth_admin')
+        auth_secret = Rgw._get_cortx_conf(conf, f'cortx>{const.COMPONENT_NAME}>auth_secret')
         err_str = f'user: {user_name} exists'
         # decrypt secret key.
         try:
             cluster_id = Rgw._get_cortx_conf(conf, 'cluster>id')
-            cipher_key = Cipher.gen_key(cluster_id, DECRYPTION_KEY)
+            cipher_key = Cipher.gen_key(cluster_id, const.DECRYPTION_KEY)
             password = Cipher.decrypt(cipher_key, auth_secret.encode('utf-8'))
             password = password.decode('utf-8')
         except CipherInvalidToken as e:
             raise SetupError(errno.EINVAL, f'auth_secret decryption failed. {e}')
         rgw_config = Rgw._get_rgw_config_path(conf)
-        create_usr_cmd = f'sudo radosgw-admin user create --uid={user_name} --access-key \
+        create_usr_cmd = f'radosgw-admin user create --uid={user_name} --access-key \
             {access_key} --secret {password} --display-name="{user_name}" \
             --caps="users=*;metadata=*;usage=*;zone=*" \
             -c {rgw_config} -n client.radosgw-admin --no-mon-config'
-        _, err, rc, = SimpleProcess(create_usr_cmd).run(timeout=ADMIN_CREATION_TIMEOUT)
+        _, err, rc, = SimpleProcess(create_usr_cmd).run(timeout=const.ADMIN_CREATION_TIMEOUT)
         if rc == 0:
             Log.info(f'RGW admin user {user_name} is created.')
             return 0
@@ -294,19 +297,19 @@ class Rgw:
     @staticmethod
     def _create_symbolic_link_fid(client_instance_count: int, sysconfig_file_path: str):
         """ Create symbolic link of FID sysconfig files."""
-        hare_generated_fid_files = Rgw._get_files(sysconfig_file_path + f'/{COMPONENT_NAME}-0x*')
+        hare_generated_fid_files = Rgw._get_files(sysconfig_file_path + f'/{const.COMPONENT_NAME}-0x*')
         count = len(hare_generated_fid_files)
-        Log.info(f'{COMPONENT_NAME} FID file count : {count}')
-        Log.info(f'Number of {COMPONENT_NAME} client instances - {client_instance_count}')
+        Log.info(f'{const.COMPONENT_NAME} FID file count : {count}')
+        Log.info(f'Number of {const.COMPONENT_NAME} client instances - {client_instance_count}')
         if count < client_instance_count:
             raise SetupError(errno.EINVAL,
-                f'HARE-sysconfig file does not match {COMPONENT_NAME} client instances.')
+                f'HARE-sysconfig file does not match {const.COMPONENT_NAME} client instances.')
 
         # Create symbolic links of rgw-fid files created by hare.
         # e.g rgw-0x7200000000000001\:0x9c -> rgw-1 , rgw-0x7200000000000001\:0x5b -> rgw-2
         index = 1
         for src_path in hare_generated_fid_files:
-            file_name = f'{COMPONENT_NAME}-' + str(index)      # e.g. rgw-1 for rgw file
+            file_name = f'{const.COMPONENT_NAME}-' + str(index)      # e.g. rgw-1 for rgw file
             dst_path = os.path.join(sysconfig_file_path, file_name)
             Rgw._create_symbolic_link(src_path, dst_path)
             index += 1
@@ -341,30 +344,30 @@ class Rgw:
     def _update_rgw_config_with_endpoints(conf: MappedConf, endpoints: dict, instance: int):
         """Update endpoints,port and log path values to rgw config file."""
         config_dir = Rgw._get_rgw_config_dir(conf)
-        config_file = os.path.join(config_dir, RGW_CONF_FILE)
+        config_file = os.path.join(config_dir, const.RGW_CONF_FILE)
         Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_file}')
         log_path = Rgw._get_log_dir_path(conf)
-        service_instance_log_file = os.path.join(log_path, f'{COMPONENT_NAME}-{instance}.log')
+        service_instance_log_file = os.path.join(log_path, f'{const.COMPONENT_NAME}-{instance}.log')
 
         # Update client.radosgw-admin section only once,
         # Update this with same config that is define for 1st instance.
         if instance == 1:
             radosgw_admin_log_file = os.path.join(
                 log_path, 'radosgw-admin.log')
-            for ep_value, key in RgwEndpoint._value2member_map_.items():
+            for ep_value, key in const.RgwEndpoint._value2member_map_.items():
                 Conf.set(Rgw._conf_idx,
                     f'client.radosgw-admin>{ep_value}', endpoints[key.name])
             Conf.set(Rgw._conf_idx,
-                f'client.radosgw-admin>{ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}',
-                endpoints[RgwEndpoint.MOTR_PROCESS_FID.name])
+                f'client.radosgw-admin>{const.ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}',
+                endpoints[const.RgwEndpoint.MOTR_PROCESS_FID.name])
             Conf.set(
                 Rgw._conf_idx,
-                f'client.radosgw-admin>{ADMIN_PARAMETERS["MOTR_ADMIN_ENDPOINT"]}',
-                endpoints[RgwEndpoint.MOTR_CLIENT_EP.name])
+                f'client.radosgw-admin>{const.ADMIN_PARAMETERS["MOTR_ADMIN_ENDPOINT"]}',
+                endpoints[const.RgwEndpoint.MOTR_CLIENT_EP.name])
             Conf.set(Rgw._conf_idx, f'client.radosgw-admin>log file', radosgw_admin_log_file)
 
         # Create separate section for each service instance in cortx_rgw.conf file.
-        for ep_value, key in RgwEndpoint._value2member_map_.items():
+        for ep_value, key in const.RgwEndpoint._value2member_map_.items():
             Conf.set(Rgw._conf_idx, f'client.rgw-{instance}>{ep_value}', endpoints[key.name])
         Conf.set(Rgw._conf_idx, f'client.rgw-{instance}>log file', service_instance_log_file)
         # For each instance increase port value by 1.
@@ -376,10 +379,10 @@ class Rgw:
         port = port + (instance - 1)
         ssl_port = 8443
         ssl_port = ssl_port + (instance - 1)
-        ssl_cert_path = Rgw._get_cortx_conf(conf, 'cortx>common>security>ssl_certificate')
+        ssl_cert_path = Rgw._get_cortx_conf(conf, const.SSL_CERT_PATH_KEY)
         Conf.set(
             Rgw._conf_idx,
-            f'client.rgw-{instance}>{ADMIN_PARAMETERS["RGW_FRONTENDS"]}',
+            f'client.rgw-{instance}>{const.ADMIN_PARAMETERS["RGW_FRONTENDS"]}',
             f'beast port={port} ssl_port={ssl_port} ssl_certificate={ssl_cert_path} ssl_private_key={ssl_cert_path}')
         Conf.save(Rgw._conf_idx)
 
@@ -387,10 +390,10 @@ class Rgw:
     def _validate_endpoint_paramters(endpoints: dict):
         """Validate endpoint values provided by hare sysconfig file."""
 
-        for ep_value, key in RgwEndpoint._value2member_map_.items():
+        for ep_value, key in const.RgwEndpoint._value2member_map_.items():
             if key.name not in endpoints or not endpoints.get(key.name):
                 raise SetupError(errno.EINVAL, f'Failed to validate hare endpoint values.'
-                    f'endpoint {key.name} or its value is not present.')
+                    f'endpoint {key.name} or its value {ep_value} is not present.')
 
     @staticmethod
     def _get_files(substr_pattern: str):
@@ -403,8 +406,8 @@ class Rgw:
     @staticmethod
     def _get_sysconfig_file_path(conf: MappedConf):
         """Return hare generated sysconfig file path."""
-        base_config_path = Rgw._get_cortx_conf(conf, CONFIG_PATH_KEY)
-        sysconfig_file_path = os.path.join(base_config_path, COMPONENT_NAME,
+        base_config_path = Rgw._get_cortx_conf(conf, const.CONFIG_PATH_KEY)
+        sysconfig_file_path = os.path.join(base_config_path, const.COMPONENT_NAME,
             'sysconfig', Rgw._machine_id)
         return sysconfig_file_path
 
@@ -413,10 +416,10 @@ class Rgw:
         """Read number of client instances."""
         client_idx = 0
         num_instances = 1
-        while conf.get(CLIENT_INSTANCE_NAME_KEY % client_idx) is not None:
-            name = Rgw._get_cortx_conf(conf, CLIENT_INSTANCE_NAME_KEY % client_idx)
-            if name == COMPONENT_NAME:
-                num_instances = int(Rgw._get_cortx_conf(conf, CLIENT_INSTANCE_NUMBER_KEY % client_idx))
+        while conf.get(const.CLIENT_INSTANCE_NAME_KEY % client_idx) is not None:
+            name = Rgw._get_cortx_conf(conf, const.CLIENT_INSTANCE_NAME_KEY % client_idx)
+            if name == const.COMPONENT_NAME:
+                num_instances = int(Rgw._get_cortx_conf(conf, const.CLIENT_INSTANCE_NUMBER_KEY % client_idx))
                 break
             client_idx = client_idx + 1
         return num_instances
@@ -432,19 +435,18 @@ class Rgw:
     @staticmethod
     def _generate_ssl_cert(conf: MappedConf):
         """Generate SSL certificate."""
-        ssl_cert_path = Rgw._get_cortx_conf(conf, 'cortx>common>security>ssl_certificate')
-        endpoints = Rgw._get_cortx_conf(conf, 'cortx>rgw>s3>endpoints')
-        https_endpoints = list(filter(lambda x: urlparse(x).scheme == 'https', endpoints))
+        ssl_cert_path = Rgw._get_cortx_conf(conf, const.SSL_CERT_PATH_KEY)
+        https_endpoints = Rgw._fetch_endpoint_url(conf, const.SVC_ENDPOINT_KEY, 'https')
         if len(https_endpoints) > 0 and not os.path.exists(ssl_cert_path):
             # Generate SSL cert.
             Log.info(f'"https" is enabled and SSL certificate is not present at {ssl_cert_path}.')
             Log.info('Generating SSL certificate.')
             try:
-                SSL_DNS_LIST.append(urlparse(https_endpoints[0]).hostname)
-                ssl_cert_configs = SSL_CERT_CONFIGS
+                const.SSL_DNS_LIST.append(urlparse(https_endpoints[0]).hostname)
+                ssl_cert_configs = const.SSL_CERT_CONFIGS
                 ssl_cert_obj = Certificate.init('ssl')
                 ssl_cert_obj.generate(
-                    cert_path=ssl_cert_path, dns_list=SSL_DNS_LIST, **ssl_cert_configs)
+                    cert_path=ssl_cert_path, dns_list=const.SSL_DNS_LIST, **ssl_cert_configs)
             except SSLCertificateError as e:
                 raise SetupError(errno.EINVAL, f'Failed to generate self signed ssl certificate: {e}')
 
@@ -456,7 +458,7 @@ class Rgw:
         if not data_pod_hostname:
             raise SetupError(errno.EINVAL, 'Invalid data pod hostname: %s', data_pod_hostname)
 
-        config_path = Rgw._get_cortx_conf(conf, CONFIG_PATH_KEY)
+        config_path = Rgw._get_cortx_conf(conf, const.CONFIG_PATH_KEY)
         hare_config_dir = os.path.join(config_path, 'hare', 'config', Rgw._machine_id)
 
         fetch_fids_cmd = f'hctl fetch-fids -c {hare_config_dir} --node {data_pod_hostname}'
@@ -474,7 +476,7 @@ class Rgw:
         config_path = Rgw._get_rgw_config_path(conf)
         Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_path}')
         Conf.set(Rgw._conf_idx, \
-            f'client.radosgw-admin>{RgwEndpoint.MOTR_HA_EP.value}', motr_ha_endpoint)
+            f'client.radosgw-admin>{const.RgwEndpoint.MOTR_HA_EP.value}', motr_ha_endpoint)
         Conf.save(Rgw._conf_idx)
 
         Log.info(f'Updated motr_ha_endpoint in config file {config_path}')
@@ -504,7 +506,7 @@ class Rgw:
         # 4. If user creation is successful, update lock value to 'user_created'.
 
         rgw_lock = False
-        rgw_consul_idx = f'{COMPONENT_NAME}_consul_idx'
+        rgw_consul_idx = f'{const.COMPONENT_NAME}_consul_idx'
         # Get consul url from cortx config.
         consul_url = Rgw._get_consul_url(conf)
         # Check for rgw_lock in consul kv store.
@@ -517,12 +519,12 @@ class Rgw:
         # and then only that node will perform the user creation operation.
         while True:
             try:
-                rgw_lock_val = Conf.get(rgw_consul_idx, CONSUL_LOCK_KEY)
-                Log.info(f'{CONSUL_LOCK_KEY} value - {rgw_lock_val}')
+                rgw_lock_val = Conf.get(rgw_consul_idx, const.CONSUL_LOCK_KEY)
+                Log.info(f'{const.CONSUL_LOCK_KEY} value - {rgw_lock_val}')
                 if rgw_lock_val is None:
-                    Log.info(f'Setting consul kv store value for key :{CONSUL_LOCK_KEY}'
+                    Log.info(f'Setting consul kv store value for key :{const.CONSUL_LOCK_KEY}'
                             f' and value as :{Rgw._machine_id}')
-                    Rgw._set_consul_kv(rgw_consul_idx, CONSUL_LOCK_KEY, Rgw._machine_id)
+                    Rgw._set_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY, Rgw._machine_id)
                     continue
                 elif rgw_lock_val == Rgw._machine_id:
                     Log.info('Required lock already possessed, proceeding with RGW '
@@ -530,7 +532,7 @@ class Rgw:
                     rgw_lock = True
                     break
                 elif rgw_lock_val != Rgw._machine_id:
-                    if rgw_lock_val == ADMIN_USER_CREATED:
+                    if rgw_lock_val == const.ADMIN_USER_CREATED:
                         Log.info('User is already created.')
                         break
                     Log.info(f'RGW lock is acquired by "{rgw_lock_val}" node.')
@@ -548,7 +550,7 @@ class Rgw:
 
             if user_status == 0:
                 Log.info(f'User creation is successful on "{Rgw._machine_id}" node.')
-                Rgw._set_consul_kv(rgw_consul_idx, CONSUL_LOCK_KEY, ADMIN_USER_CREATED)
+                Rgw._set_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY, const.ADMIN_USER_CREATED)
             else:
                 machine_ids = Rgw._get_cortx_conf(conf, 'cluster>storage_set[0]>nodes')
                 data_pod_hostnames = [Rgw._get_cortx_conf(conf,
@@ -556,7 +558,7 @@ class Rgw:
                     Rgw._get_cortx_conf(conf, f'node>{machine_id}>type') == 'data_node']
                 if len(data_pod_hostnames) == 1 and current_data_node == data_pod_hostnames[0]:
                     Log.error('Admin user creation failed')
-                    Rgw._delete_consul_kv(rgw_consul_idx, CONSUL_LOCK_KEY)
+                    Rgw._delete_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY)
                     raise SetupError(user_status, 'Admin user creation failed on'
                         f' "{Rgw._machine_id}" node, with all data pods - {data_pod_hostnames}')
 
@@ -569,12 +571,12 @@ class Rgw:
                     status = Rgw._create_rgw_user(conf)
                     if status == 0:
                         Log.info(f'User creation is successful on "{Rgw._machine_id}" node.')
-                        Rgw._set_consul_kv(rgw_consul_idx, CONSUL_LOCK_KEY, ADMIN_USER_CREATED)
+                        Rgw._set_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY, const.ADMIN_USER_CREATED)
                         break
                     else:
                         if data_pod_hostname == data_pod_hostnames[-1]:
                             Log.error(f'Admin user creation failed with error code - {status}')
-                            Rgw._delete_consul_kv(rgw_consul_idx, CONSUL_LOCK_KEY)
+                            Rgw._delete_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY)
                             raise SetupError(status, 'Admin user creation failed on'
                                 f' "{Rgw._machine_id}" node, with all data pods - {data_pod_hostnames}')
 
@@ -596,23 +598,23 @@ class Rgw:
     @staticmethod
     def _logrotate_generic(conf: MappedConf):
         """ Configure logrotate utility for rgw logs."""
-        log_dir = conf.get(LOG_PATH_KEY)
-        log_file_path = os.path.join(log_dir, COMPONENT_NAME, Rgw._machine_id)
+        log_dir = conf.get(const.LOG_PATH_KEY)
+        log_file_path = os.path.join(log_dir, const.COMPONENT_NAME, Rgw._machine_id)
         # create radosgw logrotate file.
         # For eg:
         # filepath='/etc/logrotate.d/radosgw'
-        old_file = os.path.join(LOGROTATE_DIR, 'ceph')
+        old_file = os.path.join(const.LOGROTATE_DIR, 'ceph')
         if os.path.exists(old_file):
             os.remove(old_file)
         try:
-            with open(LOGROTATE_TMPL, 'r') as f:
+            with open(const.LOGROTATE_TMPL, 'r') as f:
                 content = f.read()
             content = content.replace('TMP_LOG_PATH', log_file_path)
-            with open(LOGROTATE_CONF, 'w') as f:
+            with open(const.LOGROTATE_CONF, 'w') as f:
                 f.write(content)
-            Log.info(f'{LOGROTATE_TMPL} file copied to {LOGROTATE_CONF}')
+            Log.info(f'{const.LOGROTATE_TMPL} file copied to {const.LOGROTATE_CONF}')
         except Exception as e:
-            Log.error(f"Failed to configure logrotate for {COMPONENT_NAME}. ERROR:{e}")
+            Log.error(f"Failed to configure logrotate for {const.COMPONENT_NAME}. ERROR:{e}")
 
     @staticmethod
     def _verify_backend_store_value(conf: MappedConf):
@@ -620,7 +622,25 @@ class Rgw:
         config_file = Rgw._get_rgw_config_path(conf)
         Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_file}')
         backend_store = Conf.get(Rgw._conf_idx, 'client>rgw backend store')
-        if not backend_store in SUPPORTED_BACKEND_STORES:
+        if not backend_store in const.SUPPORTED_BACKEND_STORES:
             raise SetupError(errno.EINVAL,
-                f'Supported rgw backend store are {SUPPORTED_BACKEND_STORES},'
+                f'Supported rgw backend store are {const.SUPPORTED_BACKEND_STORES},'
                 f' currently configured one is {backend_store}')
+
+    @staticmethod
+    def _update_svc_config(conf: MappedConf, client_section: str, config_key_mapping: list):
+        """Update config properties from confstore to rgw config file."""
+        svc_config_dir = Rgw._get_rgw_config_dir(conf)
+        svc_config_file = os.path.join(svc_config_dir, const.RGW_CONF_FILE)
+        Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{svc_config_file}')
+        Log.info(f'adding paramters to {client_section} in {svc_config_file}')
+
+        # e.g config_key_mapping = [[confstore_key1, actual_svc_config_key1],
+        # [confstore_key2, actual_svc_config_key2], ..]
+        for confstore_key, config_key in config_key_mapping:
+            # fetch actual value of parameter from confstore.
+            config_value = Rgw._get_cortx_conf(conf, confstore_key)
+            Conf.set(Rgw._rgw_conf_idx, f'{client_section}>{config_key}', {config_value})
+
+        Conf.save(Rgw._rgw_conf_idx)
+        Log.info(f'added paramters to {client_section} successfully..')
