@@ -15,20 +15,29 @@
 # please email opensource@seagate.com or cortx-questions@seagate.com.
 
 import os
+import sys
+import shlex
 from cortx.utils.log import Log
 from cortx.rgw.setup.error import SetupError
 from cortx.utils.conf_store import MappedConf
 
 
-class RgwStart:
+class RgwService:
     """Entrypoint class for RGW."""
 
     @staticmethod
-    def start_rgw(conf: MappedConf, config_file, log_file, index: str = '1',):
+    def start(conf: MappedConf, config_file, log_file, index: str = '1',):
         """Start rgw service independently."""
         try:
-            # TODO: To replace os.system with SimpleProcess calls
-            os.system(f"sh /opt/seagate/cortx/rgw/bin/rgw_service -i {index} -c {config_file} -l {log_file}")
+            cmd = "/usr/bin/radosgw"
+            args = f"-f --name client.rgw-{index} -c {config_file} --no-mon-config &> {log_file}"
+            args = shlex.split(args)
+            sys.stdout.flush()
+            sys.stderr.flush()
+            os.execl(cmd, cmd, *args)
         except OSError as e:
             Log.error(f"Failed to start radosgw service:{e}")
             raise SetupError(e.errno, "Failed to start radosgw service. %s", e)
+        except Exception as e:
+            Log.error(f"Failed to start radosgw service:{e}")
+            raise SetupError(e, "Failed to start radosgw service. %s", e)
