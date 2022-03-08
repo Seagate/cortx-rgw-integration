@@ -38,7 +38,7 @@ class Rgw:
     """Represents RGW and Performs setup related actions."""
 
     _machine_id = Conf.machine_id
-    _conf_idx = f'{COMPONENT_NAME}_config'   # e.g. rgw_config
+    _conf_idx = f'{const.COMPONENT_NAME}_config'   # e.g. rgw_config
 
     @staticmethod
     def validate(phase: str):
@@ -52,7 +52,7 @@ class Rgw:
                 PkgV().validate('rpms', rpms)
             Log.info(f'All RGW required RPMs are installed on {Rgw._machine_id} node.')
         elif phase == 'prepare':
-            Rgw._file_exist(CONF_TMPL)
+            Rgw._file_exist(const.CONF_TMPL)
 
         Log.info(f'validations completed for {phase} phase.')
 
@@ -73,13 +73,13 @@ class Rgw:
 
         try:
             config_path = Rgw._get_rgw_config_path(conf)
-            tmpl_idx = f'{COMPONENT_NAME}_conf_tmpl'  # e.g. rgw_conf_tmpl
-            tmpl_url = f'ini://{CONF_TMPL}'
+            tmpl_idx = f'{const.COMPONENT_NAME}_conf_tmpl'  # e.g. rgw_conf_tmpl
+            tmpl_url = f'ini://{const.CONF_TMPL}'
             Rgw._load_rgw_config(tmpl_idx, tmpl_url)
             Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_path}')
             Conf.copy(tmpl_idx, Rgw._conf_idx)
             Conf.save(Rgw._conf_idx)
-            Log.info(f'{CONF_TMPL} config copied to {config_path}')
+            Log.info(f'{const.CONF_TMPL} config copied to {config_path}')
 
         except Exception as e:
             raise SetupError(errno.EINVAL, f'Error ocurred while fetching node ip, {e}')
@@ -157,7 +157,7 @@ class Rgw:
         os.makedirs(motr_trace_dir, exist_ok=True)
 
         Log.info('Starting radosgw service.')
-        log_file = os.path.join(log_path, f'{COMPONENT_NAME}_startup.log')
+        log_file = os.path.join(log_path, f'{const.COMPONENT_NAME}_startup.log')
         config_file = Rgw._get_rgw_config_path(conf)
         RgwService.start(conf, config_file, log_file, motr_trace_dir, index)
         Log.info("Started radosgw service.")
@@ -344,7 +344,7 @@ class Rgw:
     def _update_rgw_config_with_endpoints(conf: MappedConf, endpoints: dict, instance: int):
         """Update endpoints,port and log path values to rgw config file."""
         config_dir = Rgw._get_rgw_config_dir(conf)
-        config_file = os.path.join(config_dir, RGW_CONF_FILE)
+        config_file = os.path.join(config_dir, const.RGW_CONF_FILE)
         Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_file}')
         log_path = Rgw._get_log_dir_path(conf)
         service_instance_log_file = os.path.join(log_path, f'{const.COMPONENT_NAME}-{instance}.log')
@@ -354,20 +354,20 @@ class Rgw:
         if instance == 1:
             radosgw_admin_log_file = os.path.join(
                 log_path, 'radosgw-admin.log')
-            for ep_value, key in RgwEndpoint._value2member_map_.items():
+            for ep_value, key in const.RgwEndpoint._value2member_map_.items():
                 Conf.set(Rgw._conf_idx,
                     f'client.radosgw-admin>{ep_value}', endpoints[key.name])
             Conf.set(Rgw._conf_idx,
-                f'client.radosgw-admin>{ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}',
-                endpoints[RgwEndpoint.MOTR_PROCESS_FID.name])
+                f'client.radosgw-admin>{const.ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}',
+                endpoints[const.RgwEndpoint.MOTR_PROCESS_FID.name])
             Conf.set(
                 Rgw._conf_idx,
-                f'client.radosgw-admin>{ADMIN_PARAMETERS["MOTR_ADMIN_ENDPOINT"]}',
-                endpoints[RgwEndpoint.MOTR_CLIENT_EP.name])
+                f'client.radosgw-admin>{const.ADMIN_PARAMETERS["MOTR_ADMIN_ENDPOINT"]}',
+                endpoints[const.RgwEndpoint.MOTR_CLIENT_EP.name])
             Conf.set(Rgw._conf_idx, f'client.radosgw-admin>log file', radosgw_admin_log_file)
 
         # Create separate section for each service instance in cortx_rgw.conf file.
-        for ep_value, key in RgwEndpoint._value2member_map_.items():
+        for ep_value, key in const.RgwEndpoint._value2member_map_.items():
             Conf.set(Rgw._conf_idx, f'client.rgw-{instance}>{ep_value}', endpoints[key.name])
         Conf.set(Rgw._conf_idx, f'client.rgw-{instance}>log file', service_instance_log_file)
         # For each instance increase port value by 1.
@@ -382,7 +382,7 @@ class Rgw:
         ssl_cert_path = Rgw._get_cortx_conf(conf, const.SSL_CERT_PATH_KEY)
         Conf.set(
             Rgw._conf_idx,
-            f'client.rgw-{instance}>{ADMIN_PARAMETERS["RGW_FRONTENDS"]}',
+            f'client.rgw-{instance}>{const.ADMIN_PARAMETERS["RGW_FRONTENDS"]}',
             f'beast port={port} ssl_port={ssl_port} ssl_certificate={ssl_cert_path} ssl_private_key={ssl_cert_path}')
         Conf.save(Rgw._conf_idx)
 
@@ -476,7 +476,7 @@ class Rgw:
         config_path = Rgw._get_rgw_config_path(conf)
         Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_path}')
         Conf.set(Rgw._conf_idx, \
-            f'client.radosgw-admin>{RgwEndpoint.MOTR_HA_EP.value}', motr_ha_endpoint)
+            f'client.radosgw-admin>{const.RgwEndpoint.MOTR_HA_EP.value}', motr_ha_endpoint)
         Conf.save(Rgw._conf_idx)
 
         Log.info(f'Updated motr_ha_endpoint in config file {config_path}')
@@ -622,7 +622,7 @@ class Rgw:
         config_file = Rgw._get_rgw_config_path(conf)
         Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_file}')
         backend_store = Conf.get(Rgw._conf_idx, 'client>rgw backend store')
-        if not backend_store in SUPPORTED_BACKEND_STORES:
+        if not backend_store in const.SUPPORTED_BACKEND_STORES:
             raise SetupError(errno.EINVAL,
                 f'Supported rgw backend store are {const.SUPPORTED_BACKEND_STORES},'
                 f' currently configured one is {backend_store}')
