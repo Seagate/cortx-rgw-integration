@@ -96,9 +96,8 @@ class RGWSupportBundle:
     @staticmethod
     def _generate_tar(bundle_id: str, target_path: str):
         """ Generate tar.gz file at given path """
-        component = 'rgw'
-        target_path = os.path.join(target_path, component)
-        tar_name = component + '_' + bundle_id + '.tar.gz'
+        target_path = os.path.join(target_path, COMPONENT_NAME)
+        tar_name = COMPONENT_NAME + '_' + bundle_id + '.tar.gz'
         tar_file_name = os.path.join(target_path, tar_name)
         if not os.path.exists(target_path):
             os.makedirs(target_path)

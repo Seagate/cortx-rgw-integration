@@ -338,9 +338,9 @@ class Rgw:
     @staticmethod
     def _update_rgw_config_with_endpoints(conf: MappedConf, endpoints: dict, instance: int):
         """Update endpoints,port and log path values to rgw config file."""
-        rgw_config_dir = Rgw._get_rgw_config_dir(conf)
-        rgw_config_file = os.path.join(rgw_config_dir, RGW_CONF_FILE)
-        Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{rgw_config_file}')
+        config_dir = Rgw._get_rgw_config_dir(conf)
+        config_file = os.path.join(config_dir, RGW_CONF_FILE)
+        Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{config_file}')
         log_path = Rgw._get_log_dir_path(conf)
         service_instance_log_file = os.path.join(log_path, f'{COMPONENT_NAME}-{instance}.log')
 
