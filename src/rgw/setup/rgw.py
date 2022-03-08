@@ -277,7 +277,7 @@ class Rgw:
         except CipherInvalidToken as e:
             raise SetupError(errno.EINVAL, f'auth_secret decryption failed. {e}')
         rgw_config = Rgw._get_rgw_config_path(conf)
-        create_usr_cmd = f'sudo radosgw-admin user create --uid={user_name} --access-key \
+        create_usr_cmd = f'radosgw-admin user create --uid={user_name} --access-key \
             {access_key} --secret {password} --display-name="{user_name}" \
             --caps="users=*;metadata=*;usage=*;zone=*" \
             -c {rgw_config} -n client.radosgw-admin --no-mon-config'
@@ -393,7 +393,7 @@ class Rgw:
         for ep_value, key in const.RgwEndpoint._value2member_map_.items():
             if key.name not in endpoints or not endpoints.get(key.name):
                 raise SetupError(errno.EINVAL, f'Failed to validate hare endpoint values.'
-                    f'endpoint {key.name} or its value is not present.')
+                    f'endpoint {key.name} or its value {ep_value} is not present.')
 
     @staticmethod
     def _get_files(substr_pattern: str):
