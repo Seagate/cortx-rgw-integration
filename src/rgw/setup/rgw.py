@@ -32,7 +32,7 @@ from cortx.rgw.setup.error import SetupError
 from cortx.rgw.setup.rgw_service import RgwService
 from cortx.utils.security.cipher import Cipher, CipherInvalidToken
 from cortx.rgw.const import (
-    REQUIRED_RPMS, RGW_CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
+    REQUIRED_RPMS, CONF_TMPL, RGW_CONF_FILE, CONFIG_PATH_KEY,
     CLIENT_INSTANCE_NAME_KEY, CLIENT_INSTANCE_NUMBER_KEY, CONSUL_ENDPOINT_KEY,
     COMPONENT_NAME, ADMIN_PARAMETERS, LOG_PATH_KEY, DECRYPTION_KEY,
     SSL_CERT_CONFIGS, SSL_DNS_LIST, RgwEndpoint, LOGROTATE_TMPL, LOGROTATE_DIR,
@@ -44,7 +44,7 @@ class Rgw:
     """Represents RGW and Performs setup related actions."""
 
     _machine_id = Conf.machine_id
-    _rgw_conf_idx = f'{COMPONENT_NAME}_config'   # e.g. rgw_config
+    _conf_idx = f'{COMPONENT_NAME}_config'   # e.g. rgw_config
 
     @staticmethod
     def validate(phase: str):
@@ -58,7 +58,7 @@ class Rgw:
                 PkgV().validate('rpms', rpms)
             Log.info(f'All RGW required RPMs are installed on {Rgw._machine_id} node.')
         elif phase == 'prepare':
-            Rgw._file_exist(RGW_CONF_TMPL)
+            Rgw._file_exist(CONF_TMPL)
 
         Log.info(f'validations completed for {phase} phase.')
 
@@ -78,14 +78,14 @@ class Rgw:
         Log.info('Prepare phase started.')
 
         try:
-            rgw_config_path = Rgw._get_rgw_config_path(conf)
-            rgw_tmpl_idx = f'{COMPONENT_NAME}_conf_tmpl'  # e.g. rgw_conf_tmpl
-            rgw_tmpl_url = f'ini://{RGW_CONF_TMPL}'
-            Rgw._load_rgw_config(rgw_tmpl_idx, rgw_tmpl_url)
-            Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{rgw_config_path}')
-            Conf.copy(rgw_tmpl_idx, Rgw._rgw_conf_idx)
-            Conf.save(Rgw._rgw_conf_idx)
-            Log.info(f'{RGW_CONF_TMPL} config copied to {rgw_config_path}')
+            config_path = Rgw._get_rgw_config_path(conf)
+            tmpl_idx = f'{COMPONENT_NAME}_conf_tmpl'  # e.g. rgw_conf_tmpl
+            tmpl_url = f'ini://{CONF_TMPL}'
+            Rgw._load_rgw_config(tmpl_idx, tmpl_url)
+            Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_path}')
+            Conf.copy(tmpl_idx, Rgw._conf_idx)
+            Conf.save(Rgw._conf_idx)
+            Log.info(f'{CONF_TMPL} config copied to {config_path}')
 
         except Exception as e:
             raise SetupError(errno.EINVAL, f'Error ocurred while fetching node ip, {e}')
@@ -187,9 +187,9 @@ class Rgw:
     @staticmethod
     def cleanup(conf: MappedConf, pre_factory: bool = False):
         """Remove/Delete all the data that was created after post install."""
-        rgw_config_path = Rgw._get_rgw_config_path(conf)
-        if os.path.exists(rgw_config_path):
-            os.remove(rgw_config_path)
+        config_path = Rgw._get_rgw_config_path(conf)
+        if os.path.exists(config_path):
+            os.remove(config_path)
         Log.info('Cleanup phase completed.')
         return 0
 
@@ -340,7 +340,7 @@ class Rgw:
         """Update endpoints,port and log path values to rgw config file."""
         config_dir = Rgw._get_rgw_config_dir(conf)
         config_file = os.path.join(config_dir, RGW_CONF_FILE)
-        Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{config_file}')
+        Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_file}')
         log_path = Rgw._get_log_dir_path(conf)
         service_instance_log_file = os.path.join(log_path, f'{COMPONENT_NAME}-{instance}.log')
 
@@ -350,21 +350,21 @@ class Rgw:
             radosgw_admin_log_file = os.path.join(
                 log_path, 'radosgw-admin.log')
             for ep_value, key in RgwEndpoint._value2member_map_.items():
-                Conf.set(Rgw._rgw_conf_idx,
+                Conf.set(Rgw._conf_idx,
                     f'client.radosgw-admin>{ep_value}', endpoints[key.name])
-            Conf.set(Rgw._rgw_conf_idx,
+            Conf.set(Rgw._conf_idx,
                 f'client.radosgw-admin>{ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}',
                 endpoints[RgwEndpoint.MOTR_PROCESS_FID.name])
             Conf.set(
-                Rgw._rgw_conf_idx,
+                Rgw._conf_idx,
                 f'client.radosgw-admin>{ADMIN_PARAMETERS["MOTR_ADMIN_ENDPOINT"]}',
                 endpoints[RgwEndpoint.MOTR_CLIENT_EP.name])
-            Conf.set(Rgw._rgw_conf_idx, f'client.radosgw-admin>log file', radosgw_admin_log_file)
+            Conf.set(Rgw._conf_idx, f'client.radosgw-admin>log file', radosgw_admin_log_file)
 
         # Create separate section for each service instance in cortx_rgw.conf file.
         for ep_value, key in RgwEndpoint._value2member_map_.items():
-            Conf.set(Rgw._rgw_conf_idx, f'client.rgw-{instance}>{ep_value}', endpoints[key.name])
-        Conf.set(Rgw._rgw_conf_idx, f'client.rgw-{instance}>log file', service_instance_log_file)
+            Conf.set(Rgw._conf_idx, f'client.rgw-{instance}>{ep_value}', endpoints[key.name])
+        Conf.set(Rgw._conf_idx, f'client.rgw-{instance}>log file', service_instance_log_file)
         # For each instance increase port value by 1.
         # for eg. for 1st instance. port=8000
         # for 2nd instance port=8000 + 1
@@ -376,10 +376,10 @@ class Rgw:
         ssl_port = ssl_port + (instance - 1)
         ssl_cert_path = Rgw._get_cortx_conf(conf, 'cortx>common>security>ssl_certificate')
         Conf.set(
-            Rgw._rgw_conf_idx,
+            Rgw._conf_idx,
             f'client.rgw-{instance}>{ADMIN_PARAMETERS["RGW_FRONTENDS"]}',
             f'beast port={port} ssl_port={ssl_port} ssl_certificate={ssl_cert_path} ssl_private_key={ssl_cert_path}')
-        Conf.save(Rgw._rgw_conf_idx)
+        Conf.save(Rgw._conf_idx)
 
     @staticmethod
     def _validate_endpoint_paramters(endpoints: dict):
@@ -469,13 +469,13 @@ class Rgw:
             if 'hax' in endpoints.values()][0]
         Log.info(f'Fetched motr_ha_endpoint from data pod. Endpoint: {motr_ha_endpoint}')
 
-        rgw_config_path = Rgw._get_rgw_config_path(conf)
-        Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{rgw_config_path}')
-        Conf.set(Rgw._rgw_conf_idx, \
+        config_path = Rgw._get_rgw_config_path(conf)
+        Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_path}')
+        Conf.set(Rgw._conf_idx, \
             f'client.radosgw-admin>{RgwEndpoint.MOTR_HA_EP.value}', motr_ha_endpoint)
-        Conf.save(Rgw._rgw_conf_idx)
+        Conf.save(Rgw._conf_idx)
 
-        Log.info(f'Updated motr_ha_endpoint in config file {rgw_config_path}')
+        Log.info(f'Updated motr_ha_endpoint in config file {config_path}')
 
     @staticmethod
     def _create_admin_on_current_node(conf: MappedConf, current_data_node: str):
@@ -616,8 +616,8 @@ class Rgw:
     def _verify_backend_store_value(conf: MappedConf):
         """Verify backed store value as motr."""
         config_file = Rgw._get_rgw_config_path(conf)
-        Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{config_file}')
-        backend_store = Conf.get(Rgw._rgw_conf_idx, 'client>rgw backend store')
+        Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_file}')
+        backend_store = Conf.get(Rgw._conf_idx, 'client>rgw backend store')
         if not backend_store in SUPPORTED_BACKEND_STORES:
             raise SetupError(errno.EINVAL,
                 f'Supported rgw backend store are {SUPPORTED_BACKEND_STORES},'

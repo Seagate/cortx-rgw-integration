@@ -25,9 +25,9 @@ ADMIN_CREATION_TIMEOUT = 60
 ADMIN_USER_CREATED = 'user_created'
 CONSUL_LOCK_KEY = f'component>{COMPONENT_NAME}>volatile>{COMPONENT_NAME}_lock' # component>rgw>volatile>rgw_lock
 
-RGW_CONF_TMPL = f'{RGW_INSTALL_PATH}/conf/cortx_{COMPONENT_NAME}.conf'
+CONF_TMPL = f'{RGW_INSTALL_PATH}/conf/cortx_{COMPONENT_NAME}.conf'
 LOGROTATE_TMPL = f'{RGW_INSTALL_PATH}/conf/{COMPONENT_NAME}.logrotate.tmpl'
-# e.g RGW_CONF_TMPL will be /opt/seagate/cortx/rgw/conf/cortx_rgw.conf
+# e.g CONF_TMPL will be /opt/seagate/cortx/rgw/conf/cortx_rgw.conf
 # e.g LOGROTATE_TMPL will be /opt/seagate/cortx/rgw/conf/rgw.logrotate.tmpl
 RGW_CONF_FILE = f'cortx_{COMPONENT_NAME}.conf'
 SUPPORTED_BACKEND_STORES = ['motr']
