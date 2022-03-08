@@ -26,9 +26,10 @@ class RgwService:
     """Entrypoint class for RGW."""
 
     @staticmethod
-    def start(conf: MappedConf, config_file, log_file, index: str = '1',):
+    def start(conf: MappedConf, config_file, log_file, motr_trace_dir, index: str = '1',):
         """Start rgw service independently."""
         try:
+            os.environ['M0_TRACE_DIR'] = motr_trace_dir
             cmd = "/usr/bin/radosgw"
             args = f"-f --name client.rgw-{index} -c {config_file} --no-mon-config &> {log_file}"
             args = shlex.split(args)

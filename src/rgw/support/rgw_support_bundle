@@ -48,6 +48,7 @@ class RGWSupportBundle:
     def generate(bundle_id: str, target_path: str, cluster_conf: str, **filters):
         """ Generate a tar file. """
         coredumps = filters.get('coredumps', False)
+        stacktrace = filters.get('stacktrace', False)
         machine_id = Conf.machine_id
         cortx_config_store = MappedConf(cluster_conf)
         log_base = cortx_config_store.get(LOG_PATH_KEY)
@@ -82,6 +83,25 @@ class RGWSupportBundle:
             if os.path.exists(CRASHDUMP_DIR):
                 shutil.copytree(CRASHDUMP_DIR,\
                     os.path.join(RGWSupportBundle._tmp_src, 'crash'))
+
+        # copy motr trace log files, if stacktrace=True
+        if stacktrace:
+            motr_trace_dir = os.path.join(log_dir, 'motr_trace_files')
+            if os.path.exists(motr_trace_dir):
+                # include the latest 5 log files of motr traces in support bundle
+                list_of_files = filter(lambda f: os.path.isfile(os.path.join(motr_trace_dir, f)),
+                                os.listdir(motr_trace_dir))
+                # sort the files based on last modification time
+                list_of_files = sorted(list_of_files,
+                                key = lambda f: os.path.getmtime(os.path.join(motr_trace_dir, f)),
+                                reverse=True)
+                list_of_files = list_of_files[0:5]
+                for file in list_of_files:
+                    infile = os.path.join(motr_trace_dir, file)
+                    tmp_motr_trace_dir = os.path.join(RGWSupportBundle._tmp_src, 'motr_trace_files')
+                    os.makedirs(tmp_motr_trace_dir, exist_ok=True)
+                    outfile = os.path.join(tmp_motr_trace_dir, file)
+                    shutil.copyfile(infile, outfile)
 
         # add cortx components rpm version
         cmd = "rpm -qa | grep cortx"
