@@ -15,6 +15,7 @@
 # please email opensource@seagate.com or cortx-questions@seagate.com.
 
 import os
+import ast
 import time
 import errno
 import glob
@@ -394,6 +395,10 @@ class Rgw:
             if key.name not in endpoints or not endpoints.get(key.name):
                 raise SetupError(errno.EINVAL, f'Failed to validate hare endpoint values.'
                     f'endpoint {key.name} or its value {ep_value} is not present.')
+
+        for ept_key, ept_value in endpoints.items():
+            if ast.literal_eval(ept_value) == '':
+                raise SetupError(errno.EINVAL, f'Invalid values for {ept_key}: {ept_value}')
 
     @staticmethod
     def _get_files(substr_pattern: str):
