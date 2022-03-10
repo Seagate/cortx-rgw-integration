@@ -127,8 +127,8 @@ class Rgw:
 
         # TODO enable this once all kyes are available in Gconf
         # Add additional parameters of SVC & Motr to config file.
-        #Rgw._update_svc_config(conf, 'client', const.SVC_PARAM_MAPPING)
-        #Rgw._update_svc_config(conf, 'client', const.SVC_MOTR_PARAM_MAPPING)
+        Rgw._update_svc_config(conf, 'client', const.SVC_PARAM_MAPPING)
+        Rgw._update_svc_config(conf, 'client', const.SVC_MOTR_PARAM_MAPPING)
 
         # Before user creation,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
