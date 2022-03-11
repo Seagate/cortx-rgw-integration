@@ -664,7 +664,7 @@ class Rgw:
         """Update config properties from confstore to rgw config file."""
         svc_config_dir = Rgw._get_rgw_config_dir(conf)
         svc_config_file = os.path.join(svc_config_dir, const.RGW_CONF_FILE)
-        Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{svc_config_file}')
+        Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{svc_config_file}')
         Log.info(f'adding paramters to {client_section} in {svc_config_file}')
 
         # e.g config_key_mapping = [[confstore_key1, actual_svc_config_key1],
@@ -672,7 +672,7 @@ class Rgw:
         for confstore_key, config_key in config_key_mapping:
             # fetch actual value of parameter from confstore.
             config_value = Rgw._get_cortx_conf(conf, confstore_key)
-            Conf.set(Rgw._rgw_conf_idx, f'{client_section}>{config_key}', {config_value})
+            Conf.set(Rgw._conf_idx, f'{client_section}>{config_key}', str(config_value))
 
-        Conf.save(Rgw._rgw_conf_idx)
+        Conf.save(Rgw._conf_idx)
         Log.info(f'added paramters to {client_section} successfully..')

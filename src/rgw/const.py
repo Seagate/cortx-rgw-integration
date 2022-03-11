@@ -62,13 +62,13 @@ SVC_ENDPOINT_KEY =  f'cortx>{COMPONENT_NAME}>service>endpoints'
 
 # SVC additional paramters.
 # e.g. svc_keys = ['confstore_key', 'actual_svc_config_key']
-SVC_THREAD_POOL_SIZE_KEY = [f'cortx>{COMPONENT_NAME}>thread_pool_size', 'thread pool size']
-SVC_DATA_PATH_KEY = [f'cortx>{COMPONENT_NAME}>data_path', 'data path']
-SVC_INTI_TIMEOUT_KEY = [f'cortx>{COMPONENT_NAME}>init_timeout', 'init timeout']
-SVC_GC_MAX_OBJECTS_KEY = [f'cortx>{COMPONENT_NAME}>gc_max_objs', 'gc max objs']
-SVC_GC_OBJECT_MIN_WAIT_KEY = [f'cortx>{COMPONENT_NAME}>gc_obj_min_wait', 'gc obj min wait']
-SVC_GC_PROCESSOR_MAX_TIME_KEY = [f'cortx>{COMPONENT_NAME}>gc_processor_max_time', 'gc processor max time']
-SVC_GC_PROCESSOR_PERIOD_KEY = [f'cortx>{COMPONENT_NAME}>gc_processor_period', 'gc processor period']
+SVC_THREAD_POOL_SIZE_KEY = [f'cortx>{COMPONENT_NAME}>thread_pool_size', f'{COMPONENT_NAME} thread pool size']
+SVC_DATA_PATH_KEY = [f'cortx>{COMPONENT_NAME}>data_path', f'{COMPONENT_NAME} data path']
+SVC_INTI_TIMEOUT_KEY = [f'cortx>{COMPONENT_NAME}>init_timeout', f'{COMPONENT_NAME} init timeout']
+SVC_GC_MAX_OBJECTS_KEY = [f'cortx>{COMPONENT_NAME}>gc_max_objs', f'{COMPONENT_NAME} gc max objs']
+SVC_GC_OBJECT_MIN_WAIT_KEY = [f'cortx>{COMPONENT_NAME}>gc_obj_min_wait', f'{COMPONENT_NAME} gc obj min wait']
+SVC_GC_PROCESSOR_MAX_TIME_KEY = [f'cortx>{COMPONENT_NAME}>gc_processor_max_time', f'{COMPONENT_NAME} gc processor max time']
+SVC_GC_PROCESSOR_PERIOD_KEY = [f'cortx>{COMPONENT_NAME}>gc_processor_period', f'{COMPONENT_NAME} gc processor period']
 
 SVC_PARAM_MAPPING = [SVC_THREAD_POOL_SIZE_KEY, SVC_DATA_PATH_KEY,
                      SVC_INTI_TIMEOUT_KEY, SVC_GC_MAX_OBJECTS_KEY,
