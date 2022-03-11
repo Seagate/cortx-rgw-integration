@@ -112,9 +112,9 @@ class Rgw:
         instance = 1
         while instance <= client_instance_count:
             service_endpoints = Rgw._parse_endpoint_values(conf)
-            Log.debug(f'Validating endpoint entries provided by fetch-fids cmd')
+            Log.debug('Validating endpoint entries provided by fetch-fids cmd')
             Rgw._validate_endpoint_paramters(service_endpoints)
-            Log.info(f'Validated endpoint entries provided by fetch-fids cmd successfully.')
+            Log.info('Validated endpoint entries provided by fetch-fids cmd successfully.')
 
             Log.info('Updating endpoint values in rgw config file.')
             Rgw._update_rgw_config_with_endpoints(conf, service_endpoints, instance)
