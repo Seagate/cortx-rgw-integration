@@ -125,7 +125,6 @@ class Rgw:
             Rgw._update_rgw_config_with_endpoints(conf, service_endpoints, instance)
             instance = instance + 1
 
-        # TODO enable this once all kyes are available in Gconf
         # Add additional parameters of SVC & Motr to config file.
         Rgw._update_svc_config(conf, 'client', const.SVC_PARAM_MAPPING)
         Rgw._update_svc_config(conf, 'client', const.SVC_MOTR_PARAM_MAPPING)
