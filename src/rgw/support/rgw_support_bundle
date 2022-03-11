@@ -25,6 +25,7 @@ import errno
 import subprocess
 import argparse
 
+from cortx.utils.log import Log
 from cortx.utils.errors import BaseError
 from cortx.utils.process import SimpleProcess
 from cortx.utils.conf_store.conf_store import Conf, MappedConf
@@ -47,6 +48,7 @@ class RGWSupportBundle:
     @staticmethod
     def generate(bundle_id: str, target_path: str, cluster_conf: str, **filters):
         """ Generate a tar file. """
+        Log.info(f"{COMPONENT_NAME} support bundle generation started!!")
         coredumps = filters.get('coredumps', False)
         stacktrace = filters.get('stacktrace', False)
         machine_id = Conf.machine_id
@@ -63,6 +65,9 @@ class RGWSupportBundle:
         if os.path.exists(config_file):
             shutil.copyfile(config_file,\
                 os.path.join(RGWSupportBundle._tmp_src, RGW_CONF_FILE))
+        else:
+            Log.error(f"{config_file} is not present."
+                      f"Skipping the config file collection for {COMPONENT_NAME}")
 
         # copy rgw client log files
         log_dir = os.path.join(log_base, f'rgw/{machine_id}')
@@ -74,7 +79,7 @@ class RGWSupportBundle:
                     outfile = os.path.join(RGWSupportBundle._tmp_src, file)
                     shutil.copyfile(infile, outfile)
         else:
-            print("WARNING: RGW log file does not exists hence skipping log file collection.")
+            Log.error("RGW log file does not exists hence skipping log file collection.")
 
         # copy ceph crash-dump files
         if coredumps:
@@ -166,9 +171,20 @@ class RGWSupportBundle:
         else:
             raise argparse.ArgumentTypeError('Boolean value expected.')
 
+    @staticmethod
+    def initialize_logging(cluster_conf):
+        """Initialize Logging."""
+        cortx_config_store = MappedConf(cluster_conf)
+        log_path = cortx_config_store.get(LOG_PATH_KEY)
+        if log_path is None:
+            raise SupportBundleError(errno.EINVAL, 'Log path is None.')
+        log_path = os.path.join(log_path, COMPONENT_NAME, Conf.machine_id)
+        os.makedirs(log_path, exist_ok=True)
+        Log.init(f'{COMPONENT_NAME}_support_bundle', log_path)
 
 def main():
     args = RGWSupportBundle.parse_args()
+    RGWSupportBundle.initialize_logging(args.cluster_conf)
     RGWSupportBundle.generate(
         bundle_id=args.bundle_id,
         target_path=args.path,
