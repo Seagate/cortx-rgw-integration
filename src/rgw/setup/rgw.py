@@ -15,10 +15,8 @@
 # please email opensource@seagate.com or cortx-questions@seagate.com.
 
 import os
-import ast
 import time
 import errno
-import glob
 import json
 import socket
 from urllib.parse import urlparse
@@ -320,11 +318,11 @@ class Rgw:
                     f'client.radosgw-admin>{ep_value}', endpoints[key.name])
             Conf.set(Rgw._conf_idx,
                 f'client.radosgw-admin>{const.ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}',
-                endpoints[const.RgwEndpoint.MOTR_PROCESS_FID.name])
+                endpoints[const.RgwEndpoint.fid.name])
             Conf.set(
                 Rgw._conf_idx,
                 f'client.radosgw-admin>{const.ADMIN_PARAMETERS["MOTR_ADMIN_ENDPOINT"]}',
-                endpoints[const.RgwEndpoint.MOTR_CLIENT_EP.name])
+                endpoints[const.RgwEndpoint.ep.name])
             Conf.set(Rgw._conf_idx, f'client.radosgw-admin>log file', radosgw_admin_log_file)
 
         # Create separate section for each service instance in cortx_rgw.conf file.
@@ -357,7 +355,7 @@ class Rgw:
                     f'endpoint {key.name} or its value {ep_value} is not present.')
 
         for ept_key, ept_value in endpoints.items():
-            if ast.literal_eval(ept_value) == '':
+            if ept_value == '':
                 raise SetupError(errno.EINVAL, f'Invalid values for {ept_key}: {ept_value}')
 
     @staticmethod
@@ -425,7 +423,7 @@ class Rgw:
         config_path = Rgw._get_rgw_config_path(conf)
         Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_path}')
         Conf.set(Rgw._conf_idx, \
-            f'client.radosgw-admin>{const.RgwEndpoint.MOTR_HA_EP.value}', motr_ha_endpoint)
+            f'client.radosgw-admin>{const.RgwEndpoint.ha_ep.value}', motr_ha_endpoint)
         Conf.save(Rgw._conf_idx)
 
         Log.info(f'Updated motr_ha_endpoint in config file {config_path}')
