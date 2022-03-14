@@ -607,6 +607,15 @@ class Rgw:
         """ Configure logrotate utility for rgw logs."""
         log_dir = conf.get(const.LOG_PATH_KEY)
         log_file_path = os.path.join(log_dir, const.COMPONENT_NAME, Rgw._machine_id)
+        # Configure the cron job on hourly frequency for RGW log files.
+        try:
+            with open(const.CRON_LOGROTATE_TMPL, 'r') as f:
+                content = f.read()
+            with open(const.CRON_LOGROTATE, 'w') as f:
+                f.write(content)
+        except Exception as e:
+            Log.error(f"Failed to configure cron job for logrotate at {const.FREQUENCY} basis."
+                      f"ERROR:{e}")
         # create radosgw logrotate file.
         # For eg:
         # filepath='/etc/logrotate.d/radosgw'
@@ -622,6 +631,12 @@ class Rgw:
             Log.info(f'{const.LOGROTATE_TMPL} file copied to {const.LOGROTATE_CONF}')
         except Exception as e:
             Log.error(f"Failed to configure logrotate for {const.COMPONENT_NAME}. ERROR:{e}")
+        # start cron.d service
+        try:
+            os.system(f"chmod +x {const.CRON_LOGROTATE}")
+            os.system("/usr/sbin/crond start")
+        except Exception as e:
+            Log.error(f"Failed to start the crond service for {const.COMPONENT_NAME}. ERROR:{e}")
 
     @staticmethod
     def _verify_backend_store_value(conf: MappedConf):
