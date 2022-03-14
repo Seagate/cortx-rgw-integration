@@ -27,6 +27,7 @@ CONSUL_LOCK_KEY = f'component>{COMPONENT_NAME}>volatile>{COMPONENT_NAME}_lock' #
 
 CONF_TMPL = f'{RGW_INSTALL_PATH}/conf/cortx_{COMPONENT_NAME}.conf'
 LOGROTATE_TMPL = f'{RGW_INSTALL_PATH}/conf/{COMPONENT_NAME}.logrotate.tmpl'
+CRON_LOGROTATE_TMPL = f'{RGW_INSTALL_PATH}/conf/logrotate.service.tmpl'
 # e.g CONF_TMPL will be /opt/seagate/cortx/rgw/conf/cortx_rgw.conf
 # e.g LOGROTATE_TMPL will be /opt/seagate/cortx/rgw/conf/rgw.logrotate.tmpl
 RGW_CONF_FILE = f'cortx_{COMPONENT_NAME}.conf'
@@ -34,6 +35,9 @@ SUPPORTED_BACKEND_STORES = ['motr']
 # e.g. RGW_CONFI_FILE path will be cortx_rgw.conf
 LOGROTATE_DIR = "/etc/logrotate.d"
 LOGROTATE_CONF = f'{LOGROTATE_DIR}/radosgw'
+FREQUENCY='hourly'
+CRON_DIR = f'/etc/cron.{FREQUENCY}'
+CRON_LOGROTATE = f'{CRON_DIR}/logrotate'
 CRASHDUMP_DIR = '/var/lib/ceph/crash'
 REQUIRED_RPMS = ['cortx-hare', 'cortx-py-utils', 'ceph-radosgw']
 ADMIN_PARAMETERS = {'MOTR_ADMIN_FID':'motr admin fid', 'MOTR_ADMIN_ENDPOINT':'motr admin endpoint', 'RGW_FRONTENDS': 'rgw frontends'}
