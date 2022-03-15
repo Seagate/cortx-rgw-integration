@@ -443,11 +443,14 @@ class Rgw:
         return num_instances
 
     @staticmethod
-    def _get_cortx_conf(conf: MappedConf, key: str):
+    def _get_cortx_conf(conf: MappedConf, key: str, default_value = None):
         """Read value from cluster config for given key"""
         val = conf.get(key)
         if val is None:
-            raise SetupError(errno.EINVAL, f'Value for {key} key is None.')
+            if default_value is None:
+                raise SetupError(errno.EINVAL, f'Value for {key} key is None.')
+            else:
+                val = default_value
         return val
 
     @staticmethod
@@ -666,11 +669,12 @@ class Rgw:
         Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{svc_config_file}')
         Log.info(f'adding paramters to {client_section} in {svc_config_file}')
 
-        # e.g config_key_mapping = [[confstore_key1, actual_svc_config_key1],
-        # [confstore_key2, actual_svc_config_key2], ..]
-        for confstore_key, config_key in config_key_mapping:
+        # e.g config_key_mapping = [[confstore_key1, actual_svc_config_key1, default_value1],
+        # [confstore_key2, actual_svc_config_key2, default_valu2], ..]
+        for confstore_key, config_key, default_value in config_key_mapping:
             # fetch actual value of parameter from confstore.
-            config_value = Rgw._get_cortx_conf(conf, confstore_key)
+            # if config key/value is missing in confstore then use default value mentioned in const.py
+            config_value = Rgw._get_cortx_conf(conf, confstore_key, default_value)
             Conf.set(Rgw._conf_idx, f'{client_section}>{config_key}', str(config_value))
 
         Conf.save(Rgw._conf_idx)
