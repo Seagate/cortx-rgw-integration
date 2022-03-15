@@ -23,8 +23,10 @@ INSTALL_PATH = '/opt/seagate/cortx'
 RGW_INSTALL_PATH = f'{INSTALL_PATH}/{COMPONENT_NAME}'
 ADMIN_CREATION_TIMEOUT = 60
 ADMIN_USER_CREATED = 'user_created'
-DEFAULT_HTTP_PORT = '22751'
-DEFAULT_HTTPS_PORT = '23001'
+# TODO: Once the port related changes is available from service team(CORTX-29179)
+# Update DEFAULT_HTTP_PORT = '22751' and DEFAULT_HTTPS_PORT = '23001'.
+DEFAULT_HTTP_PORT = '8000'
+DEFAULT_HTTPS_PORT = '8443'
 CONSUL_LOCK_KEY = f'component>{COMPONENT_NAME}>volatile>{COMPONENT_NAME}_lock' # component>rgw>volatile>rgw_lock
 
 CONF_TMPL = f'{RGW_INSTALL_PATH}/conf/cortx_{COMPONENT_NAME}.conf'
