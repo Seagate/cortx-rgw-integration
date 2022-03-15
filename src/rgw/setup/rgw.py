@@ -550,7 +550,9 @@ class Rgw:
                           f' endpoint {e}')
                 break
         if rgw_lock is True:
-            current_data_node = socket.gethostname().replace('server', 'data')
+            # To read data pod hostname of current node
+            current_node = socket.gethostname().rsplit('-', 1)[0]
+            current_data_node = current_node.replace('server', 'data')
             user_status = Rgw._create_admin_on_current_node(conf, current_data_node)
 
             if user_status == 0:
