@@ -385,8 +385,20 @@ class Rgw:
     @staticmethod
     def _get_service_port(conf: MappedConf, protocol: str):
         """Return rgw service port value."""
-        service_endpoints = Rgw._fetch_endpoint_url(conf, const.SVC_ENDPOINT_KEY, protocol)
-        port = urlparse(service_endpoints[0]).port
+        port = None
+        endpoints = conf.get(const.SVC_ENDPOINT_KEY)
+        if endpoints:
+            svc_endpoints = list(filter(lambda x: urlparse(x).scheme == protocol, endpoints))
+            port = urlparse(svc_endpoints[0]).port
+            Log.info(f'{protocol} port value - {port}')
+        else:
+            # If endpoint is not present, use default port value.
+            if protocol == 'http':
+                port = const.DEFAULT_HTTP_PORT
+            elif protocol == 'https':
+                port = const.DEFAULT_HTTPS_PORT
+            Log.info(f'{const.SVC_ENDPOINT_KEY} is not available in cluster.conf,'
+                f' using the default value. {protocol} - {port}')
         return port
 
     @staticmethod
@@ -443,13 +455,11 @@ class Rgw:
     def _generate_ssl_cert(conf: MappedConf):
         """Generate SSL certificate."""
         ssl_cert_path = Rgw._get_cortx_conf(conf, const.SSL_CERT_PATH_KEY)
-        https_endpoints = Rgw._fetch_endpoint_url(conf, const.SVC_ENDPOINT_KEY, 'https')
-        if len(https_endpoints) > 0 and not os.path.exists(ssl_cert_path):
+        if not os.path.exists(ssl_cert_path):
             # Generate SSL cert.
             Log.info(f'"https" is enabled and SSL certificate is not present at {ssl_cert_path}.')
             Log.info('Generating SSL certificate.')
             try:
-                const.SSL_DNS_LIST.append(urlparse(https_endpoints[0]).hostname)
                 ssl_cert_configs = const.SSL_CERT_CONFIGS
                 ssl_cert_obj = Certificate.init('ssl')
                 ssl_cert_obj.generate(
