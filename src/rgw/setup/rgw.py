@@ -265,13 +265,13 @@ class Rgw:
     @staticmethod
     def _create_rgw_user(conf: MappedConf):
         """Create RGW admin user."""
-        user_name = Rgw._get_cortx_conf(conf, f'cortx>{const.COMPONENT_NAME}>auth_user')
-        access_key = Rgw._get_cortx_conf(conf, f'cortx>{const.COMPONENT_NAME}>auth_admin')
-        auth_secret = Rgw._get_cortx_conf(conf, f'cortx>{const.COMPONENT_NAME}>auth_secret')
+        user_name = Rgw._get_cortx_conf(conf, const.AUTH_USER)
+        access_key = Rgw._get_cortx_conf(conf, const.AUTH_ADMIN)
+        auth_secret = Rgw._get_cortx_conf(conf, const.AUTH_SECRET)
         err_str = f'user: {user_name} exists'
         # decrypt secret key.
         try:
-            cluster_id = Rgw._get_cortx_conf(conf, 'cluster>id')
+            cluster_id = Rgw._get_cortx_conf(conf, const.CLUSTER_ID)
             cipher_key = Cipher.gen_key(cluster_id, const.DECRYPTION_KEY)
             password = Cipher.decrypt(cipher_key, auth_secret.encode('utf-8'))
             password = password.decode('utf-8')

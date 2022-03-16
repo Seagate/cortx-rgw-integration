@@ -87,6 +87,12 @@ SVC_MOTR_PARAM_MAPPING = [MOTR_LDAYOUT_ID_KEY, MOTR_UNIT_SIZE_KEY,
                       MOTR_MAX_RPC_MSG_SIZE_KEY, MOTR_RECONNECT_INTERVAL_KEY,
                       MOTR_RECONNECT_RETRY_COUNT_KEY]
 
+AUTH_USER = f'cortx>{const.COMPONENT_NAME}>auth_user'
+AUTH_ADMIN = f'cortx>{const.COMPONENT_NAME}>auth_admin'
+AUTH_SECRET = f'cortx>{const.COMPONENT_NAME}>auth_secret'
+CLUSTER_ID = 'cluster>id'
+
+
 class RgwEndpoint(Enum):
     """Enum class to define rgw endpoints provided by hare."""
 
