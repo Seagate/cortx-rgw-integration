@@ -265,13 +265,13 @@ class Rgw:
     @staticmethod
     def _create_rgw_user(conf: MappedConf):
         """Create RGW admin user."""
-        user_name = Rgw._get_cortx_conf(conf, const.AUTH_USER)
-        access_key = Rgw._get_cortx_conf(conf, const.AUTH_ADMIN)
-        auth_secret = Rgw._get_cortx_conf(conf, const.AUTH_SECRET)
+        user_name = Rgw._get_cortx_conf(conf, const.AUTH_USER_KEY)
+        access_key = Rgw._get_cortx_conf(conf, const.AUTH_ADMIN_KEY)
+        auth_secret = Rgw._get_cortx_conf(conf, const.AUTH_SECRET_KEY)
         err_str = f'user: {user_name} exists'
         # decrypt secret key.
         try:
-            cluster_id = Rgw._get_cortx_conf(conf, const.CLUSTER_ID)
+            cluster_id = Rgw._get_cortx_conf(conf, const.CLUSTER_ID_KEY)
             cipher_key = Cipher.gen_key(cluster_id, const.DECRYPTION_KEY)
             password = Cipher.decrypt(cipher_key, auth_secret.encode('utf-8'))
             password = password.decode('utf-8')
@@ -358,14 +358,12 @@ class Rgw:
             for ep_value, key in const.RgwEndpoint._value2member_map_.items():
                 Conf.set(Rgw._conf_idx,
                     f'client.radosgw-admin>{ep_value}', endpoints[key.name])
-            Conf.set(Rgw._conf_idx,
-                f'client.radosgw-admin>{const.ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}',
+            Conf.set(Rgw._conf_idx, const.MOTR_ADMIN_FID_KEY,
                 endpoints[const.RgwEndpoint.MOTR_PROCESS_FID.name])
             Conf.set(
-                Rgw._conf_idx,
-                f'client.radosgw-admin>{const.ADMIN_PARAMETERS["MOTR_ADMIN_ENDPOINT"]}',
+                Rgw._conf_idx, const.MOTR_ADMIN_ENDPOINT_KEY,
                 endpoints[const.RgwEndpoint.MOTR_CLIENT_EP.name])
-            Conf.set(Rgw._conf_idx, f'client.radosgw-admin>log file', radosgw_admin_log_file)
+            Conf.set(Rgw._conf_idx, const.RADOS_ADMIN_LOG_FILE_KEY, radosgw_admin_log_file)
 
         # Create separate section for each service instance in cortx_rgw.conf file.
         for ep_value, key in const.RgwEndpoint._value2member_map_.items():
@@ -480,8 +478,7 @@ class Rgw:
 
         config_path = Rgw._get_rgw_config_path(conf)
         Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_path}')
-        Conf.set(Rgw._conf_idx, \
-            f'client.radosgw-admin>{const.RgwEndpoint.MOTR_HA_EP.value}', motr_ha_endpoint)
+        Conf.set(Rgw._conf_idx, const.RADOS_MOTR_HA_EP_KEY, motr_ha_endpoint)
         Conf.save(Rgw._conf_idx)
 
         Log.info(f'Updated motr_ha_endpoint in config file {config_path}')
@@ -557,7 +554,7 @@ class Rgw:
                 Log.info(f'User creation is successful on "{Rgw._machine_id}" node.')
                 Rgw._set_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY, const.ADMIN_USER_CREATED)
             else:
-                machine_ids = Rgw._get_cortx_conf(conf, 'cluster>storage_set[0]>nodes')
+                machine_ids = Rgw._get_cortx_conf(conf, const.MACHINE_IDS_KEY)
                 data_pod_hostnames = [Rgw._get_cortx_conf(conf,
                     f'node>{machine_id}>hostname') for machine_id in machine_ids if
                     Rgw._get_cortx_conf(conf, f'node>{machine_id}>type') == 'data_node']
@@ -641,7 +638,7 @@ class Rgw:
         """Verify backed store value as motr."""
         config_file = Rgw._get_rgw_config_path(conf)
         Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_file}')
-        backend_store = Conf.get(Rgw._conf_idx, 'client>rgw backend store')
+        backend_store = Conf.get(Rgw._conf_idx, const.RGW_BACKEND_STORE_KEY)
         if not backend_store in const.SUPPORTED_BACKEND_STORES:
             raise SetupError(errno.EINVAL,
                 f'Supported rgw backend store are {const.SUPPORTED_BACKEND_STORES},'
