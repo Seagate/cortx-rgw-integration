@@ -125,10 +125,10 @@ class Rgw:
             Rgw._update_rgw_config_with_endpoints(conf, service_endpoints, instance)
             instance = instance + 1
 
-        # TODO enable this once all kyes are available in Gconf
         # Add additional parameters of SVC & Motr to config file.
-        #Rgw._update_svc_config(conf, 'client', const.SVC_PARAM_MAPPING)
-        #Rgw._update_svc_config(conf, 'client', const.SVC_MOTR_PARAM_MAPPING)
+        Rgw._update_svc_config(conf, 'client', const.SVC_PARAM_MAPPING)
+        Rgw._update_svc_data_path_value(conf, 'client')
+        Rgw._update_svc_config(conf, 'client', const.SVC_MOTR_PARAM_MAPPING)
 
         # Before user creation,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
@@ -271,7 +271,7 @@ class Rgw:
         err_str = f'user: {user_name} exists'
         # decrypt secret key.
         try:
-            cluster_id = Rgw._get_cortx_conf(conf, 'cluster>id')
+            cluster_id = Rgw._get_cortx_conf(conf, const.CLUSTER_ID_KEY)
             cipher_key = Cipher.gen_key(cluster_id, const.DECRYPTION_KEY)
             password = Cipher.decrypt(cipher_key, auth_secret.encode('utf-8'))
             password = password.decode('utf-8')
@@ -444,11 +444,14 @@ class Rgw:
         return num_instances
 
     @staticmethod
-    def _get_cortx_conf(conf: MappedConf, key: str):
+    def _get_cortx_conf(conf: MappedConf, key: str, default_value = None):
         """Read value from cluster config for given key"""
         val = conf.get(key)
         if val is None:
-            raise SetupError(errno.EINVAL, f'Value for {key} key is None.')
+            if default_value is None:
+                raise SetupError(errno.EINVAL, f'Value for {key} key is None.')
+            else:
+                val = default_value
         return val
 
     @staticmethod
@@ -664,15 +667,31 @@ class Rgw:
         """Update config properties from confstore to rgw config file."""
         svc_config_dir = Rgw._get_rgw_config_dir(conf)
         svc_config_file = os.path.join(svc_config_dir, const.RGW_CONF_FILE)
-        Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{svc_config_file}')
+        Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{svc_config_file}')
         Log.info(f'adding paramters to {client_section} in {svc_config_file}')
 
-        # e.g config_key_mapping = [[confstore_key1, actual_svc_config_key1],
-        # [confstore_key2, actual_svc_config_key2], ..]
-        for confstore_key, config_key in config_key_mapping:
+        # e.g config_key_mapping = [[confstore_key1, actual_svc_config_key1, default_value1],
+        # [confstore_key2, actual_svc_config_key2, default_valu2], ..]
+        for confstore_key, config_key, default_value in config_key_mapping:
             # fetch actual value of parameter from confstore.
-            config_value = Rgw._get_cortx_conf(conf, confstore_key)
-            Conf.set(Rgw._rgw_conf_idx, f'{client_section}>{config_key}', {config_value})
+            # if config key/value is missing in confstore then use default value mentioned in const.py
+            config_value = Rgw._get_cortx_conf(conf, confstore_key, default_value)
+            Log.info(f'Setting config key :{config_key} with value:{config_value} at {client_section} section')
+            Conf.set(Rgw._conf_idx, f'{client_section}>{config_key}', str(config_value))
 
-        Conf.save(Rgw._rgw_conf_idx)
+        Conf.save(Rgw._conf_idx)
         Log.info(f'added paramters to {client_section} successfully..')
+
+    @staticmethod
+    def _update_svc_data_path_value(conf: MappedConf, client_section: str):
+        "Update svc config file with data path key which needs pre-processing values incase of default values."
+        # Fetch cluster-id
+        cluster_id = Rgw._get_cortx_conf(conf, const.CLUSTER_ID_KEY)
+
+        # Create data path's default value e.g. /var/lib/ceph/radosgw/<cluster-id>
+        data_path_default_value = const.SVC_DATA_PATH_DEFAULT_VALUE + cluster_id
+        SVC_DATA_PATH_PARAM = [[const.SVC_DATA_PATH_CONFSTORE_KEY, const.SVC_DATA_PATH_KEY, data_path_default_value]]
+
+        # Updating svc config file with above data path key, value
+        Rgw._update_svc_config(conf, client_section, SVC_DATA_PATH_PARAM)
+
