@@ -87,17 +87,6 @@ SVC_MOTR_PARAM_MAPPING = [MOTR_LDAYOUT_ID_KEY, MOTR_UNIT_SIZE_KEY,
                       MOTR_MAX_RPC_MSG_SIZE_KEY, MOTR_RECONNECT_INTERVAL_KEY,
                       MOTR_RECONNECT_RETRY_COUNT_KEY]
 
-AUTH_USER_KEY = f'cortx>{COMPONENT_NAME}>auth_user'
-AUTH_ADMIN_KEY = f'cortx>{COMPONENT_NAME}>auth_admin'
-AUTH_SECRET_KEY = f'cortx>{COMPONENT_NAME}>auth_secret'
-CLUSTER_ID_KEY = 'cluster>id'
-MACHINE_IDS_KEY = 'cluster>storage_set[0]>nodes'
-MOTR_ADMIN_FID_KEY = f'client.radosgw-admin>{ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}'
-MOTR_ADMIN_ENDPOINT_KEY = f'client.radosgw-admin>{ADMIN_PARAMETERS["MOTR_ADMIN_ENDPOINT"]}'
-RADOS_ADMIN_LOG_FILE_KEY = f'client.radosgw-admin>log file'
-RGW_BACKEND_STORE_KEY = 'client>rgw backend store'
-RADOS_MOTR_HA_EP_KEY = f'client.radosgw-admin>{RgwEndpoint.MOTR_HA_EP.value}'
-
 
 class RgwEndpoint(Enum):
     """Enum class to define rgw endpoints provided by hare."""
@@ -108,3 +97,14 @@ class RgwEndpoint(Enum):
     MOTR_PROCESS_FID = 'motr my fid'
 
 
+# ConfStore keys of rgw.py
+AUTH_USER_KEY = f'cortx>{COMPONENT_NAME}>auth_user'
+AUTH_ADMIN_KEY = f'cortx>{COMPONENT_NAME}>auth_admin'
+AUTH_SECRET_KEY = f'cortx>{COMPONENT_NAME}>auth_secret'
+CLUSTER_ID_KEY = 'cluster>id'
+MACHINE_IDS_KEY = 'cluster>storage_set[0]>nodes'
+MOTR_ADMIN_FID_KEY = f'client.radosgw-admin>{ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}'
+MOTR_ADMIN_ENDPOINT_KEY = f'client.radosgw-admin>{ADMIN_PARAMETERS["MOTR_ADMIN_ENDPOINT"]}'
+RADOS_ADMIN_LOG_FILE_KEY = f'client.radosgw-admin>log file'
+RGW_BACKEND_STORE_KEY = 'client>rgw backend store'
+RADOS_MOTR_HA_EP_KEY = f'client.radosgw-admin>{RgwEndpoint.MOTR_HA_EP.value}'
