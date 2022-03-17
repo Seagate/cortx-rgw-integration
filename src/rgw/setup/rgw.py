@@ -290,12 +290,16 @@ class Rgw:
 
     @staticmethod
     def _parse_endpoint_values(conf: MappedConf):
-        """Fetch endpoint values from hctl fetch-fids for running radosgw_admin tool."""
+        """Fetch endpoint values from hctl fetch-fids."""
         hare_config_dir = Rgw._get_hare_config_path(conf)
         fetch_fids_cmd = f'hctl fetch-fids -c {hare_config_dir}'
         decoded_out = Rgw._run_fetch_fid_cmd(fetch_fids_cmd)
         endpoints = [comp for comp in decoded_out if comp['name'] \
             == const.COMPONENT_NAME][0]
+
+        for ep_key, ep_value in const.RgwEndpoint.__members__.items():
+            if list(ep_value.value.keys())[0] in endpoints:
+                endpoints[ep_key] = endpoints.pop(list(ep_value.value.keys())[0])
 
         return endpoints
 
@@ -313,21 +317,23 @@ class Rgw:
         if instance == 1:
             radosgw_admin_log_file = os.path.join(
                 log_path, 'radosgw-admin.log')
-            for ep_value, key in const.RgwEndpoint._value2member_map_.items():
+            for key, ep_value in const.RgwEndpoint.__members__.items():
+                value = list(ep_value.value.values())[0]
                 Conf.set(Rgw._conf_idx,
-                    f'client.radosgw-admin>{ep_value}', endpoints[key.name])
+                    f'client.radosgw-admin>{value}', endpoints[key])
             Conf.set(Rgw._conf_idx,
                 f'client.radosgw-admin>{const.ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}',
-                endpoints[const.RgwEndpoint.fid.name])
+                endpoints[const.RgwEndpoint.MOTR_PROCESS_FID.name])
             Conf.set(
                 Rgw._conf_idx,
                 f'client.radosgw-admin>{const.ADMIN_PARAMETERS["MOTR_ADMIN_ENDPOINT"]}',
-                endpoints[const.RgwEndpoint.ep.name])
+                endpoints[const.RgwEndpoint.MOTR_CLIENT_EP.name])
             Conf.set(Rgw._conf_idx, f'client.radosgw-admin>log file', radosgw_admin_log_file)
 
         # Create separate section for each service instance in cortx_rgw.conf file.
-        for ep_value, key in const.RgwEndpoint._value2member_map_.items():
-            Conf.set(Rgw._conf_idx, f'client.rgw-{instance}>{ep_value}', endpoints[key.name])
+        for key, ep_value in const.RgwEndpoint.__members__.items():
+            value = list(ep_value.value.values())[0]
+            Conf.set(Rgw._conf_idx, f'client.rgw-{instance}>{value}', endpoints[key])
         Conf.set(Rgw._conf_idx, f'client.rgw-{instance}>log file', service_instance_log_file)
         # For each instance increase port value by 1.
         # for eg. for 1st instance. port=8000
@@ -349,10 +355,10 @@ class Rgw:
     def _validate_endpoint_paramters(endpoints: dict):
         """Validate endpoint values fetched from hctl fetch-fids cmd."""
 
-        for ep_value, key in const.RgwEndpoint._value2member_map_.items():
-            if key.name not in endpoints or not endpoints.get(key.name):
+        for key, _ in const.RgwEndpoint.__members__.items():
+            if key not in endpoints:
                 raise SetupError(errno.EINVAL, f'Failed to validate hare endpoint values.'
-                    f'endpoint {key.name} or its value {ep_value} is not present.')
+                    f'endpoint {key} is not present.')
 
         for ept_key, ept_value in endpoints.items():
             if ept_value == '':
@@ -422,8 +428,8 @@ class Rgw:
 
         config_path = Rgw._get_rgw_config_path(conf)
         Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_path}')
-        Conf.set(Rgw._conf_idx, \
-            f'client.radosgw-admin>{const.RgwEndpoint.ha_ep.value}', motr_ha_endpoint)
+        ha_ep_key = list(const.RgwEndpoint.MOTR_HA_EP.value.values())[0]
+        Conf.set(Rgw._conf_idx, f'client.radosgw-admin>{ha_ep_key}', motr_ha_endpoint)
         Conf.save(Rgw._conf_idx)
 
         Log.info(f'Updated motr_ha_endpoint in config file {config_path}')

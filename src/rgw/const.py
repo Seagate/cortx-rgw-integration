@@ -83,12 +83,14 @@ SVC_MOTR_PARAM_MAPPING = [MOTR_LDAYOUT_ID_KEY, MOTR_UNIT_SIZE_KEY,
                       MOTR_MAX_RPC_MSG_SIZE_KEY, MOTR_RECONNECT_INTERVAL_KEY,
                       MOTR_RECONNECT_RETRY_COUNT_KEY]
 
+
 class RgwEndpoint(Enum):
     """Enum class to define rgw endpoints provided by hare."""
 
-    profile_fid = 'motr profile fid'
-    ha_ep = 'motr ha endpoint'
-    ep = 'motr my endpoint'
-    fid = 'motr my fid'
+    MOTR_PROFILE_FID = {'profile_fid': 'motr profile fid'}
+    MOTR_HA_EP = {'ha_ep': 'motr ha endpoint'}
+    MOTR_CLIENT_EP = {'ep': 'motr my endpoint'}
+    MOTR_PROCESS_FID = {'fid': 'motr my fid'}
+
 
 
