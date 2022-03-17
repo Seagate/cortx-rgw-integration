@@ -294,7 +294,7 @@ class Rgw:
         hare_config_dir = Rgw._get_hare_config_path(conf)
         fetch_fids_cmd = f'hctl fetch-fids -c {hare_config_dir}'
         decoded_out = Rgw._run_fetch_fid_cmd(fetch_fids_cmd)
-        endpoints = [comp for comp in decoded_out if comp['name'] \
+        endpoints = [comp for comp in decoded_out if comp['name']
             == const.COMPONENT_NAME][0]
 
         for ep_key, ep_value in const.RgwEndpoint.__members__.items():
