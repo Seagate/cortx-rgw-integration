@@ -23,6 +23,10 @@ INSTALL_PATH = '/opt/seagate/cortx'
 RGW_INSTALL_PATH = f'{INSTALL_PATH}/{COMPONENT_NAME}'
 ADMIN_CREATION_TIMEOUT = 60
 ADMIN_USER_CREATED = 'user_created'
+# TODO: Once the port related changes is available from service team(CORTX-29179)
+# Update DEFAULT_HTTP_PORT = '22751' and DEFAULT_HTTPS_PORT = '23001'.
+DEFAULT_HTTP_PORT = '8000'
+DEFAULT_HTTPS_PORT = '8443'
 CONSUL_LOCK_KEY = f'component>{COMPONENT_NAME}>volatile>{COMPONENT_NAME}_lock' # component>rgw>volatile>rgw_lock
 
 CONF_TMPL = f'{RGW_INSTALL_PATH}/conf/cortx_{COMPONENT_NAME}.conf'
@@ -51,10 +55,10 @@ CONSUL_ENDPOINT_KEY = 'cortx>external>consul>endpoints'
 
 # SSL certificate parameters
 SSL_CERT_CONFIGS = {"country" : "IN", "state" : "MH", "locality" : "Pune",
-    "organization" : "Seagate Technology", "CN" : "seagate.com"}
+    "organization" : "Seagate Technology", "CN" : "seagate.com", "SAN": u"*.seagate.com"}
 SSL_DNS_LIST = [u'*.seagate.com', u'localhost', u'*.localhost']
 SSL_CERT_PATH_KEY = 'cortx>common>security>ssl_certificate'
-SVC_ENDPOINT_KEY =  f'cortx>{COMPONENT_NAME}>s3>endpoints'
+SVC_ENDPOINT_KEY =  f'cortx>{COMPONENT_NAME}>service>endpoints'
 
 # SVC additional paramters.
 # e.g. svc_keys = ['confstore_key', 'actual_svc_config_key']
