@@ -676,6 +676,7 @@ class Rgw:
             # fetch actual value of parameter from confstore.
             # if config key/value is missing in confstore then use default value mentioned in const.py
             config_value = Rgw._get_cortx_conf(conf, confstore_key, default_value)
+            Log.info(f'Setting config key :{config_key} with value:{config_value} at {client_section} section')
             Conf.set(Rgw._conf_idx, f'{client_section}>{config_key}', str(config_value))
 
         Conf.save(Rgw._conf_idx)
@@ -689,7 +690,7 @@ class Rgw:
 
         # Create data path's default value e.g. /var/lib/ceph/radosgw/<cluster-id>
         data_path_default_value = const.SVC_DATA_PATH_DEFAULT_VALUE + cluster_id
-        SVC_DATA_PATH_PARAM = [const.SVC_DATA_PATH_CONFSTORE_KEY, const.SVC_DATA_PATH_KEY, data_path_default_value]
+        SVC_DATA_PATH_PARAM = [[const.SVC_DATA_PATH_CONFSTORE_KEY, const.SVC_DATA_PATH_KEY, data_path_default_value]]
 
         # Updating svc config file with above data path key, value
         Rgw._update_svc_config(conf, client_section, SVC_DATA_PATH_PARAM)
