@@ -28,6 +28,7 @@ ADMIN_USER_CREATED = 'user_created'
 DEFAULT_HTTP_PORT = '8000'
 DEFAULT_HTTPS_PORT = '8443'
 CONSUL_LOCK_KEY = f'component>{COMPONENT_NAME}>volatile>{COMPONENT_NAME}_lock' # component>rgw>volatile>rgw_lock
+CLUSTER_ID_KEY = 'cluster>id'
 
 CONF_TMPL = f'{RGW_INSTALL_PATH}/conf/cortx_{COMPONENT_NAME}.conf'
 LOGROTATE_TMPL = f'{RGW_INSTALL_PATH}/conf/{COMPONENT_NAME}.logrotate.tmpl'
@@ -63,17 +64,21 @@ SVC_ENDPOINT_KEY =  f'cortx>{COMPONENT_NAME}>service>endpoints'
 # SVC additional paramters.(default value to be used in case of config key is missing in confstore.)
 # e.g. svc_keys = ['confstore_key', 'actual_svc_config_key', 'default_value']
 SVC_THREAD_POOL_SIZE_KEY = [f'cortx>{COMPONENT_NAME}>thread_pool_size', f'{COMPONENT_NAME} thread pool size', '10']
-SVC_DATA_PATH_KEY = [f'cortx>{COMPONENT_NAME}>data_path', f'{COMPONENT_NAME} data path', 'dummy-value'] #TBD
 SVC_INTI_TIMEOUT_KEY = [f'cortx>{COMPONENT_NAME}>init_timeout', f'{COMPONENT_NAME} init timeout', '300']
 SVC_GC_MAX_OBJECTS_KEY = [f'cortx>{COMPONENT_NAME}>gc_max_objs', f'{COMPONENT_NAME} gc max objs', '32']
 SVC_GC_OBJECT_MIN_WAIT_KEY = [f'cortx>{COMPONENT_NAME}>gc_obj_min_wait', f'{COMPONENT_NAME} gc obj min wait', '1800']
 SVC_GC_PROCESSOR_MAX_TIME_KEY = [f'cortx>{COMPONENT_NAME}>gc_processor_max_time', f'{COMPONENT_NAME} gc processor max time', '3600']
 SVC_GC_PROCESSOR_PERIOD_KEY = [f'cortx>{COMPONENT_NAME}>gc_processor_period', f'{COMPONENT_NAME} gc processor period', '3600']
 
-SVC_PARAM_MAPPING = [SVC_THREAD_POOL_SIZE_KEY, SVC_DATA_PATH_KEY,
-                     SVC_INTI_TIMEOUT_KEY, SVC_GC_MAX_OBJECTS_KEY,
-                     SVC_GC_OBJECT_MIN_WAIT_KEY, SVC_GC_PROCESSOR_MAX_TIME_KEY,
-                     SVC_GC_PROCESSOR_PERIOD_KEY]
+SVC_PARAM_MAPPING = [SVC_THREAD_POOL_SIZE_KEY, SVC_INTI_TIMEOUT_KEY,
+                     SVC_GC_MAX_OBJECTS_KEY, SVC_GC_OBJECT_MIN_WAIT_KEY,
+                     SVC_GC_PROCESSOR_MAX_TIME_KEY, SVC_GC_PROCESSOR_PERIOD_KEY]
+
+
+SVC_DATA_PATH_CONFSTORE_KEY = f'cortx>{COMPONENT_NAME}>data_path'
+SVC_DATA_PATH_KEY = f'{COMPONENT_NAME} data path'
+# e.g. default value will be appended by cluster-id hence kept it seperatly
+SVC_DATA_PATH_DEFAULT_VALUE = '/var/lib/ceph/radosgw/' # e.g. /var/lib/ceph/radosgw/<cluster-id>
 
 # MOTR additional parameters in SVC config file.
 # default value to be used in case of config key is missing in confstore.

@@ -127,6 +127,7 @@ class Rgw:
 
         # Add additional parameters of SVC & Motr to config file.
         Rgw._update_svc_config(conf, 'client', const.SVC_PARAM_MAPPING)
+        Rgw._update_svc_data_path_value(conf, 'client')
         Rgw._update_svc_config(conf, 'client', const.SVC_MOTR_PARAM_MAPPING)
 
         # Before user creation,Verify backend store value=motr in rgw config file.
@@ -270,7 +271,7 @@ class Rgw:
         err_str = f'user: {user_name} exists'
         # decrypt secret key.
         try:
-            cluster_id = Rgw._get_cortx_conf(conf, 'cluster>id')
+            cluster_id = Rgw._get_cortx_conf(conf, const.CLUSTER_ID_KEY)
             cipher_key = Cipher.gen_key(cluster_id, const.DECRYPTION_KEY)
             password = Cipher.decrypt(cipher_key, auth_secret.encode('utf-8'))
             password = password.decode('utf-8')
@@ -679,3 +680,17 @@ class Rgw:
 
         Conf.save(Rgw._conf_idx)
         Log.info(f'added paramters to {client_section} successfully..')
+
+    @staticmethod
+    def _update_svc_data_path_value(conf: MappedConf, client_section: str):
+        "Update svc config file with data path key which needs pre-processing values incase of default values."
+        # Fetch cluster-id
+        cluster_id = Rgw._get_cortx_conf(conf, const.CLUSTER_ID_KEY)
+
+        # Create data path's default value e.g. /var/lib/ceph/radosgw/<cluster-id>
+        data_path_default_value = const.SVC_DATA_PATH_DEFAULT_VALUE + cluster_id
+        SVC_DATA_PATH_PARAM = [const.SVC_DATA_PATH_CONFSTORE_KEY, const.SVC_DATA_PATH_KEY, data_path_default_value]
+
+        # Updating svc config file with above data path key, value
+        Rgw._update_svc_config(conf, client_section, SVC_DATA_PATH_PARAM)
+
