@@ -273,8 +273,8 @@ class Rgw:
         try:
             cluster_id = Rgw._get_cortx_conf(conf, const.CLUSTER_ID_KEY)
             cipher_key = Cipher.gen_key(cluster_id, const.DECRYPTION_KEY)
-            password = Cipher.decrypt(cipher_key, auth_secret.encode('utf-8'))
-            password = password.decode('utf-8')
+            password = Cipher.decrypt(cipher_key, auth_secret.encode(const.UTF_ENCODING))
+            password = password.decode(const.UTF_ENCODING)
         except CipherInvalidToken as e:
             raise SetupError(errno.EINVAL, f'auth_secret decryption failed. {e}')
         rgw_config = Rgw._get_rgw_config_path(conf)
@@ -471,14 +471,16 @@ class Rgw:
                 f'{data_pod_hostname}. {err}')
             raise SetupError(rc, 'Unable to read fid information for hostname: '
                 '%s. %s', data_pod_hostname, err)
-        decoded_out = json.loads(out.decode('utf-8'))
+        decoded_out = json.loads(out.decode(const.UTF_ENCODING))
         motr_ha_endpoint = [endpoints['ep'] for endpoints in decoded_out \
             if 'hax' in endpoints.values()][0]
         Log.info(f'Fetched motr_ha_endpoint from data pod. Endpoint: {motr_ha_endpoint}')
 
         config_path = Rgw._get_rgw_config_path(conf)
         Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_path}')
-        Conf.set(Rgw._conf_idx, const.RADOS_MOTR_HA_EP_KEY, motr_ha_endpoint)
+        Conf.set(Rgw._conf_idx,\
+            f'client.radosgw-admin>{const.RgwEndpoint.MOTR_HA_EP.value}',\
+            motr_ha_endpoint)
         Conf.save(Rgw._conf_idx)
 
         Log.info(f'Updated motr_ha_endpoint in config file {config_path}')
