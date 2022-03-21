@@ -15,10 +15,8 @@
 # please email opensource@seagate.com or cortx-questions@seagate.com.
 
 import os
-import ast
 import time
 import errno
-import glob
 import json
 import socket
 from urllib.parse import urlparse
@@ -102,33 +100,28 @@ class Rgw:
         # Create ssl certificate
         Rgw._generate_ssl_cert(conf)
 
-        Log.info('create symbolic link of FID config files started')
-        sysconfig_file_path = Rgw._get_sysconfig_file_path(conf)
         client_instance_count = Rgw._get_num_client_instances(conf)
-        Rgw._create_symbolic_link_fid(client_instance_count, sysconfig_file_path)
-        Log.info('create symbolic link of FID config files completed')
-        Log.info('fetching endpoint values from hare sysconfig file.')
+        Log.info('fetching endpoint values from hctl fetch-fids cmd.')
         # For running rgw service and radosgw-admin tool,
-        # we are using same endpoints mentioned in first symlink file 'rgw-1' as default endpoints,
+        # we are using same endpoints fetched from hctl fetch-fids cmd as default endpoints,
         # given radosgw-admin tool & rgw service not expected to run simultaneously.
 
-        # Update motr fid,endpoint config in cortx_rgw.conf, based on instance based symlink.
+        # Update motr fid,endpoint config in cortx_rgw.conf.
         instance = 1
         while instance <= client_instance_count:
-            client_instance_file = sysconfig_file_path + f'/{const.COMPONENT_NAME}-{instance}'
-            service_endpoints = Rgw._parse_endpoint_values(client_instance_file)  # e.g.(rgw-1)
-            Log.debug(f'Validating endpoint entries provided by "{client_instance_file}" file.')
+            service_endpoints = Rgw._parse_endpoint_values(conf)
+            Log.debug('Validating endpoint entries provided by fetch-fids cmd')
             Rgw._validate_endpoint_paramters(service_endpoints)
-            Log.info(f'Validated endpoint entries provided by "{client_instance_file}" file successfully.')
+            Log.info('Validated endpoint entries provided by fetch-fids cmd successfully.')
 
             Log.info('Updating endpoint values in rgw config file.')
             Rgw._update_rgw_config_with_endpoints(conf, service_endpoints, instance)
             instance = instance + 1
 
-        # TODO enable this once all kyes are available in Gconf
         # Add additional parameters of SVC & Motr to config file.
-        #Rgw._update_svc_config(conf, 'client', const.SVC_PARAM_MAPPING)
-        #Rgw._update_svc_config(conf, 'client', const.SVC_MOTR_PARAM_MAPPING)
+        Rgw._update_svc_config(conf, 'client', const.SVC_PARAM_MAPPING)
+        Rgw._update_svc_data_path_value(conf, 'client')
+        Rgw._update_svc_config(conf, 'client', const.SVC_MOTR_PARAM_MAPPING)
 
         # Before user creation,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
@@ -296,48 +289,17 @@ class Rgw:
                 return rc
 
     @staticmethod
-    def _create_symbolic_link_fid(client_instance_count: int, sysconfig_file_path: str):
-        """ Create symbolic link of FID sysconfig files."""
-        hare_generated_fid_files = Rgw._get_files(sysconfig_file_path + f'/{const.COMPONENT_NAME}-0x*')
-        count = len(hare_generated_fid_files)
-        Log.info(f'{const.COMPONENT_NAME} FID file count : {count}')
-        Log.info(f'Number of {const.COMPONENT_NAME} client instances - {client_instance_count}')
-        if count < client_instance_count:
-            raise SetupError(errno.EINVAL,
-                f'HARE-sysconfig file does not match {const.COMPONENT_NAME} client instances.')
+    def _parse_endpoint_values(conf: MappedConf):
+        """Fetch endpoint values from hctl fetch-fids."""
+        hare_config_dir = Rgw._get_hare_config_path(conf)
+        fetch_fids_cmd = f'hctl fetch-fids -c {hare_config_dir}'
+        decoded_out = Rgw._run_fetch_fid_cmd(fetch_fids_cmd)
+        endpoints = [comp for comp in decoded_out if comp['name']
+            == const.COMPONENT_NAME][0]
 
-        # Create symbolic links of rgw-fid files created by hare.
-        # e.g rgw-0x7200000000000001\:0x9c -> rgw-1 , rgw-0x7200000000000001\:0x5b -> rgw-2
-        index = 1
-        for src_path in hare_generated_fid_files:
-            file_name = f'{const.COMPONENT_NAME}-' + str(index)      # e.g. rgw-1 for rgw file
-            dst_path = os.path.join(sysconfig_file_path, file_name)
-            Rgw._create_symbolic_link(src_path, dst_path)
-            index += 1
-
-    @staticmethod
-    def _create_symbolic_link(src_path: str, dst_path: str):
-        """create symbolic link."""
-        Log.debug(f'symbolic link source path: {src_path}')
-        Log.debug(f'symbolic link destination path: {dst_path}')
-        if os.path.exists(dst_path):
-            Log.debug('symbolic link is already present')
-            os.unlink(dst_path)
-            Log.debug('symbolic link is unlinked')
-        os.symlink(src_path, dst_path)
-        Log.info(f'symbolic link created successfully from {src_path} to {dst_path}')
-
-    @staticmethod
-    def _parse_endpoint_values(client_instance_file: str):
-        """Read sysconfig file generated by hare
-         1) Read symblink file '{client_instance_file}' as default endpoints in config phase.
-         2) fetch endpoint values for running radosgw-admin tool.
-        """
-        endpoints = {}
-        with open(client_instance_file) as ep_file:
-            for line in ep_file:
-                ep_name, ep_value = line.partition('=')[::2]
-                endpoints[ep_name.strip()] = str(ep_value.strip())
+        for ep_key, ep_value in const.RgwEndpoint.__members__.items():
+            if list(ep_value.value.keys())[0] in endpoints:
+                endpoints[ep_key] = endpoints.pop(list(ep_value.value.keys())[0])
 
         return endpoints
 
@@ -355,10 +317,12 @@ class Rgw:
         if instance == 1:
             radosgw_admin_log_file = os.path.join(
                 log_path, 'radosgw-admin.log')
-            for ep_value, key in const.RgwEndpoint._value2member_map_.items():
+            for key, ep_value in const.RgwEndpoint.__members__.items():
+                value = list(ep_value.value.values())[0]
                 Conf.set(Rgw._conf_idx,
-                    f'client.radosgw-admin>{ep_value}', endpoints[key.name])
-            Conf.set(Rgw._conf_idx, const.MOTR_ADMIN_FID_KEY,
+                    f'client.radosgw-admin>{value}', endpoints[key])
+            Conf.set(Rgw._conf_idx,
+                f'client.radosgw-admin>{const.ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}',
                 endpoints[const.RgwEndpoint.MOTR_PROCESS_FID.name])
             Conf.set(
                 Rgw._conf_idx, const.MOTR_ADMIN_ENDPOINT_KEY,
@@ -366,53 +330,60 @@ class Rgw:
             Conf.set(Rgw._conf_idx, const.RADOS_ADMIN_LOG_FILE_KEY, radosgw_admin_log_file)
 
         # Create separate section for each service instance in cortx_rgw.conf file.
-        for ep_value, key in const.RgwEndpoint._value2member_map_.items():
-            Conf.set(Rgw._conf_idx, f'client.rgw-{instance}>{ep_value}', endpoints[key.name])
+        for key, ep_value in const.RgwEndpoint.__members__.items():
+            value = list(ep_value.value.values())[0]
+            Conf.set(Rgw._conf_idx, f'client.rgw-{instance}>{value}', endpoints[key])
         Conf.set(Rgw._conf_idx, f'client.rgw-{instance}>log file', service_instance_log_file)
-        # For each instance increase port value by 1.
-        # for eg. for 1st instance. port=8000
-        # for 2nd instance port=8000 + 1
-        # port = <port> + (instance - 1)
-        # TODO: read port value from endpoint url define in cluster.conf
-        port = 8000
-        port = port + (instance - 1)
-        ssl_port = 8443
-        ssl_port = ssl_port + (instance - 1)
+        # Removed port increment support for service multiple instances.
+        # (in case of multiple instances port value needs to be incremented.)
+        http_port = Rgw._get_service_port(conf, 'http')
+        https_port = Rgw._get_service_port(conf, 'https')
         ssl_cert_path = Rgw._get_cortx_conf(conf, const.SSL_CERT_PATH_KEY)
         Conf.set(
             Rgw._conf_idx,
             f'client.rgw-{instance}>{const.ADMIN_PARAMETERS["RGW_FRONTENDS"]}',
-            f'beast port={port} ssl_port={ssl_port} ssl_certificate={ssl_cert_path} ssl_private_key={ssl_cert_path}')
+            f'beast port={http_port} ssl_port={https_port} ssl_certificate={ssl_cert_path} ssl_private_key={ssl_cert_path}')
         Conf.save(Rgw._conf_idx)
 
     @staticmethod
-    def _validate_endpoint_paramters(endpoints: dict):
-        """Validate endpoint values provided by hare sysconfig file."""
+    def _get_service_port(conf: MappedConf, protocol: str):
+        """Return rgw service port value."""
+        port = None
+        endpoints = conf.get(const.SVC_ENDPOINT_KEY)
+        if endpoints:
+            svc_endpoints = list(filter(lambda x: urlparse(x).scheme == protocol, endpoints))
+            port = urlparse(svc_endpoints[0]).port
+            Log.info(f'{protocol} port value - {port}')
+        else:
+            # If endpoint is not present, use default port value.
+            if protocol == 'http':
+                port = const.DEFAULT_HTTP_PORT
+            elif protocol == 'https':
+                port = const.DEFAULT_HTTPS_PORT
+            Log.info(f'{const.SVC_ENDPOINT_KEY} is not available in cluster.conf,'
+                f' using the default value. {protocol} - {port}')
+        return port
 
-        for ep_value, key in const.RgwEndpoint._value2member_map_.items():
-            if key.name not in endpoints or not endpoints.get(key.name):
+    @staticmethod
+    def _validate_endpoint_paramters(endpoints: dict):
+        """Validate endpoint values fetched from hctl fetch-fids cmd."""
+
+        for key, _ in const.RgwEndpoint.__members__.items():
+            if key not in endpoints:
                 raise SetupError(errno.EINVAL, f'Failed to validate hare endpoint values.'
-                    f'endpoint {key.name} or its value {ep_value} is not present.')
+                    f'endpoint {key} is not present.')
 
         for ept_key, ept_value in endpoints.items():
-            if ast.literal_eval(ept_value) == '':
+            if ept_value == '':
                 raise SetupError(errno.EINVAL, f'Invalid values for {ept_key}: {ept_value}')
 
     @staticmethod
-    def _get_files(substr_pattern: str):
-        """Return all files present in path that matches with given pattern."""
-        list_matching = []
-        for name in glob.glob(substr_pattern):
-            list_matching.append(name)
-        return list_matching
-
-    @staticmethod
-    def _get_sysconfig_file_path(conf: MappedConf):
-        """Return hare generated sysconfig file path."""
+    def _get_hare_config_path(conf: MappedConf):
+        """Return config path of hare component."""
         base_config_path = Rgw._get_cortx_conf(conf, const.CONFIG_PATH_KEY)
-        sysconfig_file_path = os.path.join(base_config_path, const.COMPONENT_NAME,
-            'sysconfig', Rgw._machine_id)
-        return sysconfig_file_path
+        hare_config_path = os.path.join(base_config_path, 'hare',
+            'config', Rgw._machine_id)
+        return hare_config_path
 
     @staticmethod
     def _get_num_client_instances(conf: MappedConf):
@@ -428,24 +399,25 @@ class Rgw:
         return num_instances
 
     @staticmethod
-    def _get_cortx_conf(conf: MappedConf, key: str):
+    def _get_cortx_conf(conf: MappedConf, key: str, default_value = None):
         """Read value from cluster config for given key"""
         val = conf.get(key)
         if val is None:
-            raise SetupError(errno.EINVAL, f'Value for {key} key is None.')
+            if default_value is None:
+                raise SetupError(errno.EINVAL, f'Value for {key} key is None.')
+            else:
+                val = default_value
         return val
 
     @staticmethod
     def _generate_ssl_cert(conf: MappedConf):
         """Generate SSL certificate."""
         ssl_cert_path = Rgw._get_cortx_conf(conf, const.SSL_CERT_PATH_KEY)
-        https_endpoints = Rgw._fetch_endpoint_url(conf, const.SVC_ENDPOINT_KEY, 'https')
-        if len(https_endpoints) > 0 and not os.path.exists(ssl_cert_path):
+        if not os.path.exists(ssl_cert_path):
             # Generate SSL cert.
             Log.info(f'"https" is enabled and SSL certificate is not present at {ssl_cert_path}.')
             Log.info('Generating SSL certificate.')
             try:
-                const.SSL_DNS_LIST.append(urlparse(https_endpoints[0]).hostname)
                 ssl_cert_configs = const.SSL_CERT_CONFIGS
                 ssl_cert_obj = Certificate.init('ssl')
                 ssl_cert_obj.generate(
@@ -461,29 +433,38 @@ class Rgw:
         if not data_pod_hostname:
             raise SetupError(errno.EINVAL, 'Invalid data pod hostname: %s', data_pod_hostname)
 
-        config_path = Rgw._get_cortx_conf(conf, const.CONFIG_PATH_KEY)
-        hare_config_dir = os.path.join(config_path, 'hare', 'config', Rgw._machine_id)
-
+        hare_config_dir = Rgw._get_hare_config_path(conf)
         fetch_fids_cmd = f'hctl fetch-fids -c {hare_config_dir} --node {data_pod_hostname}'
-        out, err, rc = SimpleProcess(fetch_fids_cmd).run()
-        if rc != 0:
-            Log.error(f'Unable to read fid information for hostname: '
-                f'{data_pod_hostname}. {err}')
-            raise SetupError(rc, 'Unable to read fid information for hostname: '
-                '%s. %s', data_pod_hostname, err)
-        decoded_out = json.loads(out.decode(const.UTF_ENCODING))
+        decoded_out = Rgw._run_fetch_fid_cmd(fetch_fids_cmd, data_pod_hostname)
         motr_ha_endpoint = [endpoints['ep'] for endpoints in decoded_out \
             if 'hax' in endpoints.values()][0]
         Log.info(f'Fetched motr_ha_endpoint from data pod. Endpoint: {motr_ha_endpoint}')
 
         config_path = Rgw._get_rgw_config_path(conf)
         Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_path}')
-        Conf.set(Rgw._conf_idx,\
-            f'client.radosgw-admin>{const.RgwEndpoint.MOTR_HA_EP.value}',\
-            motr_ha_endpoint)
+        ha_ep_key = list(const.RgwEndpoint.MOTR_HA_EP.value.values())[0]
+        Conf.set(Rgw._conf_idx, f'client.radosgw-admin>{ha_ep_key}', motr_ha_endpoint)
         Conf.save(Rgw._conf_idx)
 
         Log.info(f'Updated motr_ha_endpoint in config file {config_path}')
+
+    @staticmethod
+    def _run_fetch_fid_cmd(fetch_fids_cmd: str, data_pod_hostname: str = None):
+        """Run hctl fetch-fids command through SimpleProcess."""
+        out, err, rc = SimpleProcess(fetch_fids_cmd).run()
+        if rc != 0:
+            if data_pod_hostname:
+                Log.error(f'Unable to read fid information for hostname: '
+                    f'{data_pod_hostname}. {err}')
+                raise SetupError(rc, 'Unable to read fid information for hostname: '
+                    '%s. %s', data_pod_hostname, err)
+            else:
+                Log.error(f'Unable to read fid information. {err}')
+                raise SetupError(rc, 'Unable to read fid information. %s', err)
+
+        decoded_out = json.loads(out.decode('utf-8'))
+
+        return decoded_out
 
     @staticmethod
     def _create_admin_on_current_node(conf: MappedConf, current_data_node: str):
@@ -651,15 +632,31 @@ class Rgw:
         """Update config properties from confstore to rgw config file."""
         svc_config_dir = Rgw._get_rgw_config_dir(conf)
         svc_config_file = os.path.join(svc_config_dir, const.RGW_CONF_FILE)
-        Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{svc_config_file}')
+        Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{svc_config_file}')
         Log.info(f'adding paramters to {client_section} in {svc_config_file}')
 
-        # e.g config_key_mapping = [[confstore_key1, actual_svc_config_key1],
-        # [confstore_key2, actual_svc_config_key2], ..]
-        for confstore_key, config_key in config_key_mapping:
+        # e.g config_key_mapping = [[confstore_key1, actual_svc_config_key1, default_value1],
+        # [confstore_key2, actual_svc_config_key2, default_valu2], ..]
+        for confstore_key, config_key, default_value in config_key_mapping:
             # fetch actual value of parameter from confstore.
-            config_value = Rgw._get_cortx_conf(conf, confstore_key)
-            Conf.set(Rgw._rgw_conf_idx, f'{client_section}>{config_key}', {config_value})
+            # if config key/value is missing in confstore then use default value mentioned in const.py
+            config_value = Rgw._get_cortx_conf(conf, confstore_key, default_value)
+            Log.info(f'Setting config key :{config_key} with value:{config_value} at {client_section} section')
+            Conf.set(Rgw._conf_idx, f'{client_section}>{config_key}', str(config_value))
 
-        Conf.save(Rgw._rgw_conf_idx)
+        Conf.save(Rgw._conf_idx)
         Log.info(f'added paramters to {client_section} successfully..')
+
+    @staticmethod
+    def _update_svc_data_path_value(conf: MappedConf, client_section: str):
+        "Update svc config file with data path key which needs pre-processing values incase of default values."
+        # Fetch cluster-id
+        cluster_id = Rgw._get_cortx_conf(conf, const.CLUSTER_ID_KEY)
+
+        # Create data path's default value e.g. /var/lib/ceph/radosgw/<cluster-id>
+        data_path_default_value = const.SVC_DATA_PATH_DEFAULT_VALUE + cluster_id
+        SVC_DATA_PATH_PARAM = [[const.SVC_DATA_PATH_CONFSTORE_KEY, const.SVC_DATA_PATH_KEY, data_path_default_value]]
+
+        # Updating svc config file with above data path key, value
+        Rgw._update_svc_config(conf, client_section, SVC_DATA_PATH_PARAM)
+
