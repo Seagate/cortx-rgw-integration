@@ -118,10 +118,10 @@ class Rgw:
             Rgw._update_rgw_config_with_endpoints(conf, service_endpoints, instance)
             instance = instance + 1
 
-        # TODO enable this once all kyes are available in Gconf
         # Add additional parameters of SVC & Motr to config file.
-        #Rgw._update_svc_config(conf, 'client', const.SVC_PARAM_MAPPING)
-        #Rgw._update_svc_config(conf, 'client', const.SVC_MOTR_PARAM_MAPPING)
+        Rgw._update_svc_config(conf, 'client', const.SVC_PARAM_MAPPING)
+        Rgw._update_svc_data_path_value(conf, 'client')
+        Rgw._update_svc_config(conf, 'client', const.SVC_MOTR_PARAM_MAPPING)
 
         # Before user creation,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
@@ -264,7 +264,7 @@ class Rgw:
         err_str = f'user: {user_name} exists'
         # decrypt secret key.
         try:
-            cluster_id = Rgw._get_cortx_conf(conf, 'cluster>id')
+            cluster_id = Rgw._get_cortx_conf(conf, const.CLUSTER_ID_KEY)
             cipher_key = Cipher.gen_key(cluster_id, const.DECRYPTION_KEY)
             password = Cipher.decrypt(cipher_key, auth_secret.encode('utf-8'))
             password = password.decode('utf-8')
@@ -335,21 +335,35 @@ class Rgw:
             value = list(ep_value.value.values())[0]
             Conf.set(Rgw._conf_idx, f'client.rgw-{instance}>{value}', endpoints[key])
         Conf.set(Rgw._conf_idx, f'client.rgw-{instance}>log file', service_instance_log_file)
-        # For each instance increase port value by 1.
-        # for eg. for 1st instance. port=8000
-        # for 2nd instance port=8000 + 1
-        # port = <port> + (instance - 1)
-        # TODO: read port value from endpoint url define in cluster.conf
-        port = 8000
-        port = port + (instance - 1)
-        ssl_port = 8443
-        ssl_port = ssl_port + (instance - 1)
+        # Removed port increment support for service multiple instances.
+        # (in case of multiple instances port value needs to be incremented.)
+        http_port = Rgw._get_service_port(conf, 'http')
+        https_port = Rgw._get_service_port(conf, 'https')
         ssl_cert_path = Rgw._get_cortx_conf(conf, const.SSL_CERT_PATH_KEY)
         Conf.set(
             Rgw._conf_idx,
             f'client.rgw-{instance}>{const.ADMIN_PARAMETERS["RGW_FRONTENDS"]}',
-            f'beast port={port} ssl_port={ssl_port} ssl_certificate={ssl_cert_path} ssl_private_key={ssl_cert_path}')
+            f'beast port={http_port} ssl_port={https_port} ssl_certificate={ssl_cert_path} ssl_private_key={ssl_cert_path}')
         Conf.save(Rgw._conf_idx)
+
+    @staticmethod
+    def _get_service_port(conf: MappedConf, protocol: str):
+        """Return rgw service port value."""
+        port = None
+        endpoints = conf.get(const.SVC_ENDPOINT_KEY)
+        if endpoints:
+            svc_endpoints = list(filter(lambda x: urlparse(x).scheme == protocol, endpoints))
+            port = urlparse(svc_endpoints[0]).port
+            Log.info(f'{protocol} port value - {port}')
+        else:
+            # If endpoint is not present, use default port value.
+            if protocol == 'http':
+                port = const.DEFAULT_HTTP_PORT
+            elif protocol == 'https':
+                port = const.DEFAULT_HTTPS_PORT
+            Log.info(f'{const.SVC_ENDPOINT_KEY} is not available in cluster.conf,'
+                f' using the default value. {protocol} - {port}')
+        return port
 
     @staticmethod
     def _validate_endpoint_paramters(endpoints: dict):
@@ -386,24 +400,25 @@ class Rgw:
         return num_instances
 
     @staticmethod
-    def _get_cortx_conf(conf: MappedConf, key: str):
+    def _get_cortx_conf(conf: MappedConf, key: str, default_value = None):
         """Read value from cluster config for given key"""
         val = conf.get(key)
         if val is None:
-            raise SetupError(errno.EINVAL, f'Value for {key} key is None.')
+            if default_value is None:
+                raise SetupError(errno.EINVAL, f'Value for {key} key is None.')
+            else:
+                val = default_value
         return val
 
     @staticmethod
     def _generate_ssl_cert(conf: MappedConf):
         """Generate SSL certificate."""
         ssl_cert_path = Rgw._get_cortx_conf(conf, const.SSL_CERT_PATH_KEY)
-        https_endpoints = Rgw._fetch_endpoint_url(conf, const.SVC_ENDPOINT_KEY, 'https')
-        if len(https_endpoints) > 0 and not os.path.exists(ssl_cert_path):
+        if not os.path.exists(ssl_cert_path):
             # Generate SSL cert.
             Log.info(f'"https" is enabled and SSL certificate is not present at {ssl_cert_path}.')
             Log.info('Generating SSL certificate.')
             try:
-                const.SSL_DNS_LIST.append(urlparse(https_endpoints[0]).hostname)
                 ssl_cert_configs = const.SSL_CERT_CONFIGS
                 ssl_cert_obj = Certificate.init('ssl')
                 ssl_cert_obj.generate(
@@ -571,6 +586,15 @@ class Rgw:
         """ Configure logrotate utility for rgw logs."""
         log_dir = conf.get(const.LOG_PATH_KEY)
         log_file_path = os.path.join(log_dir, const.COMPONENT_NAME, Rgw._machine_id)
+        # Configure the cron job on hourly frequency for RGW log files.
+        try:
+            with open(const.CRON_LOGROTATE_TMPL, 'r') as f:
+                content = f.read()
+            with open(const.CRON_LOGROTATE, 'w') as f:
+                f.write(content)
+        except Exception as e:
+            Log.error(f"Failed to configure cron job for logrotate at {const.FREQUENCY} basis."
+                      f"ERROR:{e}")
         # create radosgw logrotate file.
         # For eg:
         # filepath='/etc/logrotate.d/radosgw'
@@ -586,6 +610,12 @@ class Rgw:
             Log.info(f'{const.LOGROTATE_TMPL} file copied to {const.LOGROTATE_CONF}')
         except Exception as e:
             Log.error(f"Failed to configure logrotate for {const.COMPONENT_NAME}. ERROR:{e}")
+        # start cron.d service
+        try:
+            os.system(f"chmod +x {const.CRON_LOGROTATE}")
+            os.system("/usr/sbin/crond start")
+        except Exception as e:
+            Log.error(f"Failed to start the crond service for {const.COMPONENT_NAME}. ERROR:{e}")
 
     @staticmethod
     def _verify_backend_store_value(conf: MappedConf):
@@ -603,15 +633,31 @@ class Rgw:
         """Update config properties from confstore to rgw config file."""
         svc_config_dir = Rgw._get_rgw_config_dir(conf)
         svc_config_file = os.path.join(svc_config_dir, const.RGW_CONF_FILE)
-        Rgw._load_rgw_config(Rgw._rgw_conf_idx, f'ini://{svc_config_file}')
+        Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{svc_config_file}')
         Log.info(f'adding paramters to {client_section} in {svc_config_file}')
 
-        # e.g config_key_mapping = [[confstore_key1, actual_svc_config_key1],
-        # [confstore_key2, actual_svc_config_key2], ..]
-        for confstore_key, config_key in config_key_mapping:
+        # e.g config_key_mapping = [[confstore_key1, actual_svc_config_key1, default_value1],
+        # [confstore_key2, actual_svc_config_key2, default_valu2], ..]
+        for confstore_key, config_key, default_value in config_key_mapping:
             # fetch actual value of parameter from confstore.
-            config_value = Rgw._get_cortx_conf(conf, confstore_key)
-            Conf.set(Rgw._rgw_conf_idx, f'{client_section}>{config_key}', {config_value})
+            # if config key/value is missing in confstore then use default value mentioned in const.py
+            config_value = Rgw._get_cortx_conf(conf, confstore_key, default_value)
+            Log.info(f'Setting config key :{config_key} with value:{config_value} at {client_section} section')
+            Conf.set(Rgw._conf_idx, f'{client_section}>{config_key}', str(config_value))
 
-        Conf.save(Rgw._rgw_conf_idx)
+        Conf.save(Rgw._conf_idx)
         Log.info(f'added paramters to {client_section} successfully..')
+
+    @staticmethod
+    def _update_svc_data_path_value(conf: MappedConf, client_section: str):
+        "Update svc config file with data path key which needs pre-processing values incase of default values."
+        # Fetch cluster-id
+        cluster_id = Rgw._get_cortx_conf(conf, const.CLUSTER_ID_KEY)
+
+        # Create data path's default value e.g. /var/lib/ceph/radosgw/<cluster-id>
+        data_path_default_value = const.SVC_DATA_PATH_DEFAULT_VALUE + cluster_id
+        SVC_DATA_PATH_PARAM = [[const.SVC_DATA_PATH_CONFSTORE_KEY, const.SVC_DATA_PATH_KEY, data_path_default_value]]
+
+        # Updating svc config file with above data path key, value
+        Rgw._update_svc_config(conf, client_section, SVC_DATA_PATH_PARAM)
+
