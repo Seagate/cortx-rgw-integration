@@ -262,6 +262,7 @@ class Rgw:
         access_key = Rgw._get_cortx_conf(conf, const.AUTH_ADMIN_KEY)
         auth_secret = Rgw._get_cortx_conf(conf, const.AUTH_SECRET_KEY)
         err_str = f'user: {user_name} exists'
+        timeout_str = f'timed out after {const.ADMIN_CREATION_TIMEOUT} seconds'
         # decrypt secret key.
         try:
             cluster_id = Rgw._get_cortx_conf(conf, const.CLUSTER_ID_KEY)
@@ -280,10 +281,15 @@ class Rgw:
             Log.info(f'RGW admin user {user_name} is created.')
             return 0
         elif rc != 0:
-            if err and err_str in err.decode():
-                Log.info(f'RGW admin user {user_name} is already created. \
-                    skipping user creation.')
+            err = err.decode(const.UTF_ENCODING) if isinstance(err, bytes) else err
+            if err_str in err:
+                Log.info(f'RGW admin user {user_name} is already created,'
+                    ' Skipping user creation.')
                 return 0
+            elif timeout_str in err:
+                Log.info('RGW user creation process exceeding timeout value - '
+                    f'{const.ADMIN_CREATION_TIMEOUT} seconds. Skipping user creation on this node.')
+                return rc
             else:
                 Log.error(f'"{create_usr_cmd}" failed with error {err}.')
                 return rc
