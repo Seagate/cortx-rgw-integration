@@ -54,6 +54,9 @@ CONFIG_PATH_KEY = 'cortx>common>storage>config'
 CLIENT_INSTANCE_NAME_KEY = 'cortx>motr>clients[%s]>name'
 CLIENT_INSTANCE_NUMBER_KEY = 'cortx>motr>clients[%s]>num_instances'
 CONSUL_ENDPOINT_KEY = 'cortx>external>consul>endpoints'
+NODE_HOSTNAME = 'node>%s>hostname'
+NODE_TYPE = 'node>%s>type'
+DATA_NODE = 'data_node'
 
 # SSL certificate parameters
 SSL_CERT_CONFIGS = {"country" : "IN", "state" : "MH", "locality" : "Pune",

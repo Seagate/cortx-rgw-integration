@@ -545,9 +545,9 @@ class Rgw:
             #    Rgw._set_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY, const.ADMIN_USER_CREATED)
             # else:
             machine_ids = Rgw._get_cortx_conf(conf, const.MACHINE_IDS_KEY)
-            data_pod_hostnames = [Rgw._get_cortx_conf(conf,
-                f'node>{machine_id}>hostname') for machine_id in machine_ids if
-            Rgw._get_cortx_conf(conf, f'node>{machine_id}>type') == 'data_node']
+            data_pod_hostnames = [Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % machine_id)
+                for machine_id in machine_ids if
+                Rgw._get_cortx_conf(conf, const.NODE_TYPE % machine_id) == const.DATA_NODE]
             #    if len(data_pod_hostnames) == 1 and current_data_node == data_pod_hostnames[0]:
             #        Log.error('Admin user creation failed')
             #        Rgw._delete_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY)
