@@ -244,7 +244,7 @@ class Rgw:
     def _get_rgw_config_dir(conf: MappedConf):
         """Return RGW config directory path."""
         config_path = Rgw._get_cortx_conf(conf, const.CONFIG_PATH_KEY)
-        rgw_config_dir = os.path.join(config_path, const.COMPONENT_NAME, Rgw._machine_id)
+        rgw_config_dir = os.path.join(config_path, const.COMPONENT_NAME)
         return rgw_config_dir
 
     @staticmethod
