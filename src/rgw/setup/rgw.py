@@ -545,12 +545,16 @@ class Rgw:
             #    Rgw._set_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY, const.ADMIN_USER_CREATED)
             # else:
             node_id=Rgw._machine_id
-            storage_set=Conf.get('index', f'node>{node_id}>storage_set')
-            storage_set_count=Conf.get('index', 'cluster>storage_set_count')
+            storage_set = Rgw._get_cortx_conf(conf,\
+                f'node>{node_id}>storage_set')
+            storage_set_count = Rgw._get_cortx_conf(conf,\
+                'cluster>storage_set_count')
             machine_ids = []
             for i in range(0, storage_set_count):
-                if Conf.get('index', f'cluster>storage_set[{i}]>name') == storage_set:
-                    machine_ids = Conf.get('index', f'cluster>storage_set[{i}]>nodes')
+                if Rgw._get_cortx_conf(conf,\
+                    f'cluster>storage_set[{i}]>name') == storage_set:
+                    machine_ids = Rgw._get_cortx_conf(conf,\
+                        f'cluster>storage_set[{i}]>nodes')
             # machine_ids = Rgw._get_cortx_conf(conf, const.MACHINE_IDS_KEY)
             data_pod_hostnames = [Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % machine_id)
                 for machine_id in machine_ids if
