@@ -18,6 +18,9 @@ from enum import Enum
 
 COMPONENT_NAME = 'rgw'
 COMPONENT_SVC_NAME = 'rgw_s3'
+# service name be passed as --service parameter
+# e.g. rgw_setup --service={rgw_s3|all}
+SUPPORTED_SERVICE_NAMES = [COMPONENT_SVC_NAME, 'all']
 DECRYPTION_KEY = 'cortx'
 SERVICE_NAME = f'{COMPONENT_NAME}_setup' # rgw_setup
 INSTALL_PATH = '/opt/seagate/cortx'
