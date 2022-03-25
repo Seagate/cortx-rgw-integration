@@ -468,7 +468,7 @@ class Rgw:
                 Log.error(f'Unable to read fid information. {err}')
                 raise SetupError(rc, 'Unable to read fid information. %s', err)
 
-        decoded_out = json.loads(out.decode('utf-8'))
+        decoded_out = json.loads(out.decode(const.UTF_ENCODING))
 
         return decoded_out
 
@@ -544,7 +544,16 @@ class Rgw:
             #    Log.info(f'User creation is successful on "{Rgw._machine_id}" node.')
             #    Rgw._set_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY, const.ADMIN_USER_CREATED)
             # else:
-            machine_ids = Rgw._get_cortx_conf(conf, const.MACHINE_IDS_KEY)
+            storage_set = Rgw._get_cortx_conf(conf,\
+                const.STORAGE_SET % Rgw._machine_id)
+            storage_set_count = Rgw._get_cortx_conf(conf,\
+                const.STORAGE_SET_COUNT)
+            machine_ids = []
+            for storage_set_index in range(0, storage_set_count):
+                if Rgw._get_cortx_conf(conf,\
+                    const.STORAGE_SET_NAME % storage_set_index) == storage_set:
+                    machine_ids = Rgw._get_cortx_conf(conf,\
+                        const.STORAGE_SET_NODE % storage_set_index)
             data_pod_hostnames = [Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % machine_id)
                 for machine_id in machine_ids if
                 Rgw._get_cortx_conf(conf, const.NODE_TYPE % machine_id) == const.DATA_NODE]
