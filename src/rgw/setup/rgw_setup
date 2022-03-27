@@ -33,7 +33,7 @@ class SetupCmdBase(Cmd):
         """Initialize super class members."""
         super().__init__(args)
         # Service name mapping
-        service = args.service
+        service = args.services
         if service not in SUPPORTED_SERVICE_NAMES:
             raise Exception("provided Service name {service} is not supported")
         config_url = args.config
