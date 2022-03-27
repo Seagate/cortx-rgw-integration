@@ -24,7 +24,7 @@ from cortx.utils.cmd_framework import Cmd
 from cortx.utils.conf_store import Conf, MappedConf
 from cortx.rgw.setup.rgw import Rgw
 from cortx.rgw.setup.error import SetupError
-from cortx.rgw.const import SERVICE_NAME, LOG_PATH_KEY, COMPONENT_NAME, COMPONENT_SVC_NAME, SUPPORTED_SERVICE_NAMES
+from cortx.rgw.const import SERVICE_NAME, LOG_PATH_KEY, COMPONENT_NAME, COMPONENT_SVC_NAME
 
 class SetupCmdBase(Cmd):
     """Setup cmd base class."""
@@ -32,10 +32,13 @@ class SetupCmdBase(Cmd):
     def __init__(self, args):
         """Initialize super class members."""
         super().__init__(args)
-        # Service name mapping
+        # Service name can be passed as --service parameter
+        # e.g. rgw_setup --service={rgw_s3|all}
+        SUPPORTED_SERVICE_NAMES = [COMPONENT_SVC_NAME, 'all']
         service = args.services
         if service not in SUPPORTED_SERVICE_NAMES:
-            raise Exception("provided Service name {service} is not supported")
+            raise Exception(f'provided Service name {service} is not supported !!! \
+                Supported service names are {SUPPORTED_SERVICE_NAMES}.')
         config_url = args.config
         self._conf = MappedConf(config_url)
 
