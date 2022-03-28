@@ -100,23 +100,19 @@ class Rgw:
         # Create ssl certificate
         Rgw._generate_ssl_cert(conf)
 
-        client_instance_count = Rgw._get_num_client_instances(conf)
         Log.info('fetching endpoint values from hctl fetch-fids cmd.')
         # For running rgw service and radosgw-admin tool,
         # we are using same endpoints fetched from hctl fetch-fids cmd as default endpoints,
         # given radosgw-admin tool & rgw service not expected to run simultaneously.
 
         # Update motr fid,endpoint config in cortx_rgw.conf.
-        instance = 1
-        while instance <= client_instance_count:
-            service_endpoints = Rgw._parse_endpoint_values(conf)
-            Log.debug('Validating endpoint entries provided by fetch-fids cmd')
-            Rgw._validate_endpoint_paramters(service_endpoints)
-            Log.info('Validated endpoint entries provided by fetch-fids cmd successfully.')
+        service_endpoints = Rgw._parse_endpoint_values(conf)
+        Log.debug('Validating endpoint entries provided by fetch-fids cmd')
+        Rgw._validate_endpoint_paramters(service_endpoints)
+        Log.info('Validated endpoint entries provided by fetch-fids cmd successfully.')
 
-            Log.info('Updating endpoint values in rgw config file.')
-            Rgw._update_rgw_config_with_endpoints(conf, service_endpoints, instance)
-            instance = instance + 1
+        Log.info('Updating endpoint values in rgw config file.')
+        Rgw._update_rgw_config_with_endpoints(conf, service_endpoints)
 
         # Add additional parameters of SVC & Motr to config file.
         Rgw._update_svc_config(conf, 'client', const.SVC_PARAM_MAPPING)
@@ -310,36 +306,29 @@ class Rgw:
         return endpoints
 
     @staticmethod
-    def _update_rgw_config_with_endpoints(conf: MappedConf, endpoints: dict, instance: int):
+    def _update_rgw_config_with_endpoints(conf: MappedConf, endpoints: dict):
         """Update endpoints,port and log path values to rgw config file."""
-        config_dir = Rgw._get_rgw_config_dir(conf)
-        config_file = os.path.join(config_dir, const.RGW_CONF_FILE)
+        config_file = Rgw._get_rgw_config_path(conf)
         Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_file}')
         log_path = Rgw._get_log_dir_path(conf)
-        service_instance_log_file = os.path.join(log_path, f'{const.COMPONENT_NAME}-{instance}.log')
-
+        service_instance_log_file = os.path.join(log_path, f'{const.COMPONENT_NAME}.log')
+        radosgw_admin_log_file = os.path.join(log_path, 'radosgw-admin.log')
         # Update client.radosgw-admin section only once,
-        # Update this with same config that is define for 1st instance.
-        if instance == 1:
-            radosgw_admin_log_file = os.path.join(
-                log_path, 'radosgw-admin.log')
-            for key, ep_value in const.RgwEndpoint.__members__.items():
-                value = list(ep_value.value.values())[0]
-                Conf.set(Rgw._conf_idx,
-                    f'client.radosgw-admin>{value}', endpoints[key])
-            Conf.set(Rgw._conf_idx,
-                f'client.radosgw-admin>{const.ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}',
-                endpoints[const.RgwEndpoint.MOTR_PROCESS_FID.name])
-            Conf.set(
-                Rgw._conf_idx, const.MOTR_ADMIN_ENDPOINT_KEY,
-                endpoints[const.RgwEndpoint.MOTR_CLIENT_EP.name])
-            Conf.set(Rgw._conf_idx, const.RADOS_ADMIN_LOG_FILE_KEY, radosgw_admin_log_file)
-
-        # Create separate section for each service instance in cortx_rgw.conf file.
         for key, ep_value in const.RgwEndpoint.__members__.items():
             value = list(ep_value.value.values())[0]
-            Conf.set(Rgw._conf_idx, f'client.rgw-{instance}>{value}', endpoints[key])
-        Conf.set(Rgw._conf_idx, f'client.rgw-{instance}>log file', service_instance_log_file)
+            Conf.set(Rgw._conf_idx, f'client.radosgw-admin>{value}', endpoints[key])
+        Conf.set(Rgw._conf_idx,
+            f'client.radosgw-admin>{const.ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}',
+            endpoints[const.RgwEndpoint.MOTR_PROCESS_FID.name])
+        Conf.set(Rgw._conf_idx, const.MOTR_ADMIN_ENDPOINT_KEY,
+            endpoints[const.RgwEndpoint.MOTR_CLIENT_EP.name])
+        Conf.set(Rgw._conf_idx, const.RADOS_ADMIN_LOG_FILE_KEY, radosgw_admin_log_file)
+
+        # Create service section in cortx_rgw.conf file.
+        for key, ep_value in const.RgwEndpoint.__members__.items():
+            value = list(ep_value.value.values())[0]
+            Conf.set(Rgw._conf_idx, f'client.rgw>{value}', endpoints[key])
+        Conf.set(Rgw._conf_idx, 'client.rgw>log file', service_instance_log_file)
         # Removed port increment support for service multiple instances.
         # (in case of multiple instances port value needs to be incremented.)
         http_port = Rgw._get_service_port(conf, 'http')
@@ -347,7 +336,7 @@ class Rgw:
         ssl_cert_path = Rgw._get_cortx_conf(conf, const.SSL_CERT_PATH_KEY)
         Conf.set(
             Rgw._conf_idx,
-            f'client.rgw-{instance}>{const.ADMIN_PARAMETERS["RGW_FRONTENDS"]}',
+            f'client.rgw>{const.ADMIN_PARAMETERS["RGW_FRONTENDS"]}',
             f'beast port={http_port} ssl_port={https_port} ssl_certificate={ssl_cert_path} ssl_private_key={ssl_cert_path}')
         Conf.save(Rgw._conf_idx)
 
@@ -544,16 +533,16 @@ class Rgw:
             #    Log.info(f'User creation is successful on "{Rgw._machine_id}" node.')
             #    Rgw._set_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY, const.ADMIN_USER_CREATED)
             # else:
-            storage_set = Rgw._get_cortx_conf(conf,\
-                const.STORAGE_SET % Rgw._machine_id)
-            storage_set_count = Rgw._get_cortx_conf(conf,\
-                const.STORAGE_SET_COUNT)
+            storage_set = Rgw._get_cortx_conf(
+                conf, const.STORAGE_SET % Rgw._machine_id)
+            storage_set_count = Rgw._get_cortx_conf(
+                conf, const.STORAGE_SET_COUNT)
             machine_ids = []
             for storage_set_index in range(0, storage_set_count):
-                if Rgw._get_cortx_conf(conf,\
+                if Rgw._get_cortx_conf(conf,
                     const.STORAGE_SET_NAME % storage_set_index) == storage_set:
-                    machine_ids = Rgw._get_cortx_conf(conf,\
-                        const.STORAGE_SET_NODE % storage_set_index)
+                    machine_ids = Rgw._get_cortx_conf(
+                        conf, const.STORAGE_SET_NODE % storage_set_index)
             data_pod_hostnames = [Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % machine_id)
                 for machine_id in machine_ids if
                 Rgw._get_cortx_conf(conf, const.NODE_TYPE % machine_id) == const.DATA_NODE]
@@ -599,8 +588,7 @@ class Rgw:
     @staticmethod
     def _logrotate_generic(conf: MappedConf):
         """ Configure logrotate utility for rgw logs."""
-        log_dir = conf.get(const.LOG_PATH_KEY)
-        log_file_path = os.path.join(log_dir, const.COMPONENT_NAME, Rgw._machine_id)
+        log_file_path = Rgw._get_log_dir_path(conf)
         # Configure the cron job on hourly frequency for RGW log files.
         try:
             with open(const.CRON_LOGROTATE_TMPL, 'r') as f:
@@ -646,8 +634,7 @@ class Rgw:
     @staticmethod
     def _update_svc_config(conf: MappedConf, client_section: str, config_key_mapping: list):
         """Update config properties from confstore to rgw config file."""
-        svc_config_dir = Rgw._get_rgw_config_dir(conf)
-        svc_config_file = os.path.join(svc_config_dir, const.RGW_CONF_FILE)
+        svc_config_file = Rgw._get_rgw_config_path(conf)
         Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{svc_config_file}')
         Log.info(f'adding paramters to {client_section} in {svc_config_file}')
 
@@ -675,4 +662,3 @@ class Rgw:
 
         # Updating svc config file with above data path key, value
         Rgw._update_svc_config(conf, client_section, SVC_DATA_PATH_PARAM)
-

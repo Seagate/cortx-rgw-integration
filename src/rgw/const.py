@@ -24,10 +24,8 @@ RGW_INSTALL_PATH = f'{INSTALL_PATH}/{COMPONENT_NAME}'
 # TODO: Revisit after Motr delay issue resolved, seen while admin creation, for CORTX cluster with 15 nodes.
 ADMIN_CREATION_TIMEOUT = 600
 ADMIN_USER_CREATED = 'user_created'
-# TODO: Once the port related changes is available from service team(CORTX-29179)
-# Update DEFAULT_HTTP_PORT = '22751' and DEFAULT_HTTPS_PORT = '23001'.
-DEFAULT_HTTP_PORT = '8000'
-DEFAULT_HTTPS_PORT = '8443'
+DEFAULT_HTTP_PORT = '22751'
+DEFAULT_HTTPS_PORT = '23001'
 CONSUL_LOCK_KEY = f'component>{COMPONENT_NAME}>volatile>{COMPONENT_NAME}_lock' # component>rgw>volatile>rgw_lock
 CLUSTER_ID_KEY = 'cluster>id'
 
