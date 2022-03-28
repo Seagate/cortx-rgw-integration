@@ -157,6 +157,11 @@ class RGWSupportBundle:
             help="Include/Exclude stacktrace, Default = False")
         parser.add_argument('--modules', dest='modules',
             help="list of components & services to generate support bundle.")
+        parser.add_argument('--all', type=RGWSupportBundle.str2bool, default=False,
+            help="Include/Exclude all debug data, including logs, config, stack"
+             + " traces, core dumps, binaries, etc, possibly resulting"
+             + " in much HEAVIER support bundle, Default = False")
+
         args=parser.parse_args()
         return args
 
@@ -183,17 +188,26 @@ class RGWSupportBundle:
         Log.init(f'{COMPONENT_NAME}_support_bundle', log_path)
 
 def main():
+    import pdb;pdb.set_trace()
     args = RGWSupportBundle.parse_args()
     RGWSupportBundle.initialize_logging(args.cluster_conf)
+
+    if args.all:
+        binlogs = coredumps = stacktrace = True
+    else:
+        binlogs = args.binlogs
+        coredumps = args.coredumps
+        stacktrace = args.stacktrace
+
     RGWSupportBundle.generate(
         bundle_id=args.bundle_id,
         target_path=args.path,
         cluster_conf=args.cluster_conf,
         duration = args.duration,
         size_limit = args.size_limit,
-        binlogs = args.binlogs,
-        coredumps = args.coredumps,
-        stacktrace = args.stacktrace
+        binlogs = binlogs,
+        coredumps = coredumps,
+        stacktrace = stacktrace
     )
 
 
