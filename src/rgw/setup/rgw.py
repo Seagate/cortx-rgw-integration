@@ -313,12 +313,11 @@ class Rgw:
         log_path = Rgw._get_log_dir_path(conf)
         service_instance_log_file = os.path.join(log_path, f'{const.COMPONENT_NAME}.log')
         radosgw_admin_log_file = os.path.join(log_path, 'radosgw-admin.log')
-        # Update client.radosgw-admin section only once,
+
         for key, ep_value in const.RgwEndpoint.__members__.items():
             value = list(ep_value.value.values())[0]
-            Conf.set(Rgw._conf_idx, f'client.radosgw-admin>{value}', endpoints[key])
-        Conf.set(Rgw._conf_idx,
-            f'client.radosgw-admin>{const.ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}',
+            Conf.set(Rgw._conf_idx, f'{const.ADMIN_SECTION}>{value}', endpoints[key])
+        Conf.set(Rgw._conf_idx, const.MOTR_ADMIN_FID_KEY,
             endpoints[const.RgwEndpoint.MOTR_PROCESS_FID.name])
         Conf.set(Rgw._conf_idx, const.MOTR_ADMIN_ENDPOINT_KEY,
             endpoints[const.RgwEndpoint.MOTR_CLIENT_EP.name])
@@ -327,8 +326,8 @@ class Rgw:
         # Create service section in cortx_rgw.conf file.
         for key, ep_value in const.RgwEndpoint.__members__.items():
             value = list(ep_value.value.values())[0]
-            Conf.set(Rgw._conf_idx, f'client.rgw>{value}', endpoints[key])
-        Conf.set(Rgw._conf_idx, 'client.rgw>log file', service_instance_log_file)
+            Conf.set(Rgw._conf_idx, f'{const.SVC_SECTION}>{value}', endpoints[key])
+        Conf.set(Rgw._conf_idx, const.SVC_LOG_FILE, service_instance_log_file)
         # Removed port increment support for service multiple instances.
         # (in case of multiple instances port value needs to be incremented.)
         http_port = Rgw._get_service_port(conf, 'http')
@@ -336,7 +335,7 @@ class Rgw:
         ssl_cert_path = Rgw._get_cortx_conf(conf, const.SSL_CERT_PATH_KEY)
         Conf.set(
             Rgw._conf_idx,
-            f'client.rgw>{const.ADMIN_PARAMETERS["RGW_FRONTENDS"]}',
+            const.RGW_FRONTEND_KEY,
             f'beast port={http_port} ssl_port={https_port} ssl_certificate={ssl_cert_path} ssl_private_key={ssl_cert_path}')
         Conf.save(Rgw._conf_idx)
 

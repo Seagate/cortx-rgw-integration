@@ -54,6 +54,14 @@ CLIENT_INSTANCE_NUMBER_KEY = 'cortx>motr>clients[%s]>num_instances'
 CONSUL_ENDPOINT_KEY = 'cortx>external>consul>endpoints'
 NODE_HOSTNAME = 'node>%s>hostname'
 NODE_TYPE = 'node>%s>type'
+STORAGE_SET = 'node>%s>storage_set'
+STORAGE_SET_COUNT = 'cluster>storage_set_count'
+STORAGE_SET_NAME = 'cluster>storage_set[%s]>name'
+STORAGE_SET_NODE = 'cluster>storage_set[%s]>nodes'
+AUTH_USER_KEY = f'cortx>{COMPONENT_NAME}>auth_user'
+AUTH_ADMIN_KEY = f'cortx>{COMPONENT_NAME}>auth_admin'
+AUTH_SECRET_KEY = f'cortx>{COMPONENT_NAME}>auth_secret'
+CLUSTER_ID_KEY = 'cluster>id'
 DATA_NODE = 'data_node'
 
 # SSL certificate parameters
@@ -99,20 +107,17 @@ SVC_MOTR_PARAM_MAPPING = [MOTR_LDAYOUT_ID_KEY, MOTR_UNIT_SIZE_KEY,
                       MOTR_MAX_RPC_MSG_SIZE_KEY, MOTR_RECONNECT_INTERVAL_KEY,
                       MOTR_RECONNECT_RETRY_COUNT_KEY]
 
-# ConfStore keys of rgw.py
-AUTH_USER_KEY = f'cortx>{COMPONENT_NAME}>auth_user'
-AUTH_ADMIN_KEY = f'cortx>{COMPONENT_NAME}>auth_admin'
-AUTH_SECRET_KEY = f'cortx>{COMPONENT_NAME}>auth_secret'
-CLUSTER_ID_KEY = 'cluster>id'
-MOTR_ADMIN_FID_KEY = f'client.radosgw-admin>{ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}'
-MOTR_ADMIN_ENDPOINT_KEY = f'client.radosgw-admin>{ADMIN_PARAMETERS["MOTR_ADMIN_ENDPOINT"]}'
-RADOS_ADMIN_LOG_FILE_KEY = 'client.radosgw-admin>log file'
+# RGW config keys (cortx_rgw.conf).
+ADMIN_SECTION = 'client.radosgw-admin'
+SVC_SECTION = 'client.rgw'
+MOTR_ADMIN_FID_KEY = f'{ADMIN_SECTION}>{ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}'
+MOTR_ADMIN_ENDPOINT_KEY = f'{ADMIN_SECTION}>{ADMIN_PARAMETERS["MOTR_ADMIN_ENDPOINT"]}'
+RADOS_ADMIN_LOG_FILE_KEY = f'{ADMIN_SECTION}>log file'
+SVC_LOG_FILE = f'{SVC_SECTION}>log file'
+RGW_FRONTEND_KEY = f'{SVC_SECTION}>{ADMIN_PARAMETERS["RGW_FRONTENDS"]}'
 RGW_BACKEND_STORE_KEY = 'client>rgw backend store'
 UTF_ENCODING = 'utf-8'
-STORAGE_SET = 'node>%s>storage_set'
-STORAGE_SET_COUNT = 'cluster>storage_set_count'
-STORAGE_SET_NAME = 'cluster>storage_set[%s]>name'
-STORAGE_SET_NODE = 'cluster>storage_set[%s]>nodes'
+
 
 class RgwEndpoint(Enum):
     """Enum class to define rgw endpoints provided by hare."""
