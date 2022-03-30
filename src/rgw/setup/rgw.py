@@ -311,7 +311,7 @@ class Rgw:
         config_file = Rgw._get_rgw_config_path(conf)
         Rgw._load_rgw_config(Rgw._conf_idx, f'ini://{config_file}')
         log_path = Rgw._get_log_dir_path(conf)
-        service_instance_log_file = os.path.join(log_path, f'{const.COMPONENT_NAME}.log')
+        service_log_file = os.path.join(log_path, f'{const.COMPONENT_NAME}.log')
         radosgw_admin_log_file = os.path.join(log_path, 'radosgw-admin.log')
 
         for key, ep_value in const.RgwEndpoint.__members__.items():
@@ -327,7 +327,7 @@ class Rgw:
         for key, ep_value in const.RgwEndpoint.__members__.items():
             value = list(ep_value.value.values())[0]
             Conf.set(Rgw._conf_idx, f'{const.SVC_SECTION}>{value}', endpoints[key])
-        Conf.set(Rgw._conf_idx, const.SVC_LOG_FILE, service_instance_log_file)
+        Conf.set(Rgw._conf_idx, const.SVC_LOG_FILE, service_log_file)
         # Removed port increment support for service multiple instances.
         # (in case of multiple instances port value needs to be incremented.)
         http_port = Rgw._get_service_port(conf, 'http')
