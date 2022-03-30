@@ -31,7 +31,7 @@ class RgwService:
         try:
             os.environ['M0_TRACE_DIR'] = motr_trace_dir
             cmd = "/usr/bin/radosgw"
-            args = f"-f --name client.rgw -c {config_file} --no-mon-config &> {log_file}"
+            args = f"-f --name client.rgw-{index} -c {config_file} --no-mon-config &> {log_file}"
             args = shlex.split(args)
             sys.stdout.flush()
             sys.stderr.flush()
