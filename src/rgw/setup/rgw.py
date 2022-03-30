@@ -398,7 +398,7 @@ class Rgw:
         num_instances = 1
         while conf.get(const.CLIENT_INSTANCE_NAME_KEY % client_idx) is not None:
             name = Rgw._get_cortx_conf(conf, const.CLIENT_INSTANCE_NAME_KEY % client_idx)
-            if name == const.COMPONENT_NAME:
+            if name == const.COMPONENT_SVC_NAME:
                 num_instances = int(Rgw._get_cortx_conf(conf, const.CLIENT_INSTANCE_NUMBER_KEY % client_idx))
                 break
             client_idx = client_idx + 1
