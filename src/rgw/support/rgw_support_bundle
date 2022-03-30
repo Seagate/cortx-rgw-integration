@@ -188,7 +188,6 @@ class RGWSupportBundle:
         Log.init(f'{COMPONENT_NAME}_support_bundle', log_path)
 
 def main():
-    import pdb;pdb.set_trace()
     args = RGWSupportBundle.parse_args()
     RGWSupportBundle.initialize_logging(args.cluster_conf)
 
