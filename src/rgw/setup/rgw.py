@@ -300,6 +300,7 @@ class Rgw:
         hare_config_dir = Rgw._get_hare_config_path(conf)
         fetch_fids_cmd = f'hctl fetch-fids -c {hare_config_dir}'
         decoded_out = Rgw._run_fetch_fid_cmd(fetch_fids_cmd)
+        Rgw._validate_hctl_cmd_response(decoded_out, const.COMPONENT_NAME)
 
         endpoints = [comp for comp in decoded_out if comp['name']
             == const.COMPONENT_NAME]
@@ -388,6 +389,14 @@ class Rgw:
                 raise SetupError(errno.EINVAL, f'Invalid values for {ept_key}: {ept_value}')
 
     @staticmethod
+    def _validate_hctl_cmd_response(decoded_out: list, component: str):
+        """Validate hctl command response."""
+        try:
+            next(endpoint for endpoint in decoded_out if endpoint['name'] == component)
+        except StopIteration:
+            raise SetupError(errno.EINVAL, 'Invalid %s endpoint values', component)
+
+    @staticmethod
     def _get_hare_config_path(conf: MappedConf):
         """Return config path of hare component."""
         base_config_path = Rgw._get_cortx_conf(conf, const.CONFIG_PATH_KEY)
@@ -446,6 +455,7 @@ class Rgw:
         hare_config_dir = Rgw._get_hare_config_path(conf)
         fetch_fids_cmd = f'hctl fetch-fids -c {hare_config_dir} --node {data_pod_hostname}'
         decoded_out = Rgw._run_fetch_fid_cmd(fetch_fids_cmd, data_pod_hostname)
+        Rgw._validate_hctl_cmd_response(decoded_out, 'hax')
         motr_ha_endpoint = [endpoints['ep'] for endpoints in decoded_out \
             if 'hax' in endpoints.values()][0]
         Log.info(f'Fetched motr_ha_endpoint from data pod. Endpoint: {motr_ha_endpoint}')
