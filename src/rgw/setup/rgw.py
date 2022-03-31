@@ -92,7 +92,7 @@ class Rgw:
         """Performs configurations."""
 
         Log.info('Config phase started.')
-
+        svc_name = Rgw._get_svc_name(conf)
         config_file = Rgw._get_rgw_config_path(conf)
         if not os.path.exists(config_file):
             raise SetupError(errno.EINVAL, f'"{config_file}" config file is not present.')
@@ -100,7 +100,7 @@ class Rgw:
         # Create ssl certificate
         Rgw._generate_ssl_cert(conf)
 
-        client_instance_count = Rgw._get_num_client_instances(conf)
+        client_instance_count = Rgw._get_num_client_instances(conf, svc_name)
         Log.info('fetching endpoint values from hctl fetch-fids cmd.')
         # For running rgw service and radosgw-admin tool,
         # we are using same endpoints fetched from hctl fetch-fids cmd as default endpoints,
@@ -109,7 +109,8 @@ class Rgw:
         # Update motr fid,endpoint config in cortx_rgw.conf.
         instance = 1
         while instance <= client_instance_count:
-            service_endpoints = Rgw._parse_endpoint_values(conf, instance, client_instance_count)
+            service_endpoints = Rgw._parse_endpoint_values(
+                conf, instance, client_instance_count, svc_name)
             Log.debug('Validating endpoint entries provided by fetch-fids cmd')
             Rgw._validate_endpoint_paramters(service_endpoints)
             Log.info('Validated endpoint entries provided by fetch-fids cmd successfully.')
@@ -295,21 +296,20 @@ class Rgw:
                 return rc
 
     @staticmethod
-    def _parse_endpoint_values(conf: MappedConf, instance: int, client_instance_count: int):
+    def _parse_endpoint_values(conf: MappedConf, instance: int, client_instance_count: int, svc_name: str):
         """Fetch endpoint values from hctl fetch-fids."""
         hare_config_dir = Rgw._get_hare_config_path(conf)
         fetch_fids_cmd = f'hctl fetch-fids -c {hare_config_dir}'
         decoded_out = Rgw._run_fetch_fid_cmd(fetch_fids_cmd)
-        Rgw._validate_hctl_cmd_response(decoded_out, const.COMPONENT_NAME)
+        Rgw._validate_hctl_cmd_response(decoded_out, svc_name)
 
-        endpoints = [comp for comp in decoded_out if comp['name']
-            == const.COMPONENT_NAME]
+        endpoints = [comp for comp in decoded_out if comp['name'] == svc_name]
         # RGW client_instance_count should be equal/less than the
         # no of rgw config elements present in hctl fetch-fids output.
         if len(endpoints) < client_instance_count:
             raise SetupError(errno.EINVAL,
-                f'The count of {const.COMPONENT_NAME} elements in hctl-fetch-fids o/p '
-                f'does not match with the {const.COMPONENT_SVC_NAME} client instance count.')
+                f'The count of {svc_name} elements in hctl-fetch-fids o/p '
+                f'does not match with the {svc_name} client instance count.')
         # Fetch endpoints based on instance,
         # for eg. for instance=1 read 0th index rgw config list from output and so on.
         index = instance - 1
@@ -389,12 +389,12 @@ class Rgw:
                 raise SetupError(errno.EINVAL, f'Invalid values for {ept_key}: {ept_value}')
 
     @staticmethod
-    def _validate_hctl_cmd_response(decoded_out: list, component: str):
+    def _validate_hctl_cmd_response(decoded_out: list, svc_name: str):
         """Validate hctl command response."""
         try:
-            next(endpoint for endpoint in decoded_out if endpoint['name'] == component)
+            next(endpoint for endpoint in decoded_out if endpoint['name'] == svc_name)
         except StopIteration:
-            raise SetupError(errno.EINVAL, 'Invalid %s endpoint values', component)
+            raise SetupError(errno.EINVAL, 'Invalid %s endpoint values', svc_name)
 
     @staticmethod
     def _get_hare_config_path(conf: MappedConf):
@@ -405,13 +405,13 @@ class Rgw:
         return hare_config_path
 
     @staticmethod
-    def _get_num_client_instances(conf: MappedConf):
+    def _get_num_client_instances(conf: MappedConf, svc_name: str):
         """Read number of client instances."""
         client_idx = 0
         num_instances = 1
         while conf.get(const.CLIENT_INSTANCE_NAME_KEY % client_idx) is not None:
             name = Rgw._get_cortx_conf(conf, const.CLIENT_INSTANCE_NAME_KEY % client_idx)
-            if name == const.COMPONENT_SVC_NAME:
+            if name == svc_name:
                 num_instances = int(Rgw._get_cortx_conf(conf, const.CLIENT_INSTANCE_NUMBER_KEY % client_idx))
                 break
             client_idx = client_idx + 1
@@ -427,6 +427,20 @@ class Rgw:
             else:
                 val = default_value
         return val
+
+    @staticmethod
+    def _get_svc_name(conf: MappedConf):
+        """Read service name from cluster.conf"""
+        svc_name = None
+        num_component = Rgw._get_cortx_conf(conf, const.NUM_COMPONENTS_KEY % Rgw._machine_id)
+        for idx in range(0, num_component):
+            if (Rgw._get_cortx_conf(conf,
+                const.COMPONENT_NAME_KEY % (Rgw._machine_id, idx)) == const.COMPONENT_NAME):
+                svc_name = Rgw._get_cortx_conf(conf,
+                    const.SVC_NAME_KEY % (Rgw._machine_id, idx), const.COMPONENT_NAME)
+                break
+        Log.info(f'Service name for {const.COMPONENT_NAME} is {svc_name}')
+        return svc_name
 
     @staticmethod
     def _generate_ssl_cert(conf: MappedConf):
