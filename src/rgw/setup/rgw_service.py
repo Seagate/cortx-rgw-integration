@@ -28,6 +28,8 @@ class RgwService:
     @staticmethod
     def start(conf: MappedConf, config_file, log_file, motr_trace_dir, index: str = '1',):
         """Start rgw service independently."""
+        print("RGW introducing manual stdout")
+        print("RGW introducing manual stdout end")
         try:
             os.environ['M0_TRACE_DIR'] = motr_trace_dir
             cmd = "/usr/bin/radosgw"
