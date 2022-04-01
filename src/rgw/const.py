@@ -48,6 +48,9 @@ REQUIRED_RPMS = ['cortx-hare', 'cortx-py-utils', 'ceph-radosgw']
 ADMIN_PARAMETERS = {'MOTR_ADMIN_FID':'motr admin fid', 'MOTR_ADMIN_ENDPOINT':'motr admin endpoint', 'RGW_FRONTENDS': 'rgw frontends'}
 
 # CORTX cluster confstore keys
+SVC_NAME_KEY = 'node>%s>components[%s]>services[0]'
+NUM_COMPONENTS_KEY = 'node>%s>num_components'
+COMPONENT_NAME_KEY = 'node>%s>components[%s]>name'
 LOG_PATH_KEY = 'cortx>common>storage>log'
 CONFIG_PATH_KEY = 'cortx>common>storage>config'
 CLIENT_INSTANCE_NAME_KEY = 'cortx>motr>clients[%s]>name'
