@@ -30,6 +30,7 @@ class RgwService:
         """Start rgw service independently."""
         print("RGW introducing manual stdout")
         print("RGW introducing manual stdout end")
+        sys.stderr.write('Exception Occurred: RGW introducing manual stderr \n')
         try:
             os.environ['M0_TRACE_DIR'] = motr_trace_dir
             cmd = "/usr/bin/radosgw"
