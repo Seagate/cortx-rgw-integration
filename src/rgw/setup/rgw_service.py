@@ -35,7 +35,7 @@ class RgwService:
             args = shlex.split(args)
             sys.stdout.flush()
             sys.stderr.flush()
-            os.execl(cmd, cmd, *args)
+            os.execl(cmd, cmd, *args)  # nosec
         except OSError as e:
             Log.error(f"Failed to start radosgw service:{e}")
             raise SetupError(e.errno, "Failed to start radosgw service. %s", e)
