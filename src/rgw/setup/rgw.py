@@ -579,7 +579,7 @@ class Rgw:
 
     @staticmethod
     def _get_lock(consul_idx: str):
-        """Aquire consul lock."""
+        """Get lock from consul kv."""
         # if in case try-catch block code executed at the same time on all the nodes,
         # then all nodes will try to update rgw lock-key in consul, after updating key
         # it will wait for sometime(time.sleep(3)) and in next iteration all nodes will
