@@ -18,7 +18,6 @@ import os
 import time
 import errno
 import json
-import socket
 from urllib.parse import urlparse
 
 from cortx.utils.security.certificate import Certificate
@@ -524,45 +523,13 @@ class Rgw:
         #    so other node can acquire the lock and try user creation.
         # 4. If user creation is successful, update lock value to 'user_created'.
 
-        rgw_lock = False
         rgw_consul_idx = f'{const.COMPONENT_NAME}_consul_idx'
         # Get consul url from cortx config.
         consul_url = Rgw._get_consul_url(conf)
         # Check for rgw_lock in consul kv store.
         Log.info('Checking for rgw lock in consul kv store.')
         Rgw._load_rgw_config(rgw_consul_idx, consul_url)
-        # if in case try-catch block code executed at the same time on all the nodes,
-        # then all nodes will try to update rgw lock-key in consul, after updating key
-        # it will wait for sometime(time.sleep(3)) and in next iteration all nodes will
-        # get lock value as node-id of node who has updated the lock key at last.
-        # and then only that node will perform the user creation operation.
-        while True:
-            try:
-                rgw_lock_val = Conf.get(rgw_consul_idx, const.CONSUL_LOCK_KEY)
-                Log.info(f'{const.CONSUL_LOCK_KEY} value - {rgw_lock_val}')
-                if rgw_lock_val is None:
-                    Log.info(f'Setting consul kv store value for key :{const.CONSUL_LOCK_KEY}'
-                            f' and value as :{Rgw._machine_id}')
-                    Rgw._set_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY, Rgw._machine_id)
-                    continue
-                elif rgw_lock_val == Rgw._machine_id:
-                    Log.info('Required lock already possessed, proceeding with RGW '
-                        f'admin user creation on node {rgw_lock_val}')
-                    rgw_lock = True
-                    break
-                elif rgw_lock_val != Rgw._machine_id:
-                    if rgw_lock_val == const.ADMIN_USER_CREATED:
-                        Log.info('User is already created.')
-                        break
-                    Log.info(f'RGW lock is acquired by "{rgw_lock_val}" node.')
-                    Log.info(f'Waiting for user creation to complete on "{rgw_lock_val}" node')
-                    time.sleep(3)
-                    continue
-
-            except Exception as e:
-                Log.error('Exception occured while connecting to consul service'
-                          f' endpoint {e}')
-                break
+        rgw_lock = Rgw._get_lock(rgw_consul_idx)
         if rgw_lock is True:
             # TODO: Find a way to get current data pod hostname on server node.
             # current_data_node = socket.gethostname().replace('server', 'data')
@@ -595,7 +562,8 @@ class Rgw:
             for data_pod_hostname in data_pod_hostnames:
                 try:
                     Rgw._update_hax_endpoint(conf, data_pod_hostname)
-                except Exception:
+                except SetupError as e:
+                    Log.debug(f'Error occured while updating hax endpoints. {e}')
                     continue
                 status = Rgw._create_rgw_user(conf)
                 if status == 0:
@@ -608,6 +576,44 @@ class Rgw:
                         Rgw._delete_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY)
                         raise SetupError(status, 'Admin user creation failed on'
                             f' "{Rgw._machine_id}" node, with all data pods - {data_pod_hostnames}')
+
+    @staticmethod
+    def _get_lock(consul_idx: str):
+        """Get lock from consul kv."""
+        # if in case try-catch block code executed at the same time on all the nodes,
+        # then all nodes will try to update rgw lock-key in consul, after updating key
+        # it will wait for sometime(time.sleep(3)) and in next iteration all nodes will
+        # get lock value as node-id of node who has updated the lock key at last.
+        # and then only that node will perform the user creation operation.
+        rgw_lock = False
+        while True:
+            try:
+                rgw_lock_val = Conf.get(consul_idx, const.CONSUL_LOCK_KEY)
+                Log.info(f'{const.CONSUL_LOCK_KEY} value - {rgw_lock_val}')
+                if rgw_lock_val is None:
+                    Log.info(f'Setting consul kv store value for key :{const.CONSUL_LOCK_KEY}'
+                            f' and value as :{Rgw._machine_id}')
+                    Rgw._set_consul_kv(consul_idx, const.CONSUL_LOCK_KEY, Rgw._machine_id)
+                    continue
+                elif rgw_lock_val == Rgw._machine_id:
+                    Log.info('Required lock already possessed, proceeding with RGW '
+                        f'admin user creation on node {rgw_lock_val}')
+                    rgw_lock = True
+                    break
+                elif rgw_lock_val != Rgw._machine_id:
+                    if rgw_lock_val == const.ADMIN_USER_CREATED:
+                        Log.info('User is already created.')
+                        break
+                    Log.info(f'RGW lock is acquired by "{rgw_lock_val}" node.')
+                    Log.info(f'Waiting for user creation to complete on "{rgw_lock_val}" node')
+                    time.sleep(3)
+                    continue
+
+            except Exception as e:
+                Log.error('Exception occured while connecting to consul service'
+                          f' endpoint {e}')
+                break
+        return rgw_lock
 
     @staticmethod
     def _set_consul_kv(consul_idx: str, key: str, value: str):
