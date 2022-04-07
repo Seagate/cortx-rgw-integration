@@ -690,7 +690,7 @@ class Rgw:
             else:
                 # fetch actual value of parameter from confstore.
                 # if config key/value is missing in confstore then use default value mentioned in config file.
-                config_value = Conf.get(confstore_key)
+                config_value = conf.get(confstore_key)
                 if config_value is None:
                     Log.info(f'GConfig entry is missing for config key :{config_key}.\
                         hence using default value specified in config file.')
@@ -713,7 +713,7 @@ class Rgw:
 
         # Create data path's default value e.g. /var/lib/ceph/radosgw/<cluster-id>
         data_path_default_value = const.SVC_DATA_PATH_DEFAULT_VALUE + cluster_id
-        confstore_data_path_value = Conf.get(const.SVC_DATA_PATH_CONFSTORE_KEY)
+        confstore_data_path_value = conf.get(const.SVC_DATA_PATH_CONFSTORE_KEY)
         if confstore_data_path_value is None:
            Log.info(f'GConfig entry is missing for config key :{const.SVC_DATA_PATH_KEY}.\
                         hence using default value specified in config file.')
