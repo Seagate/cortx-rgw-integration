@@ -29,6 +29,7 @@ DEFAULT_HTTP_PORT = '22751'
 DEFAULT_HTTPS_PORT = '23001'
 CONSUL_LOCK_KEY = f'component>{COMPONENT_NAME}>volatile>{COMPONENT_NAME}_lock' # component>rgw>volatile>rgw_lock
 CLUSTER_ID_KEY = 'cluster>id'
+CONFSTORE_FILE_HANDLER = 'ini://' # confstore uses 'ini' file handler to open any config file.e.g.ini://<filepath>
 
 CONF_TMPL = f'{RGW_INSTALL_PATH}/conf/cortx_{COMPONENT_NAME}.conf'
 LOGROTATE_TMPL = f'{RGW_INSTALL_PATH}/conf/{COMPONENT_NAME}.logrotate.tmpl'
