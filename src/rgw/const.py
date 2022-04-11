@@ -29,6 +29,7 @@ DEFAULT_HTTP_PORT = '22751'
 DEFAULT_HTTPS_PORT = '23001'
 CONSUL_LOCK_KEY = f'component>{COMPONENT_NAME}>volatile>{COMPONENT_NAME}_lock' # component>rgw>volatile>rgw_lock
 CLUSTER_ID_KEY = 'cluster>id'
+CONFSTORE_FILE_HANDLER = 'ini://' # confstore uses 'ini' file handler to open any config file.e.g.ini://<filepath>
 
 CONF_TMPL = f'{RGW_INSTALL_PATH}/conf/cortx_{COMPONENT_NAME}.conf'
 LOGROTATE_TMPL = f'{RGW_INSTALL_PATH}/conf/{COMPONENT_NAME}.logrotate.tmpl'
@@ -76,40 +77,29 @@ SSL_CERT_PATH_KEY = 'cortx>common>security>ssl_certificate'
 SVC_ENDPOINT_KEY =  f'cortx>{COMPONENT_NAME}>service>endpoints'
 
 # SVC additional paramters.(default value to be used in case of config key is missing in confstore.)
-# e.g. svc_keys = ['confstore_key', 'actual_svc_config_key', 'default_value']
-SVC_THREAD_POOL_SIZE_KEY = [f'cortx>{COMPONENT_NAME}>thread_pool_size', f'{COMPONENT_NAME} thread pool size', '10']
-SVC_INTI_TIMEOUT_KEY = [f'cortx>{COMPONENT_NAME}>init_timeout', f'{COMPONENT_NAME} init timeout', '300']
-SVC_GC_MAX_OBJECTS_KEY = [f'cortx>{COMPONENT_NAME}>gc_max_objs', f'{COMPONENT_NAME} gc max objs', '32']
-SVC_GC_OBJECT_MIN_WAIT_KEY = [f'cortx>{COMPONENT_NAME}>gc_obj_min_wait', f'{COMPONENT_NAME} gc obj min wait', '1800']
-SVC_GC_PROCESSOR_MAX_TIME_KEY = [f'cortx>{COMPONENT_NAME}>gc_processor_max_time', f'{COMPONENT_NAME} gc processor max time', '3600']
-SVC_GC_PROCESSOR_PERIOD_KEY = [f'cortx>{COMPONENT_NAME}>gc_processor_period', f'{COMPONENT_NAME} gc processor period', '3600']
+# e.g. svc_keys = {'actual_svc_config_key1':'confstore_key1', 'actual_svc_config_key2':'confstore_key2'}
+SVC_CONFIG_DICT = {}
 
-SVC_PARAM_MAPPING = [SVC_THREAD_POOL_SIZE_KEY, SVC_INTI_TIMEOUT_KEY,
-                     SVC_GC_MAX_OBJECTS_KEY, SVC_GC_OBJECT_MIN_WAIT_KEY,
-                     SVC_GC_PROCESSOR_MAX_TIME_KEY, SVC_GC_PROCESSOR_PERIOD_KEY]
+SVC_CONFIG_DICT[f'{COMPONENT_NAME} thread pool size'] = f'cortx>{COMPONENT_NAME}>thread_pool_size'
+SVC_CONFIG_DICT[f'{COMPONENT_NAME} max concurrent request'] = f'cortx>{COMPONENT_NAME}>max_concurrent_request'
+SVC_CONFIG_DICT[f'{COMPONENT_NAME} init timeout'] = f'cortx>{COMPONENT_NAME}>init_timeout'
+SVC_CONFIG_DICT[f'{COMPONENT_NAME} gc max objs'] = f'cortx>{COMPONENT_NAME}>gc_max_objs'
+SVC_CONFIG_DICT[f'{COMPONENT_NAME} gc obj min wait'] = f'cortx>{COMPONENT_NAME}>gc_obj_min_wait'
+SVC_CONFIG_DICT[f'{COMPONENT_NAME} gc processor max time'] = f'cortx>{COMPONENT_NAME}>gc_processor_max_time'
+SVC_CONFIG_DICT[f'{COMPONENT_NAME} gc processor period'] = f'cortx>{COMPONENT_NAME}>gc_processor_period'
 
+# MOTR additional parameters in SVC config file.
+SVC_CONFIG_DICT['motr layout id'] = f'cortx>{COMPONENT_NAME}>motr_layout_id'
+SVC_CONFIG_DICT['motr unit size'] = f'cortx>{COMPONENT_NAME}>motr_unit_size'
+SVC_CONFIG_DICT['motr max units per request'] = f'cortx>{COMPONENT_NAME}>motr_max_units_per_request'
+SVC_CONFIG_DICT['motr max idx fetch count'] = f'cortx>{COMPONENT_NAME}>motr_max_idx_fetch_count'
+SVC_CONFIG_DICT['motr max rpc msg size'] = f'cortx>{COMPONENT_NAME}>motr_max_rpc_msg_size'
+SVC_CONFIG_DICT['motr reconnect interval'] = f'cortx>{COMPONENT_NAME}>motr_reconnect_interval'
+SVC_CONFIG_DICT['motr reconnect retry count'] = f'cortx>{COMPONENT_NAME}>motr_reconnect_retry_count'
 
 SVC_DATA_PATH_CONFSTORE_KEY = f'cortx>{COMPONENT_NAME}>data_path'
 SVC_DATA_PATH_KEY = f'{COMPONENT_NAME} data path'
-# e.g. default value will be appended by cluster-id hence kept it seperatly
 SVC_DATA_PATH_DEFAULT_VALUE = '/var/lib/ceph/radosgw/' # e.g. /var/lib/ceph/radosgw/<cluster-id>
-
-# MOTR additional parameters in SVC config file.
-# default value to be used in case of config key is missing in confstore.
-# e.g. svc_keys = ['confstore_key', 'actual_svc_config_key', 'default_value']
-
-MOTR_LDAYOUT_ID_KEY = [f'cortx>{COMPONENT_NAME}>motr_layout_id', 'motr layout id', '9']
-MOTR_UNIT_SIZE_KEY = [f'cortx>{COMPONENT_NAME}>motr_unit_size', 'motr unit size', '1048576']
-MOTR_MAX_UNIT_PER_REQUEST_KEY = [f'cortx>{COMPONENT_NAME}>motr_max_units_per_request', 'motr max units per request', '8']
-MOTR_MAX_IDX_FETCH_COUNT_KEY = [f'cortx>{COMPONENT_NAME}>motr_max_idx_fetch_count', 'motr max idx fetch count', '30']
-MOTR_MAX_RPC_MSG_SIZE_KEY = [f'cortx>{COMPONENT_NAME}>motr_max_rpc_msg_size', 'motr max rpc msg size', '524288']
-MOTR_RECONNECT_INTERVAL_KEY = [f'cortx>{COMPONENT_NAME}>motr_reconnect_interval', 'motr reconnect interval', '4']
-MOTR_RECONNECT_RETRY_COUNT_KEY = [f'cortx>{COMPONENT_NAME}>motr_reconnect_retry_count', 'motr reconnect retry count', '15']
-
-SVC_MOTR_PARAM_MAPPING = [MOTR_LDAYOUT_ID_KEY, MOTR_UNIT_SIZE_KEY,
-                      MOTR_MAX_UNIT_PER_REQUEST_KEY, MOTR_MAX_IDX_FETCH_COUNT_KEY,
-                      MOTR_MAX_RPC_MSG_SIZE_KEY, MOTR_RECONNECT_INTERVAL_KEY,
-                      MOTR_RECONNECT_RETRY_COUNT_KEY]
 
 # RGW config keys (cortx_rgw.conf).
 ADMIN_SECTION = 'client.radosgw-admin'
@@ -130,6 +120,4 @@ class RgwEndpoint(Enum):
     MOTR_HA_EP = {'ha_ep': 'motr ha endpoint'}
     MOTR_CLIENT_EP = {'ep': 'motr my endpoint'}
     MOTR_PROCESS_FID = {'fid': 'motr my fid'}
-
-
 
