@@ -685,7 +685,7 @@ class Rgw:
         svc_config_file = Rgw._get_rgw_config_path(conf)
         confstore_url = const.CONFSTORE_FILE_HANDLER + svc_config_file
         Rgw._load_rgw_config(Rgw._conf_idx, confstore_url)
-        Log.info(f'updating paramters to {client_section} in {svc_config_file}')
+        Log.info(f'updating parameters to {client_section} in {svc_config_file}')
 
         for config_key, confstore_key in config_key_mapping.items():
             default_value = Conf.get(Rgw._conf_idx, f'{client_section}>{config_key}')
