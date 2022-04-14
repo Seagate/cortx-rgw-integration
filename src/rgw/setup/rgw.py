@@ -144,15 +144,26 @@ class Rgw:
 
         Log.info(f'Configure logrotate for {const.COMPONENT_NAME} at path: {const.LOGROTATE_CONF}')
         Rgw._logrotate_generic(conf)
+
         # Before starting service,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
+
+        # Create motr trace & addb stob dirctory.
+        # Collect fid value of motr to create addb value.
+        config_file = Rgw._get_rgw_config_path(conf)
+        confstore_url = const.CONFSTORE_FILE_HANDLER + config_file
+        Rgw._load_rgw_config(Rgw._conf_idx, confstore_url)
+        motr_fid_key = const.MOTR_MY_FID % index
+        motr_fid_value = Conf.get(Rgw._conf_idx, motr_fid_key)
         log_path = Rgw._get_log_dir_path(conf)
         motr_trace_dir = os.path.join(log_path, 'motr_trace_files')
+        addb_dir = os.path.join(log_path, f'addb_files-{motr_fid_value}')
         os.makedirs(motr_trace_dir, exist_ok=True)
+        os.makedirs(addb_dir, exist_ok=True)
 
         Log.info('Starting radosgw service.')
         log_file = os.path.join(log_path, f'{const.COMPONENT_NAME}_startup.log')
-        config_file = Rgw._get_rgw_config_path(conf)
+
         RgwService.start(conf, config_file, log_file, motr_trace_dir, index)
         Log.info("Started radosgw service.")
 
