@@ -111,6 +111,7 @@ SVC_LOG_FILE = f'{SVC_SECTION}>log file'
 RGW_FRONTEND_KEY = f'{SVC_SECTION}>{ADMIN_PARAMETERS["RGW_FRONTENDS"]}'
 RGW_BACKEND_STORE_KEY = 'client>rgw backend store'
 UTF_ENCODING = 'utf-8'
+MOTR_MY_FID = f'{SVC_SECTION}>motr my fid'
 
 
 class RgwEndpoint(Enum):
