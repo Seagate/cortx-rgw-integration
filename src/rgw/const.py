@@ -96,6 +96,8 @@ SVC_CONFIG_DICT['motr max idx fetch count'] = f'cortx>{COMPONENT_NAME}>motr_max_
 SVC_CONFIG_DICT['motr max rpc msg size'] = f'cortx>{COMPONENT_NAME}>motr_max_rpc_msg_size'
 SVC_CONFIG_DICT['motr reconnect interval'] = f'cortx>{COMPONENT_NAME}>motr_reconnect_interval'
 SVC_CONFIG_DICT['motr reconnect retry count'] = f'cortx>{COMPONENT_NAME}>motr_reconnect_retry_count'
+SVC_CONFIG_DICT['motr addb enabled'] = f'cortx>{COMPONENT_NAME}>motr_addb_enabled'
+
 
 SVC_DATA_PATH_CONFSTORE_KEY = f'cortx>{COMPONENT_NAME}>data_path'
 SVC_DATA_PATH_KEY = f'{COMPONENT_NAME} data path'
