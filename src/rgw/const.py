@@ -37,6 +37,7 @@ CRON_LOGROTATE_TMPL = f'{RGW_INSTALL_PATH}/conf/logrotate.service.tmpl'
 # e.g CONF_TMPL will be /opt/seagate/cortx/rgw/conf/cortx_rgw.conf
 # e.g LOGROTATE_TMPL will be /opt/seagate/cortx/rgw/conf/rgw.logrotate.tmpl
 RGW_CONF_FILE = f'cortx_{COMPONENT_NAME}.conf'
+RELEASE_INFO_URL = f'yaml://{INSTALL_PATH}/RELEASE.INFO'
 SUPPORTED_BACKEND_STORES = ['motr']
 # e.g. RGW_CONFI_FILE path will be cortx_rgw.conf
 LOGROTATE_DIR = "/etc/logrotate.d"
@@ -66,6 +67,7 @@ STORAGE_SET_NODE = 'cluster>storage_set[%s]>nodes'
 AUTH_USER_KEY = f'cortx>{COMPONENT_NAME}>auth_user'
 AUTH_ADMIN_KEY = f'cortx>{COMPONENT_NAME}>auth_admin'
 AUTH_SECRET_KEY = f'cortx>{COMPONENT_NAME}>auth_secret'
+VERSION_KEY = 'cortx>common>release>version'
 CLUSTER_ID_KEY = 'cluster>id'
 DATA_NODE = 'data_node'
 
@@ -112,7 +114,6 @@ RGW_FRONTEND_KEY = f'{SVC_SECTION}>{ADMIN_PARAMETERS["RGW_FRONTENDS"]}'
 RGW_BACKEND_STORE_KEY = 'client>rgw backend store'
 UTF_ENCODING = 'utf-8'
 MOTR_MY_FID = f'{SVC_SECTION}>motr my fid'
-
 
 class RgwEndpoint(Enum):
     """Enum class to define rgw endpoints provided by hare."""

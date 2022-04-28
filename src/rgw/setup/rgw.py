@@ -26,6 +26,7 @@ from cortx.utils.validator.v_pkg import PkgV
 from cortx.utils.conf_store import Conf, MappedConf
 from cortx.utils.conf_store.error import ConfError
 from cortx.utils.process import SimpleProcess
+from cortx.utils.schema.release import Release
 from cortx.utils.log import Log
 from cortx.rgw.setup.error import SetupError
 from cortx.rgw.setup.rgw_service import RgwService
@@ -211,6 +212,45 @@ class Rgw:
     @staticmethod
     def upgrade(conf: MappedConf):
         """Perform upgrade steps."""
+        conf_dir = Rgw._get_rgw_config_dir(conf)
+        svc_name = Rgw._get_svc_name(conf)
+        svc_conf_file = Rgw._get_rgw_config_path(conf)
+        # Load deployed rgw config and take a backup.
+        Rgw._load_rgw_config(Rgw._conf_idx, const.CONFSTORE_FILE_HANDLER + svc_conf_file)
+        deployed_version = Conf.get(Rgw._conf_idx, 'release>version')
+        conf_bkp_file = os.path.join(conf_dir, const.RGW_CONF_FILE + f'.{deployed_version}')
+        try:
+            os.rename(svc_conf_file, conf_bkp_file)
+            # Generate new updated config.
+            tmpl_idx = f'{const.COMPONENT_NAME}_conf_tmpl'  # e.g. rgw_conf_tmpl
+            Rgw._load_rgw_config(tmpl_idx, const.CONFSTORE_FILE_HANDLER + const.CONF_TMPL)
+            Conf.copy(tmpl_idx, Rgw._conf_idx)
+            Conf.save(Rgw._conf_idx)
+            client_instance_count = Rgw._get_num_client_instances(conf, svc_name)
+            Log.info('fetching endpoint values from hctl fetch-fids cmd.')
+            instance = 1
+            while instance <= client_instance_count:
+                service_endpoints = Rgw._parse_endpoint_values(
+                    conf, instance, client_instance_count, svc_name)
+                Log.debug('Validating endpoint entries provided by fetch-fids cmd')
+                Rgw._validate_endpoint_paramters(service_endpoints)
+                Log.info('Validated endpoint entries provided by fetch-fids cmd successfully.')
+
+                Log.info('Updating endpoint values in rgw config file.')
+                Rgw._update_rgw_config_with_endpoints(conf, service_endpoints, instance)
+                instance = instance + 1
+
+            # Add additional parameters of SVC & Motr to config file.
+            Rgw._update_svc_config(conf, 'client', const.SVC_CONFIG_DICT)
+            Rgw._update_svc_data_path_value(conf, 'client')
+
+            # Update upgraded release version.
+            updated_version = Release(const.RELEASE_INFO_URL).get_release_version()
+            Conf.set(Rgw._conf_idx, 'release>version', updated_version)
+            Conf.save(Rgw._conf_idx)
+        except Exception as e:
+            os.rename(conf_bkp_file, svc_conf_file)
+            raise SetupError(errno.EINVAL, f'Upgrade failed with error: {e}')
 
         Log.info('Upgrade phase completed.')
         return 0
@@ -350,6 +390,9 @@ class Rgw:
         service_instance_log_file = os.path.join(log_path, f'{const.COMPONENT_NAME}-{instance}.log')
         radosgw_admin_log_file = os.path.join(log_path, 'radosgw-admin.log')
 
+        # Update version in conf file.
+        version = Rgw._get_cortx_conf(conf, const.VERSION_KEY)
+        Conf.set(Rgw._conf_idx, 'release>version', version)
         # Update client.radosgw-admin section only once,
         # Update this with same config that is define for 1st instance.
         if instance == 1:
