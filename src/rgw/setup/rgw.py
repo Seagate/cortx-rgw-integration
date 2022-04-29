@@ -133,7 +133,7 @@ class Rgw:
         motr_trace_dir = os.path.join(log_path, 'motr_trace_files')
         os.makedirs(motr_trace_dir, exist_ok=True)
         os.environ['M0_TRACE_DIR'] = motr_trace_dir
-        Log.info(f'Created motr trace directory i.e. {motr_trace_dir} for collecting m0trace files.')
+        Log.info(f'Created motr trace directory : %s', os.environ['M0_TRACE_DIR'])
 
         # Read Motr HA(HAX) endpoint from data pod using hctl fetch-fids and update in config file
         # Use remote hax endpoint running on data pod which will be available during rgw
