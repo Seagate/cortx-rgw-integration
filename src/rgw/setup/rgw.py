@@ -118,6 +118,7 @@ class Rgw:
         # Try HAX endpoint from data pod of same node first & if it doesnt work,
         # from other data pods in cluster
         Rgw._update_hax_endpoint_and_create_admin(conf)
+        Log.info('Config phase completed.')
 
         return 0
 
@@ -185,6 +186,7 @@ class Rgw:
     @staticmethod
     def upgrade(conf: MappedConf):
         """Perform upgrade steps."""
+        Log.info('Upgrade phase started.')
         conf_dir = Rgw._get_rgw_config_dir(conf)
         svc_conf_file = Rgw._get_rgw_config_path(conf)
         # Load deployed rgw config and take a backup.
@@ -203,7 +205,7 @@ class Rgw:
             Conf.copy(tmpl_idx, Rgw._conf_idx)
             Conf.save(Rgw._conf_idx)
             Rgw._create_svc_config(conf)
-            # TODO: separate out user creation and update_hax_endpoint logic from 
+            # TODO: separate out user creation and update_hax_endpoint logic from
             # _update_hax_endpoint_and_create_admin() fun and add update_hax_endpoint
             # in _create_svc_config and remove below lines 200-201.
             data_nodes = Rgw._get_data_nodes(conf)
@@ -250,7 +252,6 @@ class Rgw:
 
         Log.info(f'Configure logrotate for {const.COMPONENT_NAME} at path: {const.LOGROTATE_CONF}')
         Rgw._logrotate_generic(conf)
-        Log.info('Config phase completed.')
 
     @staticmethod
     def _get_consul_url(conf: MappedConf, seq: int = 0):
