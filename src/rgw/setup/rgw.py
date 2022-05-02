@@ -272,7 +272,7 @@ class Rgw:
         sock.settimeout(2)
         consul_url = Rgw._get_consul_url(conf).split('//')[-1]
         host, port = consul_url.split(':')
-        result = sock.connect_ex((host, port))
+        result = sock.connect_ex((host, int(port)))
         if result != 0:
             raise SetupError(errno.EINVAL, f"Consul server {host:port} not reachable")
 
