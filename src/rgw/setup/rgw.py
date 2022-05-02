@@ -32,6 +32,8 @@ from cortx.rgw.setup.error import SetupError
 from cortx.rgw.setup.rgw_service import RgwService
 from cortx.utils.security.cipher import Cipher, CipherInvalidToken
 from cortx.rgw import const
+from cortx.utils.common import ExponentialBackoff
+
 
 class Rgw:
     """Represents RGW and Performs setup related actions."""
@@ -93,6 +95,7 @@ class Rgw:
         """Performs configurations."""
 
         Log.info('Config phase started.')
+        Rgw._check_consul_connection(conf)
         config_file = Rgw._get_rgw_config_path(conf)
         if not os.path.exists(config_file):
             raise SetupError(errno.EINVAL, f'"{config_file}" config file is not present.')
@@ -260,6 +263,18 @@ class Rgw:
         consul_fqdn = http_endpoints[seq].split(':')[1]
         consul_url = 'consul:' + consul_fqdn + ':8500'
         return consul_url
+
+    @staticmethod
+    @ExponentialBackoff(exception=Exception, tries=4)
+    def _check_consul_connection(conf: MappedConf):
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(2)
+        consul_url = Rgw._get_consul_url(conf).split('//')[-1]
+        host, port = consul_url.split(':')
+        result = sock.connect_ex((host, port))
+        if result != 0:
+            raise SetupError(errno.EINVAL, f"Consul server {host:port} not reachable")
 
     @staticmethod
     def _fetch_endpoint_url(conf: MappedConf, confstore_endpoint_key: str, endpoint_type: str):
