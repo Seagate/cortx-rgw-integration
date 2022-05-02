@@ -26,6 +26,7 @@ from cortx.utils.validator.v_pkg import PkgV
 from cortx.utils.conf_store import Conf, MappedConf
 from cortx.utils.conf_store.error import ConfError
 from cortx.utils.process import SimpleProcess
+from cortx.utils.schema.release import Release
 from cortx.utils.log import Log
 from cortx.rgw.setup.error import SetupError
 from cortx.rgw.setup.rgw_service import RgwService
@@ -92,7 +93,6 @@ class Rgw:
         """Performs configurations."""
 
         Log.info('Config phase started.')
-        svc_name = Rgw._get_svc_name(conf)
         config_file = Rgw._get_rgw_config_path(conf)
         if not os.path.exists(config_file):
             raise SetupError(errno.EINVAL, f'"{config_file}" config file is not present.')
@@ -100,31 +100,8 @@ class Rgw:
         # Create ssl certificate
         Rgw._generate_ssl_cert(conf)
 
-        client_instance_count = Rgw._get_num_client_instances(conf, svc_name)
-        Log.info('fetching endpoint values from hctl fetch-fids cmd.')
-        # For running rgw service and radosgw-admin tool,
-        # we are using same endpoints fetched from hctl fetch-fids cmd as default endpoints,
-        # given radosgw-admin tool & rgw service not expected to run simultaneously.
-
-        # Update motr fid,endpoint config in cortx_rgw.conf.
-        instance = 1
-        while instance <= client_instance_count:
-            service_endpoints = Rgw._parse_endpoint_values(
-                conf, instance, client_instance_count, svc_name)
-            Log.debug('Validating endpoint entries provided by fetch-fids cmd')
-            Rgw._validate_endpoint_paramters(service_endpoints)
-            Log.info('Validated endpoint entries provided by fetch-fids cmd successfully.')
-
-            Log.info('Updating endpoint values in rgw config file.')
-            Rgw._update_rgw_config_with_endpoints(conf, service_endpoints, instance)
-            instance = instance + 1
-
-        # Add additional parameters of SVC & Motr to config file.
-        Rgw._update_svc_config(conf, 'client', const.SVC_CONFIG_DICT)
-        Rgw._update_svc_data_path_value(conf, 'client')
-
-        # Before user creation,Verify backend store value=motr in rgw config file.
-        Rgw._verify_backend_store_value(conf)
+        # Create svc config
+        Rgw._create_svc_config(conf)
 
         # Create motr trace directory for collecting m0trace files
         # in case admin user creation issue during mini-provisioner execution.
@@ -141,10 +118,8 @@ class Rgw:
         # Try HAX endpoint from data pod of same node first & if it doesnt work,
         # from other data pods in cluster
         Rgw._update_hax_endpoint_and_create_admin(conf)
-
-        Log.info(f'Configure logrotate for {const.COMPONENT_NAME} at path: {const.LOGROTATE_CONF}')
-        Rgw._logrotate_generic(conf)
         Log.info('Config phase completed.')
+
         return 0
 
     @staticmethod
@@ -211,9 +186,72 @@ class Rgw:
     @staticmethod
     def upgrade(conf: MappedConf):
         """Perform upgrade steps."""
+        Log.info('Upgrade phase started.')
+        conf_dir = Rgw._get_rgw_config_dir(conf)
+        svc_conf_file = Rgw._get_rgw_config_path(conf)
+        # Load deployed rgw config and take a backup.
+        Rgw._load_rgw_config(Rgw._conf_idx, const.CONFSTORE_FILE_HANDLER + svc_conf_file)
+        deployed_version = conf.get(const.VERSION_KEY)
+        conf_bkp_file = os.path.join(conf_dir, const.RGW_CONF_FILE + f'.{deployed_version}')
+        try:
+            if os.path.exists(conf_bkp_file):
+                # Cleaning up failure config of previous upgrade.
+                os.rename(conf_bkp_file, svc_conf_file)
+            else:
+                os.rename(svc_conf_file, conf_bkp_file)
+            # Generate new updated config.
+            tmpl_idx = f'{const.COMPONENT_NAME}_conf_tmpl'  # e.g. rgw_conf_tmpl
+            Rgw._load_rgw_config(tmpl_idx, const.CONFSTORE_FILE_HANDLER + const.CONF_TMPL)
+            Conf.copy(tmpl_idx, Rgw._conf_idx)
+            Conf.save(Rgw._conf_idx)
+            Rgw._create_svc_config(conf)
+            # TODO: separate out user creation and update_hax_endpoint logic from
+            # _update_hax_endpoint_and_create_admin() fun and add update_hax_endpoint
+            # in _create_svc_config and remove below lines 200-201.
+            data_nodes = Rgw._get_data_nodes(conf)
+            Rgw._update_hax_endpoint(conf, data_nodes[0])
+            # Update upgraded release version.
+            updated_version = Release(const.RELEASE_INFO_URL).get_release_version()
+            Conf.set(Rgw._conf_idx, 'release>version', updated_version)
+            Conf.save(Rgw._conf_idx)
+        except Exception as e:
+            raise SetupError(errno.EINVAL, f'Upgrade failed with error: {e}')
 
         Log.info('Upgrade phase completed.')
         return 0
+
+    @staticmethod
+    def _create_svc_config(conf: MappedConf):
+        """Create svc config"""
+        svc_name = Rgw._get_svc_name(conf)
+        client_instance_count = Rgw._get_num_client_instances(conf, svc_name)
+        Log.info('fetching endpoint values from hctl fetch-fids cmd.')
+        # For running rgw service and radosgw-admin tool,
+        # we are using same endpoints fetched from hctl fetch-fids cmd as default endpoints,
+        # given radosgw-admin tool & rgw service not expected to run simultaneously.
+
+        # Update motr fid,endpoint config in cortx_rgw.conf.
+        instance = 1
+        while instance <= client_instance_count:
+            service_endpoints = Rgw._parse_endpoint_values(
+                conf, instance, client_instance_count, svc_name)
+            Log.debug('Validating endpoint entries provided by fetch-fids cmd')
+            Rgw._validate_endpoint_paramters(service_endpoints)
+            Log.info('Validated endpoint entries provided by fetch-fids cmd successfully.')
+
+            Log.info('Updating endpoint values in rgw config file.')
+            Rgw._update_rgw_config_with_endpoints(conf, service_endpoints, instance)
+            instance = instance + 1
+
+        # Add additional parameters of SVC & Motr to config file.
+        Rgw._update_svc_config(conf, 'client', const.SVC_CONFIG_DICT)
+        Rgw._update_svc_data_path_value(conf, 'client')
+
+        # Before user creation,Verify backend store value=motr in rgw config file.
+        Rgw._verify_backend_store_value(conf)
+
+        Log.info(f'Configure logrotate for {const.COMPONENT_NAME} at path: {const.LOGROTATE_CONF}')
+        Rgw._logrotate_generic(conf)
 
     @staticmethod
     def _get_consul_url(conf: MappedConf, seq: int = 0):
@@ -350,6 +388,9 @@ class Rgw:
         service_instance_log_file = os.path.join(log_path, f'{const.COMPONENT_NAME}-{instance}.log')
         radosgw_admin_log_file = os.path.join(log_path, 'radosgw-admin.log')
 
+        # Update version in conf file.
+        version = Rgw._get_cortx_conf(conf, const.VERSION_KEY)
+        Conf.set(Rgw._conf_idx, 'release>version', version)
         # Update client.radosgw-admin section only once,
         # Update this with same config that is define for 1st instance.
         if instance == 1:
@@ -561,19 +602,7 @@ class Rgw:
             #    Log.info(f'User creation is successful on "{Rgw._machine_id}" node.')
             #    Rgw._set_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY, const.ADMIN_USER_CREATED)
             # else:
-            storage_set = Rgw._get_cortx_conf(
-                conf, const.STORAGE_SET % Rgw._machine_id)
-            storage_set_count = Rgw._get_cortx_conf(
-                conf, const.STORAGE_SET_COUNT)
-            machine_ids = []
-            for storage_set_index in range(0, storage_set_count):
-                if Rgw._get_cortx_conf(conf,
-                    const.STORAGE_SET_NAME % storage_set_index) == storage_set:
-                    machine_ids = Rgw._get_cortx_conf(
-                        conf, const.STORAGE_SET_NODE % storage_set_index)
-            data_pod_hostnames = [Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % machine_id)
-                for machine_id in machine_ids if
-                Rgw._get_cortx_conf(conf, const.NODE_TYPE % machine_id) == const.DATA_NODE]
+            data_pod_hostnames = Rgw._get_data_nodes(conf)
             #    if len(data_pod_hostnames) == 1 and current_data_node == data_pod_hostnames[0]:
             #        Log.error('Admin user creation failed')
             #        Rgw._delete_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY)
@@ -598,6 +627,23 @@ class Rgw:
                         Rgw._delete_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY)
                         raise SetupError(status, 'Admin user creation failed on'
                             f' "{Rgw._machine_id}" node, with all data pods - {data_pod_hostnames}')
+
+
+    @staticmethod
+    def _get_data_nodes(conf: MappedConf):
+        """Return all data nodes hostname"""
+        storage_set = Rgw._get_cortx_conf(conf, const.STORAGE_SET % Rgw._machine_id)
+        storage_set_count = Rgw._get_cortx_conf(conf, const.STORAGE_SET_COUNT)
+        machine_ids = []
+        for storage_set_index in range(0, storage_set_count):
+            if Rgw._get_cortx_conf(conf,
+                const.STORAGE_SET_NAME % storage_set_index) == storage_set:
+                machine_ids = Rgw._get_cortx_conf(
+                    conf, const.STORAGE_SET_NODE % storage_set_index)
+        data_pod_hostnames = [Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % machine_id)
+            for machine_id in machine_ids if
+            Rgw._get_cortx_conf(conf, const.NODE_TYPE % machine_id) == const.DATA_NODE]
+        return data_pod_hostnames
 
     @staticmethod
     def _get_lock(consul_idx: str):
