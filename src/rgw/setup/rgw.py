@@ -128,12 +128,12 @@ class Rgw:
 
         # Create motr trace directory for collecting m0trace files
         # in case admin user creation issue during mini-provisioner execution.
-        Log.info(f'Creating motr trace directory for collecting m0trace files..')
+        Log.info('Creating motr trace directory for collecting m0trace files..')
         log_path = Rgw._get_log_dir_path(conf)
         motr_trace_dir = os.path.join(log_path, 'motr_trace_files')
         os.makedirs(motr_trace_dir, exist_ok=True)
         os.environ['M0_TRACE_DIR'] = motr_trace_dir
-        Log.info(f'Created motr trace directory : %s', os.environ['M0_TRACE_DIR'])
+        Log.info('Created motr trace directory : %s' % os.environ.get('M0_TRACE_DIR'))
 
         # Read Motr HA(HAX) endpoint from data pod using hctl fetch-fids and update in config file
         # Use remote hax endpoint running on data pod which will be available during rgw
