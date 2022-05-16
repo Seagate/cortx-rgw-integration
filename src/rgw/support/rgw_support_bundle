@@ -19,6 +19,7 @@
 import sys
 import os
 import re
+import glob
 import shutil
 import tarfile
 import errno
@@ -80,6 +81,13 @@ class RGWSupportBundle:
                     shutil.copyfile(infile, outfile)
         else:
             Log.error("RGW log file does not exists hence skipping log file collection.")
+
+        # copy addb logs
+        addb_log_path = os.path.join(log_dir, 'addb_files-*')
+        addb_dirs = glob.glob(addb_log_path)
+        for addb_dir in addb_dirs:
+            shutil.copytree(addb_dir,
+                os.path.join(RGWSupportBundle._tmp_src, addb_dir.split('/')[-1]))
 
         # copy ceph crash-dump files
         if coredumps:
