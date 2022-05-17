@@ -18,14 +18,37 @@ set -e
 
 PROG=$(basename "$0")
 SCRIPT_DIR=$(realpath $(dirname "$0"))
-BASE_DIR=$SCRIPT_DIR/..
+BASE_DIR="$SCRIPT_DIR"/..
 BUILD_NUMBER=
 GIT_VER=
 PRODUCT="cortx"
+MOTR_TMP_CODE="$BASE_DIR/../motr_code"
+MOTR_URL="https://github.com/Seagate/cortx-motr.git"
+ADDB_PLUGIN_DIR="$BASE_DIR"/src/addb_plugin
 
 usage() {
     echo """usage: $PROG [-v version] [-g git_version] [-b build_number]""" 1>&2;
     exit 1;
+}
+
+build_addb_plugin(branch_name="main") {
+    echo """build addb plugin and bundle this binary file as a part of cortx-rgw-integration rpm.
+     1. Clone motr code
+     2. generate addb plugin
+     3. add binary to rpm
+    """
+    mkdir -p "$MOTR_TMP_CODE"
+    cd "$MOTR_TMP_CODE"
+    git clone $MOTR_URL -b $branch_name
+    cd -
+
+    echo "building addb plugin"
+    cd "$ADDB_PLUGIN_DIR"
+    make plugin || { echo "Failed to build addb plugin hence skipping addb steps !!!"}
+
+    rm -r "$MOTR_TMP_CODE"
+    cd -
+    echo "Done with building addb librabry plugin."
 }
 
 # Check for passed in arguments
@@ -67,6 +90,19 @@ echo $VER > "$BASE_DIR"/VERSION
 INSTALL_PATH="/opt/seagate/""${PRODUCT}"
 
 mkdir -p "$INSTALL_PATH"
+
+echo "Generating addb plugin"
+required_addb_rpms={make, gcc}
+build_addb=true
+for pkg in required_addb_rpms:
+  rpm -q $pkg > /dev/null || {
+    echo "Required rpm : $pkg for addb is not installed.Hence skipping addb plugin build process !!!"
+    build_addb=false
+  }
+
+# if requried rpms are not present then skip addb build process.
+if build_addb:
+   build_addb_plugin
 
 echo "Creating cortx-rgw-integration RPM with version $VER, release $REL"
 
