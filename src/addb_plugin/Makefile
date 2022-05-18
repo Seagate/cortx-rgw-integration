@@ -1,4 +1,4 @@
-MOTR_SRC_DIR="../../../motr_code/cortx-motr"
+MOTR_SRC_DIR="../../../cortx-motr"
 
 .PHONY: all plugin clean help
 
