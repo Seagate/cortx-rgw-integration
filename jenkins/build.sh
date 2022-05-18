@@ -31,28 +31,27 @@ usage() {
     exit 1;
 }
 
-build_addb_plugin(branch_name="main") {
-    echo """build addb plugin and bundle this binary file as a part of cortx-rgw-integration rpm.
+build_addb_plugin() {
+    echo "build addb plugin and bundle this binary file as a part of cortx-rgw-integration rpm.
      1. Clone motr code
      2. generate addb plugin
-     3. add binary to rpm
-    """
+     3. add binary to rpm ";
     mkdir -p "$MOTR_TMP_CODE"
     cd "$MOTR_TMP_CODE"
-    git clone $MOTR_URL -b $branch_name
+    git clone $MOTR_URL -b $1  # $1 is branch name (Default value is main)
     cd -
 
-    echo "building addb plugin"
+    echo "building addb plugin";
     cd "$ADDB_PLUGIN_DIR"
-    make plugin || { echo "Failed to build addb plugin hence skipping addb steps !!!"}
+    make plugin || { echo "Failed to build addb plugin hence skipping addb steps !!!";}
 
     rm -r "$MOTR_TMP_CODE"
     cd -
-    echo "Done with building addb librabry plugin."
+    echo "Done with building addb librabry plugin.";
 }
 
 # Check for passed in arguments
-while getopts ":g:v:b:" o; do
+while getopts ":g:v:b:motr_branch:" o; do
     case "${o}" in
         v)
             VER=${OPTARG}
@@ -62,6 +61,9 @@ while getopts ":g:v:b:" o; do
             ;;
         b)
             BUILD_NUMBER=${OPTARG}
+            ;;
+        motr_branch)
+            motr_branch_name=${OPTARG}
             ;;
         *)
             usage
@@ -74,6 +76,7 @@ done
 [ -z "$VER" ] && VER="2.0.0"
 [ -z "$BUILD_NUMBER" ] && BUILD_NUMBER=1
 REL="${BUILD_NUMBER}_${GIT_VER}"
+[ -z "$motr_branch_name" ] && motr_branch_name="main"
 
 rpm -q rpm-build > /dev/null || {
     echo "error: rpm-build is not installed. Install rpm-build and run $PROG"
@@ -92,17 +95,19 @@ INSTALL_PATH="/opt/seagate/""${PRODUCT}"
 mkdir -p "$INSTALL_PATH"
 
 echo "Generating addb plugin"
-required_addb_rpms={make, gcc}
+required_addb_rpms=("make" "gcc")
 build_addb=true
-for pkg in required_addb_rpms:
-  rpm -q $pkg > /dev/null || {
+for pkg in "$required_addb_rpms"
+do
+  rpm -q "$pkg" > /dev/null || {
     echo "Required rpm : $pkg for addb is not installed.Hence skipping addb plugin build process !!!"
     build_addb=false
   }
+done
 
-# if requried rpms are not present then skip addb build process.
-if build_addb:
-   build_addb_plugin
+if [ "$build_addb" ]; then
+  build_addb_plugin "$motr_branch_name"
+fi
 
 echo "Creating cortx-rgw-integration RPM with version $VER, release $REL"
 
@@ -119,4 +124,3 @@ if [ $? -ne 0 ]; then
 else
   echo "cortx-rgw-integration rpm build successful !!!"
 fi
-
