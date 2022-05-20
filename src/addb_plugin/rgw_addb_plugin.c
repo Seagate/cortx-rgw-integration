@@ -16,12 +16,12 @@
  */
 
 #include <stdio.h>
-#include <addb2/plugin_api.h>
 #include <assert.h>
 
 #include "rgw_addb.h"
 #include "rgw_addb_map.h"
-#include "../../rgw_op_type.h"
+#include "../../../cortx-rgw/src/rgw/rgw_op_type.h"
+#include "../../../cortx-motr/addb2/plugin_api.h"
 
 #define STR(x) #x
 #define ENUM_STR_ENTRY(v, e) case (e): (v) = STR(e); break;

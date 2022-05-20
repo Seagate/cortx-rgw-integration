@@ -25,7 +25,12 @@ PRODUCT="cortx"
 ADDB_PLUGIN_DIR="$BASE_DIR"/src/addb_plugin
 
 usage() {
-    echo """usage: $PROG [-v version] [-g git_version] [-b build_number]""" 1>&2;
+    echo """usage: $PROG [-v version] [-g git_version] [-b build_number][-a]
+    where,
+          -v <version_id>   Specify rpm version
+          -g <git_version>  Specify git version hash
+          -b <build_number> Specify build version
+          -a                Generates addb plugin as part of cortx-rgw-integration""" 1>&2;
     exit 1;
 }
 
@@ -45,7 +50,7 @@ build_addb_plugin() {
 }
 
 # Check for passed in arguments
-while getopts ":g:v:b:build_addb:" o; do
+while getopts ":g:v:b:a" o; do
     case "${o}" in
         v)
             VER=${OPTARG}
@@ -56,8 +61,8 @@ while getopts ":g:v:b:build_addb:" o; do
         b)
             BUILD_NUMBER=${OPTARG}
             ;;
-        build_addb)
-            BUILD_ADDB=${OPTARG}
+        a)
+            BUILD_ADDB=true  # if flag is set addb pluign will be generated
             ;;
         *)
             usage
@@ -70,7 +75,7 @@ done
 [ -z "$VER" ] && VER="2.0.0"
 [ -z "$BUILD_NUMBER" ] && BUILD_NUMBER=1
 REL="${BUILD_NUMBER}_${GIT_VER}"
-[ -z "$BUILD_ADDB" ] && BUILD_ADDB=false
+[ -z "$BUILD_ADDB" ] && BUILD_ADDB="false"
 
 rpm -q rpm-build > /dev/null || {
     echo "error: rpm-build is not installed. Install rpm-build and run $PROG"
@@ -88,7 +93,7 @@ INSTALL_PATH="/opt/seagate/""${PRODUCT}"
 
 mkdir -p "$INSTALL_PATH"
 
-if [ "$BUILD_ADDB" ]; then
+if [ "$BUILD_ADDB" == "true" ]; then
   echo "Generating addb plugin"
   required_addb_rpms=("make" "gcc")
   for pkg in "$required_addb_rpms"

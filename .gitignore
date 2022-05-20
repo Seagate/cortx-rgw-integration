@@ -4,3 +4,6 @@
 build/
 cortx_rgw_integration.egg-info/
 dist/
+src/addb_plugin/rgw_addb_map.o
+src/addb_plugin/rgw_addb_plugin.o
+src/addb_plugin/rgw_addb_plugin.so

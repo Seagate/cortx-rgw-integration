@@ -38,6 +38,22 @@ mini_prov_files = glob.glob('./src/setup/*.py')
 logrotate_tmpl_file = 'src/rgw/setup/templates/rgw.logrotate.tmpl'
 logrotate_service_tmpl = 'src/rgw/setup/templates/logrotate.service.tmpl'
 
+data_file_list=[ ('%s/mini-provisioner' % RGW_INSTALL_PATH, mini_prov_files),
+                    ('%s/bin' % RGW_INSTALL_PATH,
+                    ['src/rgw/setup/rgw_setup', 'src/rgw/support/rgw_support_bundle',]),
+                    ('%s/mini-provisioner' % RGW_INSTALL_PATH,['VERSION']),
+                    ('%s/conf' % RGW_INSTALL_PATH,['conf/cortx_rgw.conf',
+                    logrotate_tmpl_file, 'src/rgw/support/support.yaml',
+                    logrotate_service_tmpl])
+                  ]
+
+# Add addb plugin to rpm if its generated duirng build process.
+addb_plugin_file="./src/addb_plugin/rgw_addb_plugin.so"
+if os.path.exists(addb_plugin_file):
+    print("Adding addb plugin file to rpm.")
+    addb_plugin_tuple=('%s/bin/addb' % RGW_INSTALL_PATH, addb_plugin_file)
+    data_file_list.append(addb_plugin_tuple)
+
 setup(name='cortx-rgw-integration',
       version=rgw_intg_version,
       url='https://github.com/Seagate/cortx-rgw-integration',
@@ -56,12 +72,5 @@ setup(name='cortx-rgw-integration',
               'rgw_support_bundle = cortx.rgw.support.rgw_support_bundle:main',
               ]
       },
-      data_files =[ ('%s/mini-provisioner' % RGW_INSTALL_PATH, mini_prov_files),
-                    ('%s/bin' % RGW_INSTALL_PATH,
-                    ['src/rgw/setup/rgw_setup', 'src/rgw/support/rgw_support_bundle',]),
-                    ('%s/mini-provisioner' % RGW_INSTALL_PATH,['VERSION']),
-                    ('%s/conf' % RGW_INSTALL_PATH,['conf/cortx_rgw.conf',
-                    logrotate_tmpl_file, 'src/rgw/support/support.yaml',
-                    logrotate_service_tmpl])
-                  ],
+      data_files =data_file_list,
       )
