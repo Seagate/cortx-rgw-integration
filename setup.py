@@ -48,10 +48,10 @@ data_file_list=[ ('%s/mini-provisioner' % RGW_INSTALL_PATH, mini_prov_files),
                   ]
 
 # Add addb plugin to rpm if its generated duirng build process.
-addb_plugin_file="./src/addb_plugin/rgw_addb_plugin.so"
+addb_plugin_file="src/addb_plugin/rgw_addb_plugin.so"
 if os.path.exists(addb_plugin_file):
     print("Adding addb plugin file to rpm.")
-    addb_plugin_tuple=('%s/bin/addb' % RGW_INSTALL_PATH, addb_plugin_file)
+    addb_plugin_tuple=('%s/bin' % RGW_INSTALL_PATH, [addb_plugin_file])
     data_file_list.append(addb_plugin_tuple)
 
 setup(name='cortx-rgw-integration',
