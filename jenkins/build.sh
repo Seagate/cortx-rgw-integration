@@ -27,12 +27,13 @@ MOTR_REPO="$BASE_DIR"/../cortx-motr
 RGW_REPO="$BASE_DIR"/../cortx-rgw
 
 usage() {
-    echo """usage: $PROG [-v version] [-g git_version] [-b build_number][-a]
+    echo "usage: sh $PROG [--v version] [--g git_version] [--b build_number] [--build_addb] [--h]
     where,
-          -v <version_id>   Specify rpm version
-          -g <git_version>  Specify git version hash
-          -b <build_number> Specify build version
-          -a                Generates addb plugin as part of cortx-rgw-integration""" 1>&2;
+        --version <version_id>    Specify rpm version
+        --git_hash <git_version>  Specify git version hash
+        --build_no <build_number> Specify build version
+        --build_addb              Generates addb plugin as part of cortx-rgw-integration
+        --help                    Shows script usage " 1>&2;
     exit 1;
 }
 
@@ -69,25 +70,34 @@ build_addb_plugin() {
     fi
 }
 
+
 # Check for passed in arguments
-while getopts ":g:v:b:a" o; do
-    case "${o}" in
-        v)
-            VER=${OPTARG}
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --version)
+            shift 1
+            VER=$1
             ;;
-        g)
-            GIT_VER=${OPTARG}
+        --git_hash)
+            shift 1
+            GIT_VER=$1
             ;;
-        b)
-            BUILD_NUMBER=${OPTARG}
+        --build_no)
+            shift 1
+            BUILD_NUMBER=$1
             ;;
-        a)
+        --build_addb)
             BUILD_ADDB=true  # if flag is set addb pluign will be generated
             ;;
+        --help)
+            usage
+            ;;
         *)
+            echo "Invalid argument provided : $1"
             usage
             ;;
     esac
+    shift 1
 done
 
 [ -z $"$GIT_VER" ] && GIT_VER="$(git rev-parse --short HEAD)" \
@@ -115,7 +125,8 @@ mkdir -p "$INSTALL_PATH"
 
 # build addb plugin
 if [ "$BUILD_ADDB" == "true" ]; then
-  echo "building addb plugin and adding this binary file as a part of cortx-rgw-integration rpm."
+  echo "building addb plugin and adding addb binary file (rgw_addb_plugin.so)\
+  as a part of cortx-rgw-integration rpm."
   build_addb_plugin
 fi
 
