@@ -23,6 +23,8 @@ BUILD_NUMBER=
 GIT_VER=
 PRODUCT="cortx"
 ADDB_PLUGIN_DIR="$BASE_DIR"/src/addb_plugin
+MOTR_REPO="$BASE_DIR"/../cortx-motr
+RGW_REPO="$BASE_DIR"/../cortx-rgw
 
 usage() {
     echo """usage: $PROG [-v version] [-g git_version] [-b build_number][-a]
@@ -35,17 +37,35 @@ usage() {
 }
 
 build_addb_plugin() {
-    echo "building addb plugin and bundle this binary file as a part of cortx-rgw-integration rpm.";
+    # Check if required packages are installed.
+    required_addb_rpms=("make" "gcc")
+    for pkg in "$required_addb_rpms"
+    do
+      rpm -q "$pkg" > /dev/null || {
+        echo "ERROR::required rpm : $pkg for building addb plugin is not installed !!!"
+        exit 1;
+      }
+    done
 
+    # check if cortx-motr & cortx-rgw repo are available
+    for repo in $RGW_REPO $MOTR_REPO
+    do
+      if [ ! -d "$repo" ]; then
+        echo "ERROR:: Required repository is missing for building addb plugin : $repo !!!"
+        exit 1;
+      fi
+    done
+
+    echo "Generating addb plugin at $ADDB_PLUGIN_DIR"
     cd "$ADDB_PLUGIN_DIR"
     make plugin
     if [ $? -ne 0 ]; then
-      echo "ERROR !!! Failed to build addb plugin !!!";
+      echo "ERROR !!! Failed to build addb plugin !!!"
       cd -
       exit 1;
     else
       cd -
-      echo "Done with building addb plugin !!!";
+      echo "Done with building addb plugin !!!"
     fi
 }
 
@@ -93,17 +113,9 @@ INSTALL_PATH="/opt/seagate/""${PRODUCT}"
 
 mkdir -p "$INSTALL_PATH"
 
+# build addb plugin
 if [ "$BUILD_ADDB" == "true" ]; then
-  echo "Generating addb plugin"
-  required_addb_rpms=("make" "gcc")
-  for pkg in "$required_addb_rpms"
-  do
-    rpm -q "$pkg" > /dev/null || {
-      echo "Required rpm : $pkg for building addb plugin is not installed !!!"
-      exit 1;
-    }
-  done
-
+  echo "building addb plugin and adding this binary file as a part of cortx-rgw-integration rpm."
   build_addb_plugin
 fi
 
