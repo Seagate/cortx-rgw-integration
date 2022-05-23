@@ -187,36 +187,82 @@ class Rgw:
         return 0
 
     @staticmethod
-    def upgrade(conf: MappedConf):
+    def _update_rgw_property(conf: MappedConf, config_index:str, config_key: str, config_val: str):
+        """Add new key in rgw config file."""
+        #TODO 
+        Conf.set(config_index, config_key, config_val)
+        return 0
+
+    @staticmethod
+    def upgrade(conf: MappedConf, changeset_path: str):
         """Perform upgrade steps."""
         Log.info('Upgrade phase started.')
         conf_dir = Rgw._get_rgw_config_dir(conf)
         svc_conf_file = Rgw._get_rgw_config_path(conf)
+
+        # Load changeset file
+        changeset_index="rgw_changeset_index"
+        if not os.path.exists(changeset_path):
+             raise SetupError(errno.EINVAL, f'Changeset file is missing for Upgrade.')
+        Rgw._load_rgw_config(changeset_index, changeset_path)
+
+        # Get all changed keys from changeset file.
+        changeset_all_keys=Conf.get_keys(changeset_index)
+
         # Load deployed rgw config and take a backup.
         Rgw._load_rgw_config(Rgw._conf_idx, const.CONFSTORE_FILE_HANDLER + svc_conf_file)
         deployed_version = conf.get(const.VERSION_KEY)
         conf_bkp_file = os.path.join(conf_dir, const.RGW_CONF_FILE + f'.{deployed_version}')
+
         try:
+            # Cleaning up failure config of previous upgrade.
             if os.path.exists(conf_bkp_file):
-                # Cleaning up failure config of previous upgrade.
-                os.rename(conf_bkp_file, svc_conf_file)
-            else:
-                os.rename(svc_conf_file, conf_bkp_file)
-            # Generate new updated config.
-            tmpl_idx = f'{const.COMPONENT_NAME}_conf_tmpl'  # e.g. rgw_conf_tmpl
-            Rgw._load_rgw_config(tmpl_idx, const.CONFSTORE_FILE_HANDLER + const.CONF_TMPL)
-            Conf.copy(tmpl_idx, Rgw._conf_idx)
-            Conf.save(Rgw._conf_idx)
-            Rgw._create_svc_config(conf)
-            # TODO: separate out user creation and update_hax_endpoint logic from
-            # _update_hax_endpoint_and_create_admin() fun and add update_hax_endpoint
-            # in _create_svc_config and remove below lines 200-201.
-            data_nodes = Rgw._get_data_nodes(conf)
-            Rgw._update_hax_endpoint(conf, data_nodes[0])
+                os.remove(conf_bkp_file)
+
+            # create backup of existing config file
+            os.copy(svc_conf_file, conf_bkp_file)
+
+            # Handle svc key & Gconf key mapping
+
+            for key in changeset_all_keys:
+                if key.stratswith('new'):
+                    # Handle addition of new key
+                    value = Conf.get(changeset_index, key)
+                    # add this key value to svc config file
+                    #Rgw._update_rgw_property(conf, Rgw._conf_idx, key,)
+                elif key.stratswith('changed'):
+                    # Handle updation of existing key
+                    value = Conf.get(changeset_index, key)
+                    old_val, new_val = value.split('|')
+                    #Rgw._update_rgw_property(conf, Rgw._conf_idx, key, new_val)
+                elif key.stratswith('deleted'):
+                    # Handle deletion of existing key
+                    #Rgw._update_rgw_property(conf, Rgw._conf_idx, )   
+                    # Handle deletion of existing key
+
             # Update upgraded release version.
             updated_version = Release(const.RELEASE_INFO_URL).get_release_version()
             Conf.set(Rgw._conf_idx, 'release>version', updated_version)
+
+            # Save updated config file.
             Conf.save(Rgw._conf_idx)
+
+            # delete backup file after upgrade.
+            os.remove(conf_bkp_file)
+
+
+            # Generate new updated config.
+            #tmpl_idx = f'{const.COMPONENT_NAME}_conf_tmpl'  # e.g. rgw_conf_tmpl
+            #Rgw._load_rgw_config(tmpl_idx, const.CONFSTORE_FILE_HANDLER + const.CONF_TMPL)
+            #Conf.copy(tmpl_idx, Rgw._conf_idx)
+            #Conf.save(Rgw._conf_idx)
+            #Rgw._create_svc_config(conf)
+            # TODO: separate out user creation and update_hax_endpoint logic from
+            # _update_hax_endpoint_and_create_admin() fun and add update_hax_endpoint
+            # in _create_svc_config and remove below lines 200-201.
+            #data_nodes = Rgw._get_data_nodes(conf)
+            #Rgw._update_hax_endpoint(conf, data_nodes[0])
+
         except Exception as e:
             raise SetupError(errno.EINVAL, f'Upgrade failed with error: {e}')
 

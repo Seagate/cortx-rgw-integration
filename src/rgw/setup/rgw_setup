@@ -188,11 +188,12 @@ class UpgradeCmd(SetupCmdBase):
     def __init__(self, args: dict):
         """Initialize super class members."""
         super().__init__(args)
+        self._changeset_path = args.changeset
 
     def process(self):
         self._initialize_logging(self._conf)
         Rgw.validate('upgrade')
-        rc = Rgw.upgrade(self._conf)
+        rc = Rgw.upgrade(self._conf, self._changeset_path)
         return rc
 
 
