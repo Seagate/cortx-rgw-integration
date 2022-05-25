@@ -1,7 +1,7 @@
 /*
  * Ceph - scalable distributed file system
  *
- * RGW ADDB map between fuction names to ADDB indecies.
+ * RGW ADDB map between fuction names to ADDB indices.
  *
  * Copyright (C) 2022 Seagate Technology LLC and/or its Affiliates
  *

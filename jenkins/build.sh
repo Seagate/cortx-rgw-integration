@@ -27,13 +27,13 @@ MOTR_REPO="$BASE_DIR"/../cortx-motr
 RGW_REPO="$BASE_DIR"/../cortx-rgw
 
 usage() {
-    echo "usage: sh $PROG [--v version] [--g git_version] [--b build_number] [--build_addb] [--h]
+    echo "usage: sh $PROG [--v|--version <version-id>] [--g|git_hash <git_version>] [--b|--build_no <build_number>] [--addb|--build_addb] [--h|--help]
     where,
-        --version <version_id>    Specify rpm version
-        --git_hash <git_version>  Specify git version hash
-        --build_no <build_number> Specify build version
-        --build_addb              Generates addb plugin as part of cortx-rgw-integration
-        --help                    Shows script usage " 1>&2;
+        --v|--version <version_id>    Specify rpm version
+        --g|--git_hash <git_version>  Specify git version hash
+        --b|--build_no <build_number> Specify build version
+        --addb|--build_addb           Generates addb plugin as part of cortx-rgw-integration
+        --h|--help                    Shows script usage " 1>&2;
     exit 1;
 }
 
@@ -74,22 +74,22 @@ build_addb_plugin() {
 # Check for passed in arguments
 while [ $# -gt 0 ]; do
     case "$1" in
-        --version)
+        --v|--version)
             shift 1
             VER=$1
             ;;
-        --git_hash)
+        --g|--git_hash)
             shift 1
             GIT_VER=$1
             ;;
-        --build_no)
+        --b|--build_no)
             shift 1
             BUILD_NUMBER=$1
             ;;
-        --build_addb)
+        --addb|--build_addb)
             BUILD_ADDB=true  # if flag is set addb pluign will be generated
             ;;
-        --help)
+        --h|--help)
             usage
             ;;
         *)
@@ -125,8 +125,8 @@ mkdir -p "$INSTALL_PATH"
 
 # build addb plugin
 if [ "$BUILD_ADDB" == "true" ]; then
-  echo "building addb plugin and adding addb binary file (rgw_addb_plugin.so)\
-  as a part of cortx-rgw-integration rpm."
+  echo "Building addb plugin(rgw_addb_plugin.so) for RGW and bundling same
+in cortx-rgw-integration rpm"
   build_addb_plugin
 fi
 
