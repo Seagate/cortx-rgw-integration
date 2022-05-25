@@ -70,6 +70,16 @@ build_addb_plugin() {
     fi
 }
 
+cleanup_files(){
+  echo "Cleaning up temporary files if any."
+
+  echo "Cleaning addb generated files if present."
+  rm -f "$ADDB_PLUGIN_DIR/rgw_addb_map.o"
+  rm -f "$ADDB_PLUGIN_DIR/rgw_addb_plugin.o"
+  rm -f "$ADDB_PLUGIN_DIR/rgw_addb_plugin.so"
+
+  echo "Cleanup successful !!!"
+}
 
 # Check for passed in arguments
 while [ $# -gt 0 ]; do
@@ -141,7 +151,9 @@ requirements=$(sed -z 's/\n/,/g' requirements.txt | sed -e 's/,$//')
 
 if [ $? -ne 0 ]; then
   echo "ERROR !!! cortx-rgw-integration rpm build failed !!!"
+  cleanup_files
   exit 1
 else
+  cleanup_files
   echo "cortx-rgw-integration rpm build successful !!!"
 fi
