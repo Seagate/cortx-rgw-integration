@@ -16,10 +16,11 @@
 
 import os
 import sys
-import shlex
+
 from cortx.utils.log import Log
 from cortx.rgw.setup.error import SetupError
 from cortx.utils.conf_store import MappedConf
+from cortx.rgw.const import INSTALL_PATH, COMPONENT_NAME
 
 
 class RgwService:
@@ -30,12 +31,10 @@ class RgwService:
         """Start rgw service independently."""
         try:
             os.environ['M0_TRACE_DIR'] = motr_trace_dir
-            cmd = "/usr/bin/radosgw"
-            args = f"-f --name client.rgw-{index} -c {config_file} --no-mon-config &> {log_file}"
-            args = shlex.split(args)
+            cmd = os.path.join(INSTALL_PATH, COMPONENT_NAME, 'bin/radosgw_start')
             sys.stdout.flush()
             sys.stderr.flush()
-            os.execl(cmd, cmd, *args)  # nosec
+            os.execl(cmd, cmd, index, config_file, log_file)
         except OSError as e:
             Log.error(f"Failed to start radosgw service:{e}")
             raise SetupError(e.errno, "Failed to start radosgw service. %s", e)

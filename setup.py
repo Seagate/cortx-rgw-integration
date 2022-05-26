@@ -40,7 +40,8 @@ logrotate_service_tmpl = 'src/rgw/setup/templates/logrotate.service.tmpl'
 
 data_file_list=[ ('%s/mini-provisioner' % RGW_INSTALL_PATH, mini_prov_files),
                     ('%s/bin' % RGW_INSTALL_PATH,
-                    ['src/rgw/setup/rgw_setup', 'src/rgw/support/rgw_support_bundle',]),
+                    ['src/rgw/setup/rgw_setup', 'src/rgw/support/rgw_support_bundle',
+                     'src/rgw/setup/radosgw_start']),
                     ('%s/mini-provisioner' % RGW_INSTALL_PATH,['VERSION']),
                     ('%s/conf' % RGW_INSTALL_PATH,['conf/cortx_rgw.conf',
                     logrotate_tmpl_file, 'src/rgw/support/support.yaml',
