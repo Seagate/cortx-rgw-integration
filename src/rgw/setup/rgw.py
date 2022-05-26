@@ -188,10 +188,19 @@ class Rgw:
 
     @staticmethod
     def _update_rgw_property(conf: MappedConf, config_index:str, config_key: str, config_val: str):
-        """Add new key in rgw config file."""
-        #TODO 
-        Conf.set(config_index, config_key, config_val)
-        return 0
+        """Add/Update key in rgw config file."""
+        for rgw_config_key, confstore_key in const.SVC_CONFIG_DICT.items():
+            if confstore_key == config_key:
+                Conf.set(config_index, f'{const.CLIENT_SECTION}>{rgw_config_key}', config_val)
+        Conf.save(config_index)
+
+    @staticmethod
+    def _remove_rgw_property(conf: MappedConf, config_index:str, config_key: str):
+        """Remove specific key from rgw config file."""
+        for rgw_config_key, confstore_key in const.SVC_CONFIG_DICT.items():
+            if confstore_key == config_key:
+                Conf.delete(config_index, f'{const.CLIENT_SECTION}>{rgw_config_key}')
+        Conf.save(config_index)
 
     @staticmethod
     def upgrade(conf: MappedConf, changeset_path: str):
@@ -223,22 +232,22 @@ class Rgw:
             os.copy(svc_conf_file, conf_bkp_file)
 
             # Handle svc key & Gconf key mapping
-
             for key in changeset_all_keys:
-                if key.stratswith('new'):
+                if key.stratswith('new') :
                     # Handle addition of new key
                     value = Conf.get(changeset_index, key)
-                    # add this key value to svc config file
-                    #Rgw._update_rgw_property(conf, Rgw._conf_idx, key,)
+                    key =key.split('new>')[1]
+                    Rgw._update_rgw_property(conf, Rgw._conf_idx, key, new_val)
                 elif key.stratswith('changed'):
                     # Handle updation of existing key
                     value = Conf.get(changeset_index, key)
+                    key =key.split('changed>')[1]
                     old_val, new_val = value.split('|')
-                    #Rgw._update_rgw_property(conf, Rgw._conf_idx, key, new_val)
+                    Rgw._update_rgw_property(conf, Rgw._conf_idx, key, new_val)
                 elif key.stratswith('deleted'):
                     # Handle deletion of existing key
-                    #Rgw._update_rgw_property(conf, Rgw._conf_idx, )   
-                    # Handle deletion of existing key
+                    key =key.split('deleted>')[1]
+                    Rgw._remove_rgw_property(conf, Rgw._conf_idx, key)
 
             # Update upgraded release version.
             updated_version = Release(const.RELEASE_INFO_URL).get_release_version()
@@ -249,19 +258,6 @@ class Rgw:
 
             # delete backup file after upgrade.
             os.remove(conf_bkp_file)
-
-
-            # Generate new updated config.
-            #tmpl_idx = f'{const.COMPONENT_NAME}_conf_tmpl'  # e.g. rgw_conf_tmpl
-            #Rgw._load_rgw_config(tmpl_idx, const.CONFSTORE_FILE_HANDLER + const.CONF_TMPL)
-            #Conf.copy(tmpl_idx, Rgw._conf_idx)
-            #Conf.save(Rgw._conf_idx)
-            #Rgw._create_svc_config(conf)
-            # TODO: separate out user creation and update_hax_endpoint logic from
-            # _update_hax_endpoint_and_create_admin() fun and add update_hax_endpoint
-            # in _create_svc_config and remove below lines 200-201.
-            #data_nodes = Rgw._get_data_nodes(conf)
-            #Rgw._update_hax_endpoint(conf, data_nodes[0])
 
         except Exception as e:
             raise SetupError(errno.EINVAL, f'Upgrade failed with error: {e}')
