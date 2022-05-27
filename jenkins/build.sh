@@ -74,7 +74,6 @@ cleanup_files(){
   echo "Cleaning up temporary files if any."
 
   echo "Cleaning addb generated files if present."
-  rm -f "$ADDB_PLUGIN_DIR/rgw_addb_map.o"
   rm -f "$ADDB_PLUGIN_DIR/rgw_addb_plugin.o"
   rm -f "$ADDB_PLUGIN_DIR/rgw_addb_plugin.so"
 

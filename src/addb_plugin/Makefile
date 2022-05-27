@@ -1,4 +1,5 @@
 MOTR_SRC_DIR="../../../cortx-motr"
+RGW_SRC_DIR="../../../cortx-rgw/src/rgw"
 
 .PHONY: all plugin clean help
 
@@ -20,13 +21,13 @@ all help:
 	@printf "\n"
 
 plugin: rgw_addb_plugin.so
-	@printf "RGW ADDB pluging built successfully\n"
+	@printf "RGW ADDB plugin built successfully\n"
 
 %.o: %.c
-	gcc -I${MOTR_SRC_DIR} -DM0_INTERNAL= -DM0_EXTERNAL=extern -fno-common -Wall -Wno-attributes -Werror -fPIC $< -c
+	gcc -I${MOTR_SRC_DIR} -I${RGW_SRC_DIR} -DM0_INTERNAL= -DM0_EXTERNAL=extern -fno-common -Wall -Wno-attributes -Werror -fPIC $< -c
 
-rgw_addb_plugin.so: rgw_addb_plugin.o rgw_addb_map.o
+rgw_addb_plugin.so: rgw_addb_plugin.o
 	gcc -shared -o $@ $^ 
 
 clean:
-	rm -rf rgw_addb_plugin.so rgw_addb_plugin.o rgw_addb_map.o
+	rm -rf rgw_addb_plugin.so rgw_addb_plugin.o
