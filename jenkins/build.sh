@@ -27,13 +27,13 @@ MOTR_REPO="$BASE_DIR"/../cortx-motr
 RGW_REPO="$BASE_DIR"/../cortx-rgw
 
 usage() {
-    echo "usage: sh $PROG [--v|--version <version-id>] [--g|git_hash <git_version>] [--b|--build_no <build_number>] [--addb|--build_addb] [--h|--help]
+    echo "usage: sh $PROG [-v|-version <version-id>] [-g|-git_hash <git_version>] [-b|-build_no <build_number>] [-addb|-addb_build] [-h|-help]
     where,
-        --v|--version <version_id>    Specify rpm version
-        --g|--git_hash <git_version>  Specify git version hash
-        --b|--build_no <build_number> Specify build version
-        --addb|--build_addb           Generates addb plugin as part of cortx-rgw-integration
-        --h|--help                    Shows script usage " 1>&2;
+        -v|-version <version_id>    Specify rpm version
+        -g|-git_hash <git_version>  Specify git version hash
+        -b|-build_no <build_number> Specify build version
+        -addb|-addb_build           Generates addb plugin as part of cortx-rgw-integration
+        -h|-help                    Shows script usage " 1>&2;
     exit 1;
 }
 
@@ -84,22 +84,22 @@ cleanup_files(){
 # Check for passed in arguments
 while [ $# -gt 0 ]; do
     case "$1" in
-        --v|--version)
+        -v|-version)
             shift 1
             VER=$1
             ;;
-        --g|--git_hash)
+        -g|-git_hash)
             shift 1
             GIT_VER=$1
             ;;
-        --b|--build_no)
+        -b|-build_no)
             shift 1
             BUILD_NUMBER=$1
             ;;
-        --addb|--build_addb)
+        -addb|-addb_build)
             BUILD_ADDB=true  # if flag is set addb pluign will be generated
             ;;
-        --h|--help)
+        -h|-help)
             usage
             ;;
         *)
