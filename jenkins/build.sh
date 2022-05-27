@@ -18,32 +18,95 @@ set -e
 
 PROG=$(basename "$0")
 SCRIPT_DIR=$(realpath $(dirname "$0"))
-BASE_DIR=$SCRIPT_DIR/..
+BASE_DIR="$SCRIPT_DIR"/..
 BUILD_NUMBER=
 GIT_VER=
 PRODUCT="cortx"
+ADDB_PLUGIN_DIR="$BASE_DIR"/src/addb_plugin
+MOTR_REPO="$BASE_DIR"/../cortx-motr
+RGW_REPO="$BASE_DIR"/../cortx-rgw
 
 usage() {
-    echo """usage: $PROG [-v version] [-g git_version] [-b build_number]""" 1>&2;
+    echo "usage: sh $PROG [-v|-version <version-id>] [-g|-git_hash <git_version>] [-b|-build_no <build_number>] [-addb|-addb_build] [-h|-help]
+    where,
+        -v|-version <version_id>    Specify rpm version
+        -g|-git_hash <git_version>  Specify git version hash
+        -b|-build_no <build_number> Specify build version
+        -addb|-addb_build           Generates addb plugin as part of cortx-rgw-integration
+        -h|-help                    Shows script usage " 1>&2;
     exit 1;
 }
 
+build_addb_plugin() {
+    # Check if required packages are installed.
+    required_addb_rpms=("make" "gcc")
+    for pkg in "$required_addb_rpms"
+    do
+      rpm -q "$pkg" > /dev/null || {
+        echo "ERROR::required rpm : $pkg for building addb plugin is not installed !!!"
+        exit 1;
+      }
+    done
+
+    # check if cortx-motr & cortx-rgw repo are available
+    for repo in $RGW_REPO $MOTR_REPO
+    do
+      if [ ! -d "$repo" ]; then
+        echo "ERROR:: Required repository is missing for building addb plugin : $repo !!!"
+        exit 1;
+      fi
+    done
+
+    echo "Generating addb plugin at $ADDB_PLUGIN_DIR"
+    cd "$ADDB_PLUGIN_DIR"
+    make plugin
+    if [ $? -ne 0 ]; then
+      echo "ERROR !!! Failed to build addb plugin !!!"
+      cd -
+      exit 1;
+    else
+      cd -
+      echo "Done with building addb plugin !!!"
+    fi
+}
+
+cleanup_files(){
+  echo "Cleaning up temporary files if any."
+
+  echo "Cleaning addb generated files if present."
+  rm -f "$ADDB_PLUGIN_DIR/rgw_addb_plugin.o"
+  rm -f "$ADDB_PLUGIN_DIR/rgw_addb_plugin.so"
+
+  echo "Cleanup successful !!!"
+}
+
 # Check for passed in arguments
-while getopts ":g:v:b:" o; do
-    case "${o}" in
-        v)
-            VER=${OPTARG}
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -v|-version)
+            shift 1
+            VER=$1
             ;;
-        g)
-            GIT_VER=${OPTARG}
+        -g|-git_hash)
+            shift 1
+            GIT_VER=$1
             ;;
-        b)
-            BUILD_NUMBER=${OPTARG}
+        -b|-build_no)
+            shift 1
+            BUILD_NUMBER=$1
+            ;;
+        -addb|-addb_build)
+            BUILD_ADDB=true  # if flag is set addb pluign will be generated
+            ;;
+        -h|-help)
+            usage
             ;;
         *)
+            echo "Invalid argument provided : $1"
             usage
             ;;
     esac
+    shift 1
 done
 
 [ -z $"$GIT_VER" ] && GIT_VER="$(git rev-parse --short HEAD)" \
@@ -51,6 +114,7 @@ done
 [ -z "$VER" ] && VER="2.0.0"
 [ -z "$BUILD_NUMBER" ] && BUILD_NUMBER=1
 REL="${BUILD_NUMBER}_${GIT_VER}"
+[ -z "$BUILD_ADDB" ] && BUILD_ADDB="false"
 
 rpm -q rpm-build > /dev/null || {
     echo "error: rpm-build is not installed. Install rpm-build and run $PROG"
@@ -68,6 +132,13 @@ INSTALL_PATH="/opt/seagate/""${PRODUCT}"
 
 mkdir -p "$INSTALL_PATH"
 
+# build addb plugin
+if [ "$BUILD_ADDB" == "true" ]; then
+  echo "Building addb plugin(rgw_addb_plugin.so) for RGW and bundling same
+in cortx-rgw-integration rpm"
+  build_addb_plugin
+fi
+
 echo "Creating cortx-rgw-integration RPM with version $VER, release $REL"
 
 # Building rpm using setuptool utility
@@ -75,12 +146,15 @@ cd "$BASE_DIR"
 
 requirements=$(sed -z 's/\n/,/g' requirements.txt | sed -e 's/,$//')
 
+echo "%_unpackaged_files_terminate_build 0" >> ~/.rpmmacros
+
 /usr/bin/python3.6 setup.py bdist_rpm --release="$REL" --requires "$requirements"
 
 if [ $? -ne 0 ]; then
   echo "ERROR !!! cortx-rgw-integration rpm build failed !!!"
+  cleanup_files
   exit 1
 else
+  cleanup_files
   echo "cortx-rgw-integration rpm build successful !!!"
 fi
-
