@@ -106,6 +106,7 @@ SVC_DATA_PATH_KEY = f'{COMPONENT_NAME} data path'
 SVC_DATA_PATH_DEFAULT_VALUE = '/var/lib/ceph/radosgw/' # e.g. /var/lib/ceph/radosgw/<cluster-id>
 
 # RGW config keys (cortx_rgw.conf).
+CLIENT_SECTION='client'
 ADMIN_SECTION = 'client.radosgw-admin'
 SVC_SECTION = 'client.rgw-%s'
 MOTR_ADMIN_FID_KEY = f'{ADMIN_SECTION}>{ADMIN_PARAMETERS["MOTR_ADMIN_FID"]}'
