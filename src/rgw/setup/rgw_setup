@@ -46,6 +46,7 @@ class SetupCmdBase(Cmd):
         parser.add_argument('--services', default=COMPONENT_SVC_NAME, help='services')
         parser.add_argument('-c', '--config', default='config_url', help='config')
         parser.add_argument('--index', default='1', help='service sequence index')
+        parser.add_argument('--changeset', default='None', help='changeset file parameter for upgrade')
 
     def _initialize_logging(self, conf: MappedConf):
         """Initialize Logging."""

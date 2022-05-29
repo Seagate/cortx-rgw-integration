@@ -15,6 +15,7 @@
 # please email opensource@seagate.com or cortx-questions@seagate.com.
 
 import os
+import shutil
 import time
 import errno
 import json
@@ -187,15 +188,15 @@ class Rgw:
         return 0
 
     @staticmethod
-    def _update_rgw_property(conf: MappedConf, config_index:str, config_key: str, config_val: str):
-        """Add/Update key in rgw config file."""
+    def _update_rgw_config(conf: MappedConf, config_index:str, config_key: str, config_val: str):
+        """Update RGW Config based on changed Gconf values."""
         for rgw_config_key, confstore_key in const.SVC_CONFIG_DICT.items():
             if confstore_key == config_key:
                 Conf.set(config_index, f'{const.CLIENT_SECTION}>{rgw_config_key}', config_val)
         Conf.save(config_index)
 
     @staticmethod
-    def _remove_rgw_property(conf: MappedConf, config_index:str, config_key: str):
+    def _remove_rgw_config(conf: MappedConf, config_index:str, config_key: str):
         """Remove specific key from rgw config file."""
         for rgw_config_key, confstore_key in const.SVC_CONFIG_DICT.items():
             if confstore_key == config_key:
@@ -211,8 +212,6 @@ class Rgw:
 
         # Load changeset file
         changeset_index="rgw_changeset_index"
-        if not os.path.exists(changeset_path):
-             raise SetupError(errno.EINVAL, f'Changeset file is missing for Upgrade.')
         Rgw._load_rgw_config(changeset_index, changeset_path)
 
         # Get all changed keys from changeset file.
@@ -229,25 +228,26 @@ class Rgw:
                 os.remove(conf_bkp_file)
 
             # create backup of existing config file
-            os.copy(svc_conf_file, conf_bkp_file)
+            shutil.copy(svc_conf_file, conf_bkp_file)
 
             # Handle svc key & Gconf key mapping
             for key in changeset_all_keys:
-                if key.stratswith('new') :
+                if key.startswith('new') :
                     # Handle addition of new key
-                    value = Conf.get(changeset_index, key)
+                    # This will work if corresponding rgw config mapping is preset in const.py for this new key.
+                    new_val = Conf.get(changeset_index, key)
                     key =key.split('new>')[1]
-                    Rgw._update_rgw_property(conf, Rgw._conf_idx, key, new_val)
-                elif key.stratswith('changed'):
+                    Rgw._update_rgw_config(conf, Rgw._conf_idx, key, new_val)
+                elif key.startswith('changed'):
                     # Handle updation of existing key
                     value = Conf.get(changeset_index, key)
                     key =key.split('changed>')[1]
-                    old_val, new_val = value.split('|')
-                    Rgw._update_rgw_property(conf, Rgw._conf_idx, key, new_val)
-                elif key.stratswith('deleted'):
+                    new_val = value.split('|')[1]
+                    Rgw._update_rgw_config(conf, Rgw._conf_idx, key, new_val)
+                elif key.startswith('deleted'):
                     # Handle deletion of existing key
                     key =key.split('deleted>')[1]
-                    Rgw._remove_rgw_property(conf, Rgw._conf_idx, key)
+                    Rgw._remove_rgw_config(conf, Rgw._conf_idx, key)
 
             # Update upgraded release version.
             updated_version = Release(const.RELEASE_INFO_URL).get_release_version()
