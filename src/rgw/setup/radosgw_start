@@ -3,6 +3,10 @@
 INDEX=$1
 CONFIG_FILE=$2
 LOG_FILE=$3
+rgw_crash_dir=$4
+
+echo "Enable rgw core file generation at $rgw_crash_dir"
+cd $rgw_crash_dir
 
 set -o pipefail;
 /usr/bin/radosgw -f --name client.rgw-$INDEX -c $CONFIG_FILE --no-mon-config 2>1 \

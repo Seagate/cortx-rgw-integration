@@ -148,11 +148,14 @@ class Rgw:
         addb_dir = os.path.join(log_path, f'addb_files-{motr_fid_value}')
         os.makedirs(motr_trace_dir, exist_ok=True)
         os.makedirs(addb_dir, exist_ok=True)
+        # Create rgw crash file directory
+        rgw_crash_dir = os.path.join(log_path, 'rgw_crash')
+        os.makedirs(rgw_crash_dir, exist_ok=True)
 
         Log.info('Starting radosgw service.')
         log_file = os.path.join(log_path, f'{const.COMPONENT_NAME}_startup.log')
 
-        RgwService.start(conf, config_file, log_file, motr_trace_dir, index)
+        RgwService.start(conf, config_file, log_file, motr_trace_dir, rgw_crash_dir, index)
         Log.info("Started radosgw service.")
 
         return 0
