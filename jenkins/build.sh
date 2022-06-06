@@ -148,6 +148,7 @@ cd "$BASE_DIR"
 requirements=$(sed -z 's/\n/,/g' requirements.txt | sed -e 's/,$//')
 
 echo "%_unpackaged_files_terminate_build 0" >> ~/.rpmmacros
+echo "%_binaries_in_noarch_packages_terminate_build 0" >> ~/.rpmmacros
 
 /usr/bin/python3.6 setup.py bdist_rpm --release="$REL" --requires "$requirements"
 
