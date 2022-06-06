@@ -46,7 +46,6 @@ LOGROTATE_CONF = f'{LOGROTATE_DIR}/radosgw'
 FREQUENCY='hourly'
 CRON_DIR = f'/etc/cron.{FREQUENCY}'
 CRON_LOGROTATE = f'{CRON_DIR}/logrotate'
-CRASHDUMP_DIR = '/var/lib/ceph/crash'
 REQUIRED_RPMS = ['cortx-hare', 'cortx-py-utils', 'ceph-radosgw']
 ADMIN_PARAMETERS = {'MOTR_ADMIN_FID':'motr admin fid', 'MOTR_ADMIN_ENDPOINT':'motr admin endpoint', 'RGW_FRONTENDS': 'rgw frontends'}
 
