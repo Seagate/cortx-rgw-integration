@@ -31,6 +31,7 @@ CONSUL_LOCK_KEY = f'component>{COMPONENT_NAME}>volatile>{COMPONENT_NAME}_lock' #
 CLUSTER_ID_KEY = 'cluster>id'
 CONFSTORE_FILE_HANDLER = 'ini://' # confstore uses 'ini' file handler to open any config file.e.g.ini://<filepath>
 
+CHANGESET_URL = 'yaml:///etc/cortx/changeset.conf'
 CONF_TMPL = f'{RGW_INSTALL_PATH}/conf/cortx_{COMPONENT_NAME}.conf'
 LOGROTATE_TMPL = f'{RGW_INSTALL_PATH}/conf/{COMPONENT_NAME}.logrotate.tmpl'
 CRON_LOGROTATE_TMPL = f'{RGW_INSTALL_PATH}/conf/logrotate.service.tmpl'

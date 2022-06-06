@@ -1,0 +1,16 @@
+#!/bin/bash
+
+INDEX=$1
+CONFIG_FILE=$2
+LOG_FILE=$3
+RGW_CWD=$4
+
+[ -z "$RGW_CWD" ] && RGW_CWD="$PWD"
+
+echo "Change RGW CWD to dir $RGW_CWD, to retain core files in there"
+cd $RGW_CWD
+
+set -o pipefail;
+/usr/bin/radosgw -f --name client.rgw-$INDEX -c $CONFIG_FILE --no-mon-config 2>1 \
+ | gawk '{ print strftime("[%Y-%m-%d %H:%M:%S]"), $0 }'  | tee $LOG_FILE
+exit $?

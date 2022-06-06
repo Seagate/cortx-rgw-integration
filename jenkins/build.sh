@@ -125,6 +125,7 @@ rpm -q rpm-build > /dev/null || {
 echo $VER > "$BASE_DIR"/VERSION
 /bin/chmod +rx "$BASE_DIR"/VERSION
 /bin/chmod +x "$BASE_DIR"/src/rgw/setup/rgw_setup
+/bin/chmod +x "$BASE_DIR"/src/rgw/setup/radosgw_start
 /bin/chmod +x "$BASE_DIR"/src/rgw/setup/rgw_service.py
 /bin/chmod +x "$BASE_DIR"/src/rgw/support/rgw_support_bundle
 
@@ -147,6 +148,7 @@ cd "$BASE_DIR"
 requirements=$(sed -z 's/\n/,/g' requirements.txt | sed -e 's/,$//')
 
 echo "%_unpackaged_files_terminate_build 0" >> ~/.rpmmacros
+echo "%_binaries_in_noarch_packages_terminate_build 0" >> ~/.rpmmacros
 
 /usr/bin/python3.6 setup.py bdist_rpm --release="$REL" --requires "$requirements"
 
