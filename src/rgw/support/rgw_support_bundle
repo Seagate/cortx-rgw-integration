@@ -105,7 +105,8 @@ class RGWSupportBundle:
                 tmp_motr_trace_dir = os.path.join(RGWSupportBundle._tmp_src, 'motr_trace_files')
                 os.makedirs(tmp_motr_trace_dir, exist_ok=True)
                 outfile = os.path.join(tmp_motr_trace_dir, file)
-                shutil.copyfile(infile, outfile)
+                # Convert m0trace file to human readable yaml format
+                SimpleProcess(f'm0trace -i {infile} -Y -o {outfile}.yaml').run()
 
         if stacktrace:
             # TODO: CORTX-32151 Generate live stack trace for rgw process
