@@ -704,7 +704,7 @@ class Rgw:
         data_pod_hostnames = []
         Log.info('collecting all data pod hostnames from GConf..')
         node_identify_keys = Rgw._search_cortx_conf(conf, const.NODE_IDENTIFIER, const.DATA_NODE_IDENTIFIER)
-        node_machine_ids = map(lambda x: x[0].split('>')[1], node_identify_keys)
+        node_machine_ids = list(map(lambda x: x.split('>')[1], node_identify_keys))
         for machine_id in node_machine_ids:
             data_pod_hostnames.append(Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % machine_id))
 
