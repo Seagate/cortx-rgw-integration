@@ -550,6 +550,20 @@ class Rgw:
         return val
 
     @staticmethod
+    def _search_cortx_conf(conf: MappedConf, parent_key: str, search_key : str, search_value = None):
+        """
+        Search specific key with parent level key, actual search key and optional search value.
+
+        It will return list of keys.
+        """
+        if search_value is None:
+           values = conf.search(parent_key, search_key)
+        else:
+           values = conf.search(parent_key, search_key, search_value)
+
+        return values
+
+    @staticmethod
     def _get_svc_name(conf: MappedConf):
         """Read service name from cluster.conf"""
         svc_name = None
@@ -691,18 +705,15 @@ class Rgw:
 
     @staticmethod
     def _get_data_nodes(conf: MappedConf):
-        """Return all data nodes hostname"""
-        storage_set = Rgw._get_cortx_conf(conf, const.STORAGE_SET % Rgw._machine_id)
-        storage_set_count = Rgw._get_cortx_conf(conf, const.STORAGE_SET_COUNT)
-        machine_ids = []
-        for storage_set_index in range(0, storage_set_count):
-            if Rgw._get_cortx_conf(conf,
-                const.STORAGE_SET_NAME % storage_set_index) == storage_set:
-                machine_ids = Rgw._get_cortx_conf(
-                    conf, const.STORAGE_SET_NODE % storage_set_index)
-        data_pod_hostnames = [Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % machine_id)
-            for machine_id in machine_ids if
-            Rgw._get_cortx_conf(conf, const.NODE_TYPE % machine_id) == const.DATA_NODE]
+        """Return all data nodes hostname from GConf"""
+        data_pod_hostnames = []
+        Log.info('collecting all data pod hostnames from GConf..')
+        node_identify_keys = Rgw._search_cortx_conf(conf, const.DATA_NODE_IDENTIFIER1, const.DATA_NODE_IDENTIFIER2)
+        node_machine_ids = map(lambda x: x[0].split('>')[1], node_identify_keys)
+        for machine_id in node_machine_ids:
+            data_pod_hostnames.append(Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % machine_id))
+
+        Log.info(f'collected all data pod hostnames from GConf : {data_pod_hostnames}')
         return data_pod_hostnames
 
     @staticmethod

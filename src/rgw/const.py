@@ -69,7 +69,8 @@ AUTH_ADMIN_KEY = f'cortx>{COMPONENT_NAME}>auth_admin'
 AUTH_SECRET_KEY = f'cortx>{COMPONENT_NAME}>auth_secret'
 VERSION_KEY = 'cortx>common>release>version'
 CLUSTER_ID_KEY = 'cluster>id'
-DATA_NODE = 'data_node'
+DATA_NODE_IDENTIFIER1 = 'node'
+DATA_NODE_IDENTIFIER2 = 'num_cvg'
 
 # SSL certificate parameters
 SSL_CERT_CONFIGS = {"country" : "IN", "state" : "MH", "locality" : "Pune",
