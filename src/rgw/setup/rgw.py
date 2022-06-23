@@ -550,18 +550,13 @@ class Rgw:
         return val
 
     @staticmethod
-    def _search_cortx_conf(conf: MappedConf, parent_key: str, search_key : str, search_value = None):
+    def _search_cortx_conf(conf: MappedConf, parent_key: str, search_key : str, search_value : str = None):
         """
         Search specific key with parent level key, actual search key and optional search value.
 
         It will return list of keys.
         """
-        if search_value is None:
-           values = conf.search(parent_key, search_key)
-        else:
-           values = conf.search(parent_key, search_key, search_value)
-
-        return values
+        return conf.search(parent_key, search_key, search_value)
 
     @staticmethod
     def _get_svc_name(conf: MappedConf):
@@ -708,7 +703,7 @@ class Rgw:
         """Return all data nodes hostname from GConf"""
         data_pod_hostnames = []
         Log.info('collecting all data pod hostnames from GConf..')
-        node_identify_keys = Rgw._search_cortx_conf(conf, const.DATA_NODE_IDENTIFIER1, const.DATA_NODE_IDENTIFIER2)
+        node_identify_keys = Rgw._search_cortx_conf(conf, const.NODE_IDENTIFIER, const.DATA_NODE_IDENTIFIER)
         node_machine_ids = map(lambda x: x[0].split('>')[1], node_identify_keys)
         for machine_id in node_machine_ids:
             data_pod_hostnames.append(Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % machine_id))
