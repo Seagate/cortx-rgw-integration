@@ -23,7 +23,6 @@ import glob
 import shutil
 import tarfile
 import errno
-import subprocess
 import argparse
 
 from cortx.utils.log import Log
@@ -107,10 +106,25 @@ class RGWSupportBundle:
                 outfile = os.path.join(tmp_motr_trace_dir, file)
                 # Convert m0trace file to human readable yaml format
                 SimpleProcess(f'm0trace -i {infile} -Y -o {outfile}.yaml').run()
+                SimpleProcess(f'xz {outfile}.yaml').run() # compress the output file
 
         if stacktrace:
-            # TODO: CORTX-32151 Generate live stack trace for rgw process
-            pass
+            from subprocess import check_output
+            process = '/usr/bin/radosgw'
+            pid = check_output(['pidof', process]).decode('utf-8').split('\n')[0]
+            stacktrace_file = os.path.join(RGWSupportBundle._tmp_src, 'rgw_live_callstack.log')
+            # Collecting running RGW process stack trace using GDB
+            cmd = """gdb --batch --quiet -ex "thread apply all bt full" """\
+                f"""-ex "quit" {process} {pid}"""
+            Log.info(f"generating stack trace for {process} with pid {pid}")
+            output, err, _ = SimpleProcess(cmd).run()
+            with open(stacktrace_file, 'wb') as fd:
+                if output:
+                    fd.write(output)
+                else:
+                    msg = f"Failed to generate Stacktrace! {err}"
+                    Log.info(msg)
+                    fd.write(msg.encode())
 
         # copy ceph crash-dump files
         if coredumps:
