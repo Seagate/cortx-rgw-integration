@@ -702,13 +702,13 @@ class Rgw:
     def _get_data_nodes(conf: MappedConf):
         """Return all data nodes hostname from GConf"""
         data_pod_hostnames = []
-        Log.info('collecting all data pod hostnames from GConf..')
+        Log.debug('collecting all data pod hostnames from GConf..')
         node_identify_keys = Rgw._search_cortx_conf(conf, const.NODE_IDENTIFIER, const.DATA_NODE_IDENTIFIER)
         node_machine_ids = list(map(lambda x: x.split('>')[1], node_identify_keys))
         for machine_id in node_machine_ids:
             data_pod_hostnames.append(Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % machine_id))
 
-        Log.info(f'collected all data pod hostnames from GConf : {data_pod_hostnames}')
+        Log.debug(f'collected all data pod hostnames from GConf : {data_pod_hostnames}')
         return data_pod_hostnames
 
     @staticmethod
