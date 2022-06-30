@@ -394,23 +394,33 @@ class Rgw:
             {access_key} --secret {password} --display-name="{user_name}" \
             --caps="users=*;metadata=*;usage=*;zone=*;info=*;user=*;roles=*;user-policy=*;buckets=*" \
             -c {rgw_config} -n client.radosgw-admin --no-mon-config'
-        _, err, rc, = SimpleProcess(create_usr_cmd).run(timeout=const.ADMIN_CREATION_TIMEOUT)
-        if rc == 0:
-            Log.info(f'RGW admin user {user_name} is created.')
-            return 0
-        elif rc != 0:
-            err = err.decode(const.UTF_ENCODING) if isinstance(err, bytes) else err
-            if err_str in err:
-                Log.info(f'RGW admin user {user_name} is already created,'
-                    ' Skipping user creation.')
+
+        # Adding retry logic for user creation with given timeout value.
+        retry_count = 0
+        while(retry_count <= const.USER_CREATION_MAX_RETRY_COUNT):
+            _, err, rc, = SimpleProcess(create_usr_cmd).run(timeout=const.ADMIN_CREATION_TIMEOUT)
+            if rc == 0:
+                Log.info(f'RGW admin user {user_name} is created.')
                 return 0
-            elif timeout_str in err:
-                Log.info('RGW user creation process exceeding timeout value - '
-                    f'{const.ADMIN_CREATION_TIMEOUT} seconds. Skipping user creation on this node.')
-                return rc
-            else:
-                Log.error(f'"{create_usr_cmd}" failed with error {err}.')
-                return rc
+            elif rc != 0:
+                err = err.decode(const.UTF_ENCODING) if isinstance(err, bytes) else err
+                if err_str in err:
+                    Log.info(f'RGW admin user {user_name} is already created,'
+                        ' Skipping user creation.')
+                    return 0
+                elif timeout_str in err:
+                    Log.info('RGW user creation process exceeding timeout value - '
+                        f'{const.ADMIN_CREATION_TIMEOUT} seconds. Skipping user creation on this node.')
+                    retry_count = retry_count + 1
+                    continue
+                # Break retry loop after max retries.
+                elif retry_count == const.USER_CREATION_MAX_RETRY_COUNT:
+                    Log.info('User creation reties exceeded than max allowed value i.e .'
+                        f'{const.USER_CREATION_MAX_RETRY_COUNT} . Skipping user creation on this node.')
+                    return rc
+                else:
+                    Log.error(f'"{create_usr_cmd}" failed with error {err}.')
+                    return rc
 
     @staticmethod
     def _parse_endpoint_values(conf: MappedConf, instance: int, client_instance_count: int, svc_name: str):
