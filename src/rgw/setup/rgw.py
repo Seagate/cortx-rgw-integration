@@ -397,7 +397,7 @@ class Rgw:
 
         # Adding retry logic for user creation with given timeout value.
         retry_count = 0
-        while(retry_count <= const.USER_CREATION_MAX_RETRY_COUNT):
+        while(retry_count < const.USER_CREATION_MAX_RETRY_COUNT):
             _, err, rc, = SimpleProcess(create_usr_cmd).run(timeout=const.ADMIN_CREATION_TIMEOUT)
             if rc == 0:
                 Log.info(f'RGW admin user {user_name} is created.')
