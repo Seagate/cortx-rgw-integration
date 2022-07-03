@@ -397,18 +397,15 @@ class Rgw:
 
         # Adding retry logic for user creation with given timeout value.
         retry_count = 0
-        return_code = -1
         while(retry_count < const.USER_CREATION_MAX_RETRY_COUNT):
             _, err, rc, = SimpleProcess(create_usr_cmd).run(timeout=const.ADMIN_CREATION_TIMEOUT)
             if rc == 0:
                 Log.info(f'RGW admin user {user_name} is created.')
-                return_code = 0
             else:
                 err = err.decode(const.UTF_ENCODING) if isinstance(err, bytes) else err
                 if err_str in err:
                     Log.info(f'RGW admin user {user_name} is already created,'
                         ' Skipping user creation.')
-                    return_code = 0
                 elif timeout_str in err:
                     Log.info('RGW user creation process exceeding timeout value - '
                         f'{const.ADMIN_CREATION_TIMEOUT} seconds. Retrying user creation on this node.')
@@ -418,11 +415,9 @@ class Rgw:
                 elif retry_count == const.USER_CREATION_MAX_RETRY_COUNT:
                     Log.info('User creation retries exceeded than max allowed value '
                         f'{const.USER_CREATION_MAX_RETRY_COUNT}. Skipping user creation on this node.')
-                    return_code = rc
                 else:
                     Log.error(f'"{create_usr_cmd}" failed with error {err}.')
-                    return_code = rc
-        return return_code
+        return rc
 
     @staticmethod
     def _parse_endpoint_values(conf: MappedConf, instance: int, client_instance_count: int, svc_name: str):
