@@ -397,26 +397,28 @@ class Rgw:
 
         # Adding retry logic for user creation with given timeout value.
         retry_count = 0
+        rc = -1
         while(retry_count < const.USER_CREATION_MAX_RETRY_COUNT):
             _, err, rc, = SimpleProcess(create_usr_cmd).run(timeout=const.ADMIN_CREATION_TIMEOUT)
             if rc == 0:
                 Log.info(f'RGW admin user {user_name} is created.')
+                break
             else:
                 err = err.decode(const.UTF_ENCODING) if isinstance(err, bytes) else err
                 if err_str in err:
                     Log.info(f'RGW admin user {user_name} is already created,'
                         ' Skipping user creation.')
+                    rc = 0
+                    break
                 elif timeout_str in err:
                     Log.info('RGW user creation process exceeding timeout value - '
                         f'{const.ADMIN_CREATION_TIMEOUT} seconds. Retrying user creation on this node.')
                     retry_count = retry_count + 1
                     continue
-                # Break retry loop after max retries.
-                elif retry_count == const.USER_CREATION_MAX_RETRY_COUNT:
-                    Log.info('User creation retries exceeded than max allowed value '
-                        f'{const.USER_CREATION_MAX_RETRY_COUNT}. Skipping user creation on this node.')
                 else:
                     Log.error(f'"{create_usr_cmd}" failed with error {err}.')
+                    break
+
         return rc
 
     @staticmethod
