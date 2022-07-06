@@ -22,8 +22,8 @@ DECRYPTION_KEY = 'cortx'
 SERVICE_NAME = f'{COMPONENT_NAME}_setup' # rgw_setup
 INSTALL_PATH = '/opt/seagate/cortx'
 RGW_INSTALL_PATH = f'{INSTALL_PATH}/{COMPONENT_NAME}'
-# TODO: Revisit after Motr delay issue resolved, seen while admin creation, for CORTX cluster with 15 nodes.
-ADMIN_CREATION_TIMEOUT = 600
+ADMIN_CREATION_TIMEOUT = 30
+USER_CREATION_MAX_RETRY_COUNT = 4
 ADMIN_USER_CREATED = 'user_created'
 DEFAULT_HTTP_PORT = '22751'
 DEFAULT_HTTPS_PORT = '23001'
