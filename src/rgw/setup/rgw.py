@@ -685,7 +685,8 @@ class Rgw:
         Log.info('Checking for rgw lock in consul kv store.')
         Rgw._load_rgw_config(rgw_consul_idx, consul_url)
         rgw_lock = Rgw._get_lock(rgw_consul_idx)
-        if rgw_lock is True:
+        Log.info('Excluding user creation and hare endpoint updation')
+        #if rgw_lock is True:
             # TODO: Find a way to get current data pod hostname on server node.
             # current_data_node = socket.gethostname().replace('server', 'data')
             # user_status = Rgw._create_admin_on_current_node(conf, current_data_node)
@@ -694,7 +695,7 @@ class Rgw:
             #    Log.info(f'User creation is successful on "{Rgw._machine_id}" node.')
             #    Rgw._set_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY, const.ADMIN_USER_CREATED)
             # else:
-            data_pod_hostnames = Rgw._get_data_nodes(conf)
+        #    data_pod_hostnames = Rgw._get_data_nodes(conf)
             #    if len(data_pod_hostnames) == 1 and current_data_node == data_pod_hostnames[0]:
             #        Log.error('Admin user creation failed')
             #        Rgw._delete_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY)
@@ -702,23 +703,23 @@ class Rgw:
             #            f' "{Rgw._machine_id}" node, with all data pods - {data_pod_hostnames}')
 
             #    data_pod_hostnames.remove(current_data_node)
-            for data_pod_hostname in data_pod_hostnames:
-                try:
-                    Rgw._update_hax_endpoint(conf, data_pod_hostname)
-                except SetupError as e:
-                    Log.debug(f'Error occured while updating hax endpoints. {e}')
-                    continue
-                status = Rgw._create_rgw_user(conf)
-                if status == 0:
-                    Log.info(f'User creation is successful on "{Rgw._machine_id}" node.')
-                    Rgw._set_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY, const.ADMIN_USER_CREATED)
-                    break
-                else:
-                    if data_pod_hostname == data_pod_hostnames[-1]:
-                        Log.error(f'Admin user creation failed with error code - {status}')
-                        Rgw._delete_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY)
-                        raise SetupError(status, 'Admin user creation failed on'
-                            f' "{Rgw._machine_id}" node, with all data pods - {data_pod_hostnames}')
+        #    for data_pod_hostname in data_pod_hostnames:
+        #        try:
+        #            Rgw._update_hax_endpoint(conf, data_pod_hostname)
+        #        except SetupError as e:
+        #            Log.debug(f'Error occured while updating hax endpoints. {e}')
+        #            continue
+        #        status = Rgw._create_rgw_user(conf)
+        #        if status == 0:
+        #            Log.info(f'User creation is successful on "{Rgw._machine_id}" node.')
+        #            Rgw._set_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY, const.ADMIN_USER_CREATED)
+        #            break
+        #        else:
+        #            if data_pod_hostname == data_pod_hostnames[-1]:
+        #                Log.error(f'Admin user creation failed with error code - {status}')
+        #                Rgw._delete_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY)
+        #                raise SetupError(status, 'Admin user creation failed on'
+        #                    f' "{Rgw._machine_id}" node, with all data pods - {data_pod_hostnames}')
 
 
     @staticmethod
