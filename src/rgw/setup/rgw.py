@@ -309,7 +309,7 @@ class Rgw:
     @staticmethod
     def _get_consul_url(conf: MappedConf, seq: int = 0):
         """Return consul url."""
-        http_endpoints = Rgw._fetch_endpoint_url(conf, const.CONSUL_ENDPOINT_KEY, 'http')
+        http_endpoints = Rgw._fetch_consul_endpoint_url(conf, 'http')
         consul_fqdn = http_endpoints[seq].split(':')[1]
         consul_url = 'consul:' + consul_fqdn + ':8500'
         return consul_url
@@ -327,15 +327,22 @@ class Rgw:
             raise SetupError(errno.EINVAL, f"Consul server {host:port} not reachable")
 
     @staticmethod
-    def _fetch_endpoint_url(conf: MappedConf, confstore_endpoint_key: str, endpoint_type: str):
+    def _fetch_consul_endpoint_url(conf: MappedConf, endpoint_type: str):
         """Fetch endpoint url based on endpoint type from cortx config."""
-        endpoints = Rgw._get_cortx_conf(conf, confstore_endpoint_key)
-        endpoints_values = list(filter(lambda x: urlparse(x).scheme == endpoint_type, endpoints))
-        if len(endpoints_values) == 0:
+        num_endpoints = int(Rgw._get_cortx_conf(conf, const.CONSUL_NUM_ENDPOINT_KEY))
+        if num_endpoints == 0:
+            raise SetupError(errno.EINVAL, f"Invalid/Missing value for consul endpoint's key :'{num_endpoints}'")
+        consul_endpoints = []
+        for endpoint_index in range(0, num_endpoints):
+            endpoint = Rgw._get_cortx_conf(conf, const.CONSUL_ENDPOINT_VALUE_KEY % endpoint_index)
+            consul_endpoints.append(endpoint)
+
+        endpoints_value = list(filter(lambda x: urlparse(x).scheme == endpoint_type, consul_endpoints))
+        if len(endpoints_value) == 0:
             raise SetupError(errno.EINVAL,
                 f'{endpoint_type} endpoint is not specified in the conf.'
-                f' Listed endpoints: {endpoints_values}')
-        return endpoints_values
+                f' Listed endpoints: {endpoints_value}')
+        return endpoints_value
 
     @staticmethod
     def _file_exist(file_path: str):
@@ -504,6 +511,16 @@ class Rgw:
     def _get_service_port(conf: MappedConf, protocol: str):
         """Return rgw service port value."""
         port = None
+
+        num_endpoints = int(Rgw._get_cortx_conf(conf, const.SVC_ENDPOINT_NUM_KEY))
+        if num_endpoints == 0:
+            raise SetupError(errno.EINVAL, f"Invalid/Missing value for service endpoint's key :'{num_endpoints}'")
+        svc_endpoints = []
+        for ep_index in range(0, num_endpoints):
+            endpoint = Rgw._get_cortx_conf(conf, const.SVC_ENDPOINT_VALUE_KEY % ep_index)
+            svc_endpoints.append(endpoint)
+
+
         endpoints = conf.get(const.SVC_ENDPOINT_KEY)
         if endpoints:
             svc_endpoints = list(filter(lambda x: urlparse(x).scheme == protocol, endpoints))

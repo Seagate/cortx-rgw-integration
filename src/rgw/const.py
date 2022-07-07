@@ -57,7 +57,11 @@ LOG_PATH_KEY = 'cortx>common>storage>log'
 CONFIG_PATH_KEY = 'cortx>common>storage>config'
 CLIENT_INSTANCE_NAME_KEY = 'cortx>motr>clients[%s]>name'
 CLIENT_INSTANCE_NUMBER_KEY = 'cortx>motr>clients[%s]>num_instances'
-CONSUL_ENDPOINT_KEY = 'cortx>external>consul>endpoints'
+
+CONSUL_ENDPOINT = 'cortx>external>consul'
+CONSUL_NUM_ENDPOINT_KEY = f'{CONSUL_ENDPOINT}>num_endpoints'
+CONSUL_ENDPOINT_VALUE_KEY = f'{CONSUL_ENDPOINT}>endpoint[%s]'
+
 NODE_HOSTNAME = 'node>%s>hostname'
 NODE_TYPE = 'node>%s>type'
 STORAGE_SET = 'node>%s>storage_set'
@@ -77,7 +81,12 @@ SSL_CERT_CONFIGS = {"country" : "IN", "state" : "MH", "locality" : "Pune",
     "organization" : "Seagate Technology", "CN" : "seagate.com", "SAN": u"*.seagate.com"}
 SSL_DNS_LIST = [u'*.seagate.com', u'localhost', u'*.localhost']
 SSL_CERT_PATH_KEY = 'cortx>common>security>ssl_certificate'
-SVC_ENDPOINT_KEY =  f'cortx>{COMPONENT_NAME}>service>endpoints'
+
+
+SVC_ENDPOINT =  f'cortx>{COMPONENT_NAME}>service'
+SVC_ENDPOINT_NUM_KEY =  f'{SVC_ENDPOINT}>num_endpoints'
+SVC_ENDPOINT_VALUE_KEY = f'{SVC_ENDPOINT}>endpoints[%s]'
+
 
 # SVC additional paramters.(default value to be used in case of config key is missing in confstore.)
 # e.g. svc_keys = {'actual_svc_config_key1':'confstore_key1', 'actual_svc_config_key2':'confstore_key2'}
