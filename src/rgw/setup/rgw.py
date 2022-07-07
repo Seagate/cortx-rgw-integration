@@ -520,11 +520,8 @@ class Rgw:
             endpoint = Rgw._get_cortx_conf(conf, const.SVC_ENDPOINT_VALUE_KEY % ep_index)
             svc_endpoints.append(endpoint)
 
-
-        endpoints = conf.get(const.SVC_ENDPOINT_KEY)
-        if endpoints:
-            svc_endpoints = list(filter(lambda x: urlparse(x).scheme == protocol, endpoints))
-            port = urlparse(svc_endpoints[0]).port
+            svc_ep = list(filter(lambda x: urlparse(x).scheme == protocol, svc_endpoints))
+            port = urlparse(svc_ep[0]).port
             Log.info(f'{protocol} port value - {port}')
         else:
             # If endpoint is not present, use default port value.
@@ -532,7 +529,7 @@ class Rgw:
                 port = const.DEFAULT_HTTP_PORT
             elif protocol == 'https':
                 port = const.DEFAULT_HTTPS_PORT
-            Log.info(f'{const.SVC_ENDPOINT_KEY} is not available in cluster.conf,'
+            Log.info(f'{const.SVC_ENDPOINT_NUM_KEY} is not available in cluster.conf,'
                 f' using the default value. {protocol} - {port}')
         return port
 
