@@ -121,8 +121,18 @@ class Rgw:
         # config phase since data pod starts before server pod.
         # Try HAX endpoint from data pod of same node first & if it doesnt work,
         # from other data pods in cluster
+
+        log_path = Rgw._get_log_dir_path(conf)
+        # Create rgw crash file directory
+        rgw_core_dir = os.path.join(log_path, 'rgw_debug')
+        os.makedirs(rgw_core_dir, exist_ok=True)
+
+        cwd = os.getcwd()
+        os.chdir(rgw_core_dir)
         Rgw._update_hax_endpoint_and_create_admin(conf)
         Log.info('Config phase completed.')
+
+        os.chdir(cwd)
 
         return 0
 
