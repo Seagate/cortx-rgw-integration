@@ -542,7 +542,7 @@ class Rgw:
         Log.info(f'got all svc endpoints :{svc_endpoints}')
         if len(svc_endpoints) > 0 :
             svc_ep = list(filter(lambda x: urlparse(x).scheme == protocol, svc_endpoints))
-            Log.info(f'{got expected endpoint :{svc_ep}}')
+            Log.info(f'got expected endpoint :{svc_ep}')
             port = urlparse(svc_ep[0]).port
             Log.info(f'{protocol} port value - {port}')
         else:
