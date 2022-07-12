@@ -329,7 +329,7 @@ class Rgw:
     @staticmethod
     def _get_gconf_key_list(conf: MappedConf, gconf_num_key:str, actual_gconf_key:str):
         """Get value list of specified gconf key."""
-        num_of_keys = int(Rgw._get_cortx_conf(conf, gconf_num_key))
+        num_of_keys = Rgw._get_cortx_conf(conf, gconf_num_key)
         if num_of_keys == 0:
             raise SetupError(errno.EINVAL, f"Invalid/Missing values found in gconf for key :'{gconf_num_key}'")
         value_list = []
