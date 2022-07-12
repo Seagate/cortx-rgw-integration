@@ -16,6 +16,20 @@
 
 from enum import Enum
 
+
+# RGW log files to collect in support bundle
+RGW_STARTUP_LOG = 'rgw_startup.log'
+RGW_SETUP_LOG = 'rgw_setup.log'
+RGW_SUPPORT_BUNDLE_LOG = 'rgw_support_bundle.log'
+RADOSGW_ADMIN_LOG = 'radosgw-admin.log'
+RGW_1_LOG = 'rgw-1.log'
+# regex for following date format "1995-09-27"
+LOG_DATE_REGEX = '[0-9]{4}-[0-9]{2}-[0-9]{2}'
+DATETIME_DATE_REGEX = '%Y-%m-%d'
+# regex for following time format "09:60:60"
+LOG_TIME_REGEX = '[0-9]{2}:[0-9]{2}:[0-9]{2}'
+DATETIME_TIME_REGEX = '%H:%M:%S'
+
 COMPONENT_NAME = 'rgw'
 COMPONENT_SVC_NAME = 'rgw_s3'
 DECRYPTION_KEY = 'cortx'
