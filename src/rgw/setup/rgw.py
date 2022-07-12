@@ -101,9 +101,11 @@ class Rgw:
         if not os.path.exists(config_file):
             raise SetupError(errno.EINVAL, f'"{config_file}" config file is not present.')
 
+        Log.info('Generating SSL certs')
         # Create ssl certificate
         Rgw._generate_ssl_cert(conf)
 
+        Log.info('Creating svc config')
         # Create svc config
         Rgw._create_svc_config(conf)
 
@@ -124,7 +126,7 @@ class Rgw:
         # config phase since data pod starts before server pod.
         # Try HAX endpoint from data pod of same node first & if it doesnt work,
         # from other data pods in cluster
-
+        Log.info('updating hax endpoint and creating admin user')
         Rgw._update_hax_endpoint_and_create_admin(conf)
         Log.info('Config phase completed.')
 
@@ -276,8 +278,12 @@ class Rgw:
     @staticmethod
     def _create_svc_config(conf: MappedConf):
         """Create svc config"""
+        Log.info('creating svc config file..')
         svc_name = Rgw._get_svc_name(conf)
+        Log.info(f'got svc name:{svc_name}')
+
         client_instance_count = Rgw._get_num_client_instances(conf, svc_name)
+        Log.info(f'got client instance count:{client_instance_count}')
         Log.info('fetching endpoint values from hctl fetch-fids cmd.')
         # For running rgw service and radosgw-admin tool,
         # we are using same endpoints fetched from hctl fetch-fids cmd as default endpoints,
@@ -286,9 +292,10 @@ class Rgw:
         # Update motr fid,endpoint config in cortx_rgw.conf.
         instance = 1
         while instance <= client_instance_count:
+            Log.info(f'Parsing endpoint value for instance: {instance}')
             service_endpoints = Rgw._parse_endpoint_values(
                 conf, instance, client_instance_count, svc_name)
-            Log.debug('Validating endpoint entries provided by fetch-fids cmd')
+            Log.info(f'Validating endpoint entries provided by fetch-fids cmd:{service_endpoints}')
             Rgw._validate_endpoint_paramters(service_endpoints)
             Log.info('Validated endpoint entries provided by fetch-fids cmd successfully.')
 
@@ -297,14 +304,18 @@ class Rgw:
             instance = instance + 1
 
         # Add additional parameters of SVC & Motr to config file.
+        Log.info('Updating rgw config with svc config')
         Rgw._update_svc_config(conf, 'client', const.SVC_CONFIG_DICT)
+        Log.info('Updating rgw config with data path ')
         Rgw._update_svc_data_path_value(conf, 'client')
 
         # Before user creation,Verify backend store value=motr in rgw config file.
+        Log.info('Verifying backendstore value')
         Rgw._verify_backend_store_value(conf)
 
         Log.info(f'Configure logrotate for {const.COMPONENT_NAME} at path: {const.LOGROTATE_CONF}')
         Rgw._logrotate_generic(conf)
+        Log.info('Done with log rotate logic')
 
     @staticmethod
     def _get_consul_url(conf: MappedConf, seq: int = 0):
@@ -329,26 +340,33 @@ class Rgw:
     @staticmethod
     def _get_gconf_key_list(conf: MappedConf, gconf_num_key:str, actual_gconf_key:str):
         """Get value list of specified gconf key."""
+        Log.info(f'Fetching gconf num_key from Gconf: {gconf_num_key}')
         num_of_keys = Rgw._get_cortx_conf(conf, gconf_num_key)
+        Log.info(f'Found number of keys:{num_of_keys}')
         if num_of_keys == 0:
             raise SetupError(errno.EINVAL, f"Invalid/Missing values found in gconf for key :'{gconf_num_key}'")
         value_list = []
         for value_index in range(0, num_of_keys):
             key_value = Rgw._get_cortx_conf(conf, actual_gconf_key % value_index)
             value_list.append(key_value)
+        Log.info(f'Returing value list: {value_list}')
         return value_list
 
     @staticmethod
     def _fetch_consul_endpoint_url(conf: MappedConf, endpoint_type: str):
         """Fetch endpoint url based on endpoint type from cortx config."""
+        Log.info('Fetching consul endpoint url using new gconf method.')
         consul_endpoints = Rgw._get_gconf_key_list(conf, const.CONSUL_NUM_ENDPOINT_KEY,
                                                    const.CONSUL_ENDPOINT_VALUE_KEY)
+        Log.info(f'got all consul_endpoints :{consul_endpoints}')
         endpoints_value = list(filter(lambda x: urlparse(x).scheme == endpoint_type,
                                       consul_endpoints))
+        Log.info(f'got required endpoint value:{endpoints_value}')
         if len(endpoints_value) == 0:
             raise SetupError(errno.EINVAL,
                 f'{endpoint_type} endpoint is not specified in the conf.'
                 f' Listed endpoints: {consul_endpoints}')
+        Log.info(f'Returning final consul endpoint value :{endpoints_value}')
         return endpoints_value
 
     @staticmethod
@@ -518,10 +536,13 @@ class Rgw:
     def _get_service_port(conf: MappedConf, protocol: str):
         """Return rgw service port value."""
         port = None
+        Log.info('Fetching service port using new Gconf method.')
         svc_endpoints = Rgw._get_gconf_key_list(conf, const.SVC_ENDPOINT_NUM_KEY,
                                                    const.SVC_ENDPOINT_VALUE_KEY)
+        Log.info(f'got all svc endpoints :{svc_endpoints}')
         if len(svc_endpoints) > 0 :
             svc_ep = list(filter(lambda x: urlparse(x).scheme == protocol, svc_endpoints))
+            Log.info(f'{got expected endpoint :{svc_ep}}')
             port = urlparse(svc_ep[0]).port
             Log.info(f'{protocol} port value - {port}')
         else:
