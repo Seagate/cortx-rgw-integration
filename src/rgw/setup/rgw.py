@@ -116,13 +116,18 @@ class Rgw:
         os.environ['M0_TRACE_DIR'] = motr_trace_dir
         Log.info('Created motr trace directory : %s' % os.environ.get('M0_TRACE_DIR'))
 
+        # Change current working directory to rgw_debug for core file generation
+        Rgw._change_working_dir(conf)
+
         # Read Motr HA(HAX) endpoint from data pod using hctl fetch-fids and update in config file
         # Use remote hax endpoint running on data pod which will be available during rgw
         # config phase since data pod starts before server pod.
         # Try HAX endpoint from data pod of same node first & if it doesnt work,
         # from other data pods in cluster
+
         Rgw._update_hax_endpoint_and_create_admin(conf)
         Log.info('Config phase completed.')
+
 
         return 0
 
@@ -372,6 +377,15 @@ class Rgw:
         log_dir_path = os.path.join(log_path, const.COMPONENT_NAME, Rgw._machine_id)
         os.makedirs(log_dir_path, exist_ok=True)
         return log_dir_path
+
+    @staticmethod
+    def _change_working_dir(conf: MappedConf):
+        """Change current working directory to crash directory path."""
+        log_path = Rgw._get_log_dir_path(conf)
+        # Create svc crash file directory
+        svc_core_dir = os.path.join(log_path, 'rgw_debug')
+        os.makedirs(svc_core_dir, exist_ok=True)
+        os.chdir(svc_core_dir)
 
     @staticmethod
     def _create_rgw_user(conf: MappedConf):
