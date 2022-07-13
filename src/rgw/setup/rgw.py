@@ -340,6 +340,13 @@ class Rgw:
     @staticmethod
     def _get_gconf_key_list(conf: MappedConf, gconf_num_key:str, actual_gconf_key:str):
         """Get value list of specified gconf key."""
+        # e.g. for single key (key - cortx>common>external>consul>endpoints), it may have multiple values as,
+        # values: [tcp://cortx-consul-server:8301, http://cortx-consul-server:8301].
+        # To get this list of values,
+        #     a) first get number of endpoints for this key using another key (cortx>common>external>consul>num_endpoints),
+        #     b) then iterate over individual key to get corresponding value with using this key & index,
+        #        e.g (cortx>common>external>consul>endpoints[0], cortx>common>external>consul>endpoints[1])
+        # this will return final list of values associated with given gconf key.
         Log.info(f'Fetching gconf num_key from Gconf: {gconf_num_key}')
         num_of_keys = int(Rgw._get_cortx_conf(conf, gconf_num_key))
         Log.info(f'Found number of keys:{num_of_keys}')
