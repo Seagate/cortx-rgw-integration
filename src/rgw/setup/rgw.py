@@ -117,7 +117,7 @@ class Rgw:
         Log.info('Created motr trace directory : %s' % os.environ.get('M0_TRACE_DIR'))
 
         # Change current working directory to rgw_debug for core file generation
-        RGW._change_working_dir(conf)
+        Rgw._change_working_dir(conf)
 
         # Read Motr HA(HAX) endpoint from data pod using hctl fetch-fids and update in config file
         # Use remote hax endpoint running on data pod which will be available during rgw
