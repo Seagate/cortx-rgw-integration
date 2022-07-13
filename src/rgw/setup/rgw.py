@@ -341,7 +341,7 @@ class Rgw:
     def _get_gconf_key_list(conf: MappedConf, gconf_num_key:str, actual_gconf_key:str):
         """Get value list of specified gconf key."""
         Log.info(f'Fetching gconf num_key from Gconf: {gconf_num_key}')
-        num_of_keys = Rgw._get_cortx_conf(conf, gconf_num_key)
+        num_of_keys = int(Rgw._get_cortx_conf(conf, gconf_num_key))
         Log.info(f'Found number of keys:{num_of_keys}')
         if num_of_keys == 0:
             raise SetupError(errno.EINVAL, f"Invalid/Missing values found in gconf for key :'{gconf_num_key}'")
@@ -621,7 +621,7 @@ class Rgw:
     def _get_svc_name(conf: MappedConf):
         """Read service name from cluster.conf"""
         svc_name = None
-        num_component = Rgw._get_cortx_conf(conf, const.NUM_COMPONENTS_KEY % Rgw._machine_id)
+        num_component = int(Rgw._get_cortx_conf(conf, const.NUM_COMPONENTS_KEY % Rgw._machine_id))
         for idx in range(0, num_component):
             if (Rgw._get_cortx_conf(conf,
                 const.COMPONENT_NAME_KEY % (Rgw._machine_id, idx)) == const.COMPONENT_NAME):
