@@ -50,6 +50,7 @@ class RGWSupportBundle:
         Log.info(f"{COMPONENT_NAME} support bundle generation started!!")
         coredumps = filters.get('coredumps', False)
         stacktrace = filters.get('stacktrace', False)
+        duration = filters.get('duration',False)
         machine_id = Conf.machine_id
         cortx_config_store = MappedConf(cluster_conf)
         log_base = cortx_config_store.get(LOG_PATH_KEY)
@@ -78,6 +79,41 @@ class RGWSupportBundle:
                     outfile = os.path.join(RGWSupportBundle._tmp_src, file)
                     if os.path.isfile(infile):
                         shutil.copyfile(infile, outfile)
+
+        if duration:
+            # files in delim_space use timestamp syntax as
+            # [2022-07-10 05:26:57,579] & 2022-07-10 05:26:34
+            # files in delim_T use timestamp syntax as
+            # 2022-07-10T05:28:35.570+0000
+            from cortx.utils.support_framework.log_filters import FilterLog
+            from cortx.rgw.const import ( RGW_STARTUP_LOG, RGW_SETUP_LOG,
+                RGW_SUPPORT_BUNDLE_LOG, RADOSGW_ADMIN_LOG, RGW_1_LOG,
+                LOG_DATE_REGEX, LOG_TIME_REGEX, DATETIME_DATE_REGEX,
+                DATETIME_TIME_REGEX)
+
+            # log files with timestamp syntax "YYYY-mm-DD H:M:S"
+            delim_space = [RGW_STARTUP_LOG, RGW_SETUP_LOG, RGW_SUPPORT_BUNDLE_LOG]
+            # log files with timestamp syntax "YYYY-mm-DDTH:M:S"
+            delim_T = [RADOSGW_ADMIN_LOG, RGW_1_LOG]
+            for file in os.listdir(RGWSupportBundle._tmp_src):
+                if file in delim_space:
+                    delim = ' '
+                elif file in delim_T:
+                    delim = 'T'
+                else:
+                    continue
+                log_timestamp_regex = LOG_DATE_REGEX + delim + LOG_TIME_REGEX
+                datetime_format = DATETIME_DATE_REGEX + delim + DATETIME_TIME_REGEX
+                # apply log filter to individual file by passing exact filename
+                # to file_name_reg_ex
+                FilterLog.limit_time(
+                    src_dir=RGWSupportBundle._tmp_src,
+                    dest_dir=RGWSupportBundle._tmp_src,
+                    duration=duration,
+                    file_name_reg_ex=file,
+                    log_timestamp_regex=log_timestamp_regex,
+                    datetime_format=datetime_format)
+
         else:
             Log.error("RGW log file does not exists hence skipping log file collection.")
 
