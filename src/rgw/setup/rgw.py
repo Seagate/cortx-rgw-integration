@@ -124,7 +124,6 @@ class Rgw:
         # config phase since data pod starts before server pod.
         # Try HAX endpoint from data pod of same node first & if it doesnt work,
         # from other data pods in cluster
-
         Rgw._update_hax_endpoint_and_create_admin(conf)
         Log.info('Config phase completed.')
 
@@ -277,6 +276,7 @@ class Rgw:
     def _create_svc_config(conf: MappedConf):
         """Create svc config"""
         svc_name = Rgw._get_svc_name(conf)
+
         client_instance_count = Rgw._get_num_client_instances(conf, svc_name)
         Log.info('fetching endpoint values from hctl fetch-fids cmd.')
         # For running rgw service and radosgw-admin tool,
@@ -288,11 +288,8 @@ class Rgw:
         while instance <= client_instance_count:
             service_endpoints = Rgw._parse_endpoint_values(
                 conf, instance, client_instance_count, svc_name)
-            Log.debug('Validating endpoint entries provided by fetch-fids cmd')
             Rgw._validate_endpoint_paramters(service_endpoints)
-            Log.info('Validated endpoint entries provided by fetch-fids cmd successfully.')
 
-            Log.info('Updating endpoint values in rgw config file.')
             Rgw._update_rgw_config_with_endpoints(conf, service_endpoints, instance)
             instance = instance + 1
 
@@ -309,7 +306,7 @@ class Rgw:
     @staticmethod
     def _get_consul_url(conf: MappedConf, seq: int = 0):
         """Return consul url."""
-        http_endpoints = Rgw._fetch_endpoint_url(conf, const.CONSUL_ENDPOINT_KEY, 'http')
+        http_endpoints = Rgw._fetch_consul_endpoint_url(conf, 'http')
         consul_fqdn = http_endpoints[seq].split(':')[1]
         consul_url = 'consul:' + consul_fqdn + ':8500'
         return consul_url
@@ -327,15 +324,36 @@ class Rgw:
             raise SetupError(errno.EINVAL, f"Consul server {host:port} not reachable")
 
     @staticmethod
-    def _fetch_endpoint_url(conf: MappedConf, confstore_endpoint_key: str, endpoint_type: str):
+    def _get_gconf_key_list(conf: MappedConf, gconf_num_key:str, actual_gconf_key:str):
+        """Get value list of specified gconf key."""
+        # e.g. for single key (key - cortx>common>external>consul>endpoints), it may have multiple values as,
+        # values: [tcp://cortx-consul-server:8301, http://cortx-consul-server:8301].
+        # To get this list of values,
+        #     a) first get number of endpoints for this key using another key (cortx>common>external>consul>num_endpoints),
+        #     b) then iterate over individual key to get corresponding value with using this key & index,
+        #        e.g (cortx>common>external>consul>endpoints[0], cortx>common>external>consul>endpoints[1])
+        # this will return final list of values associated with given gconf key.
+        num_of_keys = int(Rgw._get_cortx_conf(conf, gconf_num_key))
+        if num_of_keys == 0:
+            raise SetupError(errno.EINVAL, f"Invalid/Missing values found in gconf for key :'{gconf_num_key}'")
+        value_list = []
+        for value_index in range(0, num_of_keys):
+            key_value = Rgw._get_cortx_conf(conf, actual_gconf_key % value_index)
+            value_list.append(key_value)
+        return value_list
+
+    @staticmethod
+    def _fetch_consul_endpoint_url(conf: MappedConf, endpoint_type: str):
         """Fetch endpoint url based on endpoint type from cortx config."""
-        endpoints = Rgw._get_cortx_conf(conf, confstore_endpoint_key)
-        endpoints_values = list(filter(lambda x: urlparse(x).scheme == endpoint_type, endpoints))
-        if len(endpoints_values) == 0:
+        consul_endpoints = Rgw._get_gconf_key_list(conf, const.CONSUL_NUM_ENDPOINT_KEY,
+                                                   const.CONSUL_ENDPOINT_VALUE_KEY)
+        endpoints_value = list(filter(lambda x: urlparse(x).scheme == endpoint_type,
+                                      consul_endpoints))
+        if len(endpoints_value) == 0:
             raise SetupError(errno.EINVAL,
                 f'{endpoint_type} endpoint is not specified in the conf.'
-                f' Listed endpoints: {endpoints_values}')
-        return endpoints_values
+                f' Listed endpoints: {consul_endpoints}')
+        return endpoints_value
 
     @staticmethod
     def _file_exist(file_path: str):
@@ -504,18 +522,18 @@ class Rgw:
     def _get_service_port(conf: MappedConf, protocol: str):
         """Return rgw service port value."""
         port = None
-        endpoints = conf.get(const.SVC_ENDPOINT_KEY)
-        if endpoints:
-            svc_endpoints = list(filter(lambda x: urlparse(x).scheme == protocol, endpoints))
-            port = urlparse(svc_endpoints[0]).port
-            Log.info(f'{protocol} port value - {port}')
+        svc_endpoints = Rgw._get_gconf_key_list(conf, const.SVC_ENDPOINT_NUM_KEY,
+                                                   const.SVC_ENDPOINT_VALUE_KEY)
+        if len(svc_endpoints) > 0 :
+            svc_ep = list(filter(lambda x: urlparse(x).scheme == protocol, svc_endpoints))
+            port = urlparse(svc_ep[0]).port
         else:
             # If endpoint is not present, use default port value.
             if protocol == 'http':
                 port = const.DEFAULT_HTTP_PORT
             elif protocol == 'https':
                 port = const.DEFAULT_HTTPS_PORT
-            Log.info(f'{const.SVC_ENDPOINT_KEY} is not available in cluster.conf,'
+            Log.info(f'{const.SVC_ENDPOINT_NUM_KEY} is not available in cluster.conf,'
                 f' using the default value. {protocol} - {port}')
         return port
 
@@ -585,7 +603,7 @@ class Rgw:
     def _get_svc_name(conf: MappedConf):
         """Read service name from cluster.conf"""
         svc_name = None
-        num_component = Rgw._get_cortx_conf(conf, const.NUM_COMPONENTS_KEY % Rgw._machine_id)
+        num_component = int(Rgw._get_cortx_conf(conf, const.NUM_COMPONENTS_KEY % Rgw._machine_id))
         for idx in range(0, num_component):
             if (Rgw._get_cortx_conf(conf,
                 const.COMPONENT_NAME_KEY % (Rgw._machine_id, idx)) == const.COMPONENT_NAME):
