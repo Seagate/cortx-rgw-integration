@@ -19,6 +19,7 @@ import shutil
 import time
 import errno
 import json
+import re
 from urllib.parse import urlparse
 
 from cortx.utils.security.certificate import Certificate
@@ -100,6 +101,9 @@ class Rgw:
         config_file = Rgw._get_rgw_config_path(conf)
         if not os.path.exists(config_file):
             raise SetupError(errno.EINVAL, f'"{config_file}" config file is not present.')
+
+        # Validate resouce limit values
+        Rgw._validate_resource_limit_values(conf)
 
         # Create ssl certificate
         Rgw._generate_ssl_cert(conf)
@@ -851,6 +855,60 @@ class Rgw:
             raise SetupError(errno.EINVAL,
                 f'Supported rgw backend store are {const.SUPPORTED_BACKEND_STORES},'
                 f' currently configured one is {backend_store}')
+
+    @staticmethod
+    def _validate_resource_limit_values(conf: MappedConf):
+        """Validate minimum values of rgw resource limits in Gconf."""
+        Log.info(f'Validating minimum values of resource limits for {const.COMPONENT_NAME}.')
+        num_services = int(Rgw._get_cortx_conf(conf, const.SVC_LIMIT_NUM_SERVICES))
+        if num_services == 0:
+            raise SetupError(errno.EINVAL, f"Invalid/Missing values found in gconf \
+                for key :'{const.SVC_LIMIT_NUM_SERVICES}'")
+        input_cpu_min_val = ''
+        input_mem_min_val = ''
+        for value_index in range(0, num_services):
+            svc_name = Rgw._get_cortx_conf(conf, const.SVC_LIMIT_NAME % value_index)
+            if svc_name == const.COMPONENT_NAME: # check if current limits are for rgw. 
+               input_cpu_min_val = Rgw._get_cortx_conf(conf, const.SVC_LIMIT_CPU_MIN_KEY % value_index)
+               input_mem_min_val = Rgw._get_cortx_conf(conf, const.SVC_LIMIT_MEM_MIN_KEY % value_index)
+               break
+
+        if input_cpu_min_val == '' or input_mem_min_val == '' :
+            raise SetupError(errno.EINVAL, f'Empty values received for rgw resource limits \
+                            from gconf.')
+
+        Rgw._compare_resource_limit(input_cpu_min_val, const.SVC_CPU_MIN_VAL_LIMIT)
+        Rgw._compare_resource_limit(input_mem_min_val, const.SVC_MEM_MIN_VAL_LIMIT)
+        Log.info(f'minimum values for {const.COMPONENT_NAME} resource limits are valid.')
+
+    @staticmethod
+    def _compare_resource_limit(input_val: str, expected_val: str):
+        """ Compare resource limit values with expected value"""
+        converted_input_val = Rgw._convert_resource_limit_value(input_val)
+        converted_expected_val = Rgw._convert_resource_limit_value(expected_val)
+        if converted_input_val < converted_expected_val :
+            raise SetupError(errno.EINVAL, f'Provided value {input_val} for rgw resource limit \
+                             is less than expected value {expected_val}')
+
+    @staticmethod
+    def _convert_resource_limit_value(resource_limit_val: str):
+        """"Convert give resource limit value to bytes"""
+        # e.g. if Gconf has cortx>rgw>limits>services[0]>memory>min : 128MiB value,
+        # then convert this into bytes i.e. 128*1024*1024*1024
+
+        # Check if resource_limit_val ends with proper suffixes. It matches only one suffix.
+        temp = list(filter(resource_limit_val.endswith, const.SVC_RESOURCE_LIMIT_VAL_SUFFIXES))
+        if len(temp) > 0:
+            suffix = temp[0]
+            num_resource_limit_val = re.sub(r'[^0-9]', '', resource_limit_val)
+            # Ex: If resource_limit_val is 128MiB then num_resource_limit_val=128
+            map_val = const.SVC_RESOURCE_LIMIT_VAL_SIZE_MAP[suffix]
+            # Ex: If resource_limit_val is 128MiB then map_val = 1024*1024*1024
+            ret = int(num_resource_limit_val) * int(map_val)
+            return ret
+        else:
+            raise SetupError(errno.EINVAL, f'Invalid format values received for rgw resource limits \
+                                from gconf. Please use valid format Ex: 1024, 1Ki, 1Mi, 1Gi etc.')
 
     @staticmethod
     def _update_svc_config(conf: MappedConf, client_section: str, config_key_mapping: dict):
