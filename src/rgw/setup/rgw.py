@@ -876,33 +876,41 @@ class Rgw:
         if input_cpu_min_val == '' or input_mem_min_val == '' :
             raise SetupError(errno.EINVAL, f'Empty values received for rgw resource limits \
                             from gconf.')
-
-        Rgw._compare_resource_limit(input_cpu_min_val, const.SVC_CPU_MIN_VAL_LIMIT)
-        Rgw._compare_resource_limit(input_mem_min_val, const.SVC_MEM_MIN_VAL_LIMIT)
+        # TODO handle CPU comparision
+        # Rgw._compare_resource_limit(input_cpu_min_val, const.SVC_CPU_MIN_VAL_LIMIT)
+        Rgw._compare_resource_limit_memory_value(input_mem_min_val, const.SVC_MEM_MIN_VAL_LIMIT)
         Log.info(f'minimum values for {const.COMPONENT_NAME} resource limits are valid.')
 
     @staticmethod
-    def _compare_resource_limit(input_val: str, expected_val: str):
+    def _compare_resource_limit_memory_value(input_val: str, expected_val: str):
         """ Compare resource limit values with expected value"""
-        converted_input_val = Rgw._convert_resource_limit_value(input_val)
-        converted_expected_val = Rgw._convert_resource_limit_value(expected_val)
+        if input_val.isnumeric():
+            converted_input_val = int(input_val)
+        else:
+            converted_input_val = Rgw._convert_resource_limit_memory_value(input_val)
+
+        if expected_val.isnumeric():
+            converted_expected_val = int(expected_val)
+        else:
+            converted_expected_val = Rgw._convert_resource_limit_memory_value(expected_val)
+
         if converted_input_val < converted_expected_val :
             raise SetupError(errno.EINVAL, f'Provided value {input_val} for rgw resource limit \
                              is less than expected value {expected_val}')
 
     @staticmethod
-    def _convert_resource_limit_value(resource_limit_val: str):
+    def _convert_resource_limit_memory_value(resource_limit_val: str):
         """"Convert give resource limit value to bytes"""
         # e.g. if Gconf has cortx>rgw>limits>services[0]>memory>min : 128MiB value,
         # then convert this into bytes i.e. 128*1024*1024*1024
 
         # Check if resource_limit_val ends with proper suffixes. It matches only one suffix.
-        temp = list(filter(resource_limit_val.endswith, const.SVC_RESOURCE_LIMIT_VAL_SUFFIXES))
+        temp = list(filter(resource_limit_val.endswith, const.SVC_RESOURCE_LIMIT_MEM_VAL_SUFFIXES))
         if len(temp) > 0:
             suffix = temp[0]
             num_resource_limit_val = re.sub(r'[^0-9]', '', resource_limit_val)
             # Ex: If resource_limit_val is 128MiB then num_resource_limit_val=128
-            map_val = const.SVC_RESOURCE_LIMIT_VAL_SIZE_MAP[suffix]
+            map_val = const.SVC_RESOURCE_LIMIT_MEM_VAL_SIZE_MAP[suffix]
             # Ex: If resource_limit_val is 128MiB then map_val = 1024*1024*1024
             ret = int(num_resource_limit_val) * int(map_val)
             return ret
