@@ -155,6 +155,9 @@ SVC_RESOURCE_LIMIT_MEM_VAL_SIZE_MAP = {
         "Ki": 1024, "Mi": 1024*1024, "Gi": 1024*1024*1024,
         "Kib": 1024, "Mib": 1024*1024, "Gib": 1024*1024*1024 }
 
+SVC_RESOURCE_LIMIT_CPU_VAL_SUFFIXES = ['m']
+# TODO add more values for CPU unit
+SVC_RESOURCE_LIMIT_CPU_VAL_SIZE_MAP = { "m": 1 }
 
 class RgwEndpoint(Enum):
     """Enum class to define rgw endpoints provided by hare."""

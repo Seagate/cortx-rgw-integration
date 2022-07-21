@@ -868,55 +868,69 @@ class Rgw:
         input_mem_min_val = ''
         for value_index in range(0, num_services):
             svc_name = Rgw._get_cortx_conf(conf, const.SVC_LIMIT_NAME % value_index)
-            if svc_name == const.COMPONENT_NAME: # check if current limits are for rgw. 
+            # check if current limits are for rgw.
+            if svc_name == const.COMPONENT_NAME:
                input_cpu_min_val = Rgw._get_cortx_conf(conf, const.SVC_LIMIT_CPU_MIN_KEY % value_index)
                input_mem_min_val = Rgw._get_cortx_conf(conf, const.SVC_LIMIT_MEM_MIN_KEY % value_index)
                break
 
         if input_cpu_min_val == '' or input_mem_min_val == '' :
-            raise SetupError(errno.EINVAL, f'Empty values received for rgw resource limits \
+            raise SetupError(errno.EINVAL, 'Empty values received for rgw resource limits \
                             from gconf.')
-        # TODO handle CPU comparision
-        # Rgw._compare_resource_limit(input_cpu_min_val, const.SVC_CPU_MIN_VAL_LIMIT)
-        Rgw._compare_resource_limit_memory_value(input_mem_min_val, const.SVC_MEM_MIN_VAL_LIMIT)
-        Log.info(f'minimum values for {const.COMPONENT_NAME} resource limits are valid.')
+        Rgw._compare_resource_limit_value(input_cpu_min_val, const.SVC_CPU_MIN_VAL_LIMIT, 'cpu')
+        Rgw._compare_resource_limit_value(input_mem_min_val, const.SVC_MEM_MIN_VAL_LIMIT, 'mem')
+        Log.info(f'Minimum values for {const.COMPONENT_NAME} resource limits are valid.')
 
     @staticmethod
-    def _compare_resource_limit_memory_value(input_val: str, expected_val: str):
+    def _compare_resource_limit_value(input_val: str, expected_val: str, limit_type: str):
         """ Compare resource limit values with expected value"""
         if input_val.isnumeric():
             converted_input_val = int(input_val)
         else:
-            converted_input_val = Rgw._convert_resource_limit_memory_value(input_val)
+            converted_input_val = Rgw._convert_resource_limit_value(input_val, limit_type)
 
         if expected_val.isnumeric():
             converted_expected_val = int(expected_val)
         else:
-            converted_expected_val = Rgw._convert_resource_limit_memory_value(expected_val)
+            converted_expected_val = Rgw._convert_resource_limit_value(expected_val, limit_type)
 
         if converted_input_val < converted_expected_val :
             raise SetupError(errno.EINVAL, f'Provided value {input_val} for rgw resource limit \
                              is less than expected value {expected_val}')
 
     @staticmethod
-    def _convert_resource_limit_memory_value(resource_limit_val: str):
-        """"Convert give resource limit value to bytes"""
+    def _convert_resource_limit_value(resource_limit_val: str, limit_type: str):
+        """"Convert give resource limit value to common units based on limit type"""
         # e.g. if Gconf has cortx>rgw>limits>services[0]>memory>min : 128MiB value,
         # then convert this into bytes i.e. 128*1024*1024*1024
 
         # Check if resource_limit_val ends with proper suffixes. It matches only one suffix.
-        temp = list(filter(resource_limit_val.endswith, const.SVC_RESOURCE_LIMIT_MEM_VAL_SUFFIXES))
+        if limit_type == 'mem' :
+            temp = list(filter(resource_limit_val.endswith, const.SVC_RESOURCE_LIMIT_MEM_VAL_SUFFIXES))
+        elif limit_type == 'cpu':
+            temp = list(filter(resource_limit_val.endswith, const.SVC_RESOURCE_LIMIT_CPU_VAL_SUFFIXES))
+        else:
+            raise SetupError(errno.EINVAL, f'Invalid limit type {limit_type} is speicified in rgw.')
         if len(temp) > 0:
             suffix = temp[0]
+            # Ex: If mem resource_limit_val is 128MiB then num_resource_limit_val=128 or
+            # If cpu resource_limit_val is 200m then num_resource_limit_val=200
             num_resource_limit_val = re.sub(r'[^0-9]', '', resource_limit_val)
-            # Ex: If resource_limit_val is 128MiB then num_resource_limit_val=128
-            map_val = const.SVC_RESOURCE_LIMIT_MEM_VAL_SIZE_MAP[suffix]
-            # Ex: If resource_limit_val is 128MiB then map_val = 1024*1024*1024
+
+            # Ex: If mem resource_limit_val is 128MiB then map_val = 1024*1024*1024 or
+            # If cpu resource_limit_val is 200m then map_val = 1
+            if limit_type == 'mem' :
+                map_val = const.SVC_RESOURCE_LIMIT_MEM_VAL_SIZE_MAP[suffix]
+            else :
+                map_val = const.SVC_RESOURCE_LIMIT_CPU_VAL_SIZE_MAP[suffix]
+
+            # Calcuate final limit value.
             ret = int(num_resource_limit_val) * int(map_val)
             return ret
         else:
-            raise SetupError(errno.EINVAL, f'Invalid format values received for rgw resource limits \
-                                from gconf. Please use valid format Ex: 1024, 1Ki, 1Mi, 1Gi etc.')
+            raise SetupError(errno.EINVAL, 'Invalid format values received for rgw resource limits \
+                                from gconf. Please use valid format (e.g. for mem limits : 1024, 1Ki, 1Mi, 1Gi etc.)\
+                                for CPU limits : 200m, 700m etc.')
 
     @staticmethod
     def _update_svc_config(conf: MappedConf, client_section: str, config_key_mapping: dict):
