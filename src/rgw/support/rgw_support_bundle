@@ -51,6 +51,7 @@ class RGWSupportBundle:
         coredumps = filters.get('coredumps', False)
         stacktrace = filters.get('stacktrace', False)
         duration = filters.get('duration',False)
+        size_limit = filters.get('size_limit')
         machine_id = Conf.machine_id
         cortx_config_store = MappedConf(cluster_conf)
         log_base = cortx_config_store.get(LOG_PATH_KEY)
@@ -79,6 +80,19 @@ class RGWSupportBundle:
                     outfile = os.path.join(RGWSupportBundle._tmp_src, file)
                     if os.path.isfile(infile):
                         shutil.copyfile(infile, outfile)
+        # apply truncate logic on all textual logs
+        if size_limit and not coredumps:
+            from cortx.utils.support_framework.log_filters import FilterLog
+            FilterLog.limit_size(
+                src_dir=RGWSupportBundle._tmp_src,
+                dest_dir= RGWSupportBundle._tmp_src,
+                size=size_limit,
+                file_name_reg_ex='rgw*')
+            FilterLog.limit_size(
+                src_dir=RGWSupportBundle._tmp_src,
+                dest_dir= RGWSupportBundle._tmp_src,
+                size=size_limit,
+                file_name_reg_ex='radogsw*')
 
         if duration:
             # files in delim_space use timestamp syntax as
@@ -127,15 +141,10 @@ class RGWSupportBundle:
         # copy motr trace log files
         motr_trace_dir = os.path.join(log_dir, 'motr_trace_files')
         if os.path.exists(motr_trace_dir):
+            # TODO: Follow this for collecting last 5 logs
             # include the latest 5 log files of motr traces in support bundle
-            list_of_files = filter(lambda f: os.path.isfile(os.path.join(motr_trace_dir, f)),
-                            os.listdir(motr_trace_dir))
-            # sort the files based on last modification time
-            list_of_files = sorted(list_of_files,
-                            key = lambda f: os.path.getmtime(os.path.join(motr_trace_dir, f)),
-                            reverse=True)
-            list_of_files = list_of_files[0:5]
-            for file in list_of_files:
+            latest_5_files = RGWSupportBundle._get_latest_5_files(motr_trace_dir)
+            for file in latest_5_files:
                 infile = os.path.join(motr_trace_dir, file)
                 tmp_motr_trace_dir = os.path.join(RGWSupportBundle._tmp_src, 'motr_trace_files')
                 os.makedirs(tmp_motr_trace_dir, exist_ok=True)
@@ -165,9 +174,18 @@ class RGWSupportBundle:
         # copy ceph crash-dump files
         if coredumps:
             crash_dump_dir = os.path.join(log_dir, 'rgw_debug')
+            # TODO: Apply same logic of motr_trace_files to collect last 5 cores
             if os.path.exists(crash_dump_dir):
-                shutil.copytree(crash_dump_dir,\
-                    os.path.join(RGWSupportBundle._tmp_src, 'rgw_debug'))
+
+                if size_limit:
+                    latest_5_cores = RGWSupportBundle._get_latest_n_files(
+                        directory=crash_dump_dir, number_of_files=5)
+                    for file_name in latest_5_cores:
+                        shutil.copyfile(os.path.join(crash_dump_dir, file_name),
+                            os.path.join(RGWSupportBundle._tmp_src, 'rgw_debug'))
+                else:
+                    shutil.copytree(crash_dump_dir,\
+                        os.path.join(RGWSupportBundle._tmp_src, 'rgw_debug'))
 
         # add cortx components rpm version
         cmd = "rpm -qa | grep cortx"
@@ -178,6 +196,17 @@ class RGWSupportBundle:
                 fin.write(output.decode("utf-8"))
         RGWSupportBundle._generate_tar(bundle_id, target_path)
         RGWSupportBundle._cleanup()
+
+    @staticmethod
+    def _get_latest_n_files(directory:str,number_of_files:int=5) -> list:
+        all_files = filter(lambda f: os.path.isfile(os.path.join(directory, f)),
+            os.listdir(directory))
+            # sort the files based on last modification time
+        sorted_files = sorted(all_files,
+            key=lambda f: os.path.getmtime(os.path.join(directory, f)),
+            reverse=True)
+        return sorted_files[0:number_of_files]
+
 
     @staticmethod
     def _generate_tar(bundle_id: str, target_path: str):
