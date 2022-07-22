@@ -29,6 +29,7 @@ from cortx.utils.log import Log
 from cortx.utils.errors import BaseError
 from cortx.utils.process import SimpleProcess
 from cortx.utils.conf_store.conf_store import Conf, MappedConf
+from cortx.utils.support_framework.log_filters import FilterLog
 from cortx.rgw.const import (
     CONFIG_PATH_KEY, LOG_PATH_KEY, COMPONENT_NAME, RGW_CONF_FILE, RGW_CORE_FILE_DIR_NAME)
 
@@ -51,6 +52,7 @@ class RGWSupportBundle:
         coredumps = filters.get('coredumps', False)
         stacktrace = filters.get('stacktrace', False)
         duration = filters.get('duration',False)
+        size_limit = filters.get('size_limit')
         machine_id = Conf.machine_id
         cortx_config_store = MappedConf(cluster_conf)
         log_base = cortx_config_store.get(LOG_PATH_KEY)
@@ -117,6 +119,31 @@ class RGWSupportBundle:
         else:
             Log.error("RGW log file does not exists hence skipping log file collection.")
 
+        # remaining size limit in folder
+        remaining_size_limit = RGWSupportBundle._get_remaining_folder_size(
+            RGWSupportBundle._tmp_src, size_limit)
+        # apply truncate logic on all textual logs
+        if size_limit:
+            from cortx.utils.support_framework.log_filters import FilterLog
+            tmp_path_for_copy = os.path.join(RGWSupportBundle._tmp_src, 'tmp_dir')
+            FilterLog.limit_size(
+                src_dir=RGWSupportBundle._tmp_src,
+                dest_dir= tmp_path_for_copy,
+                size=remaining_size_limit,
+                file_name_reg_ex='rgw*')
+            remaining_size_limit = RGWSupportBundle._get_remaining_folder_size(
+                RGWSupportBundle._tmp_src, size_limit)
+            FilterLog.limit_size(
+                src_dir=RGWSupportBundle._tmp_src,
+                dest_dir= tmp_path_for_copy,
+                size=remaining_size_limit,
+                file_name_reg_ex='radosgw*')
+
+            for file in os.listdir(tmp_path_for_copy):
+                shutil.move(os.path.join(tmp_path_for_copy, file),
+                os.path.join(RGWSupportBundle._tmp_src, file))
+            shutil.rmtree(tmp_path_for_copy)
+
         # copy addb logs
         addb_log_path = os.path.join(log_dir, 'addb_files-*')
         addb_dirs = glob.glob(addb_log_path)
@@ -128,14 +155,8 @@ class RGWSupportBundle:
         motr_trace_dir = os.path.join(log_dir, 'motr_trace_files')
         if os.path.exists(motr_trace_dir):
             # include the latest 5 log files of motr traces in support bundle
-            list_of_files = filter(lambda f: os.path.isfile(os.path.join(motr_trace_dir, f)),
-                            os.listdir(motr_trace_dir))
-            # sort the files based on last modification time
-            list_of_files = sorted(list_of_files,
-                            key = lambda f: os.path.getmtime(os.path.join(motr_trace_dir, f)),
-                            reverse=True)
-            list_of_files = list_of_files[0:5]
-            for file in list_of_files:
+            latest_files = RGWSupportBundle._get_latest_files(motr_trace_dir)
+            for file in latest_files:
                 infile = os.path.join(motr_trace_dir, file)
                 tmp_motr_trace_dir = os.path.join(RGWSupportBundle._tmp_src, 'motr_trace_files')
                 os.makedirs(tmp_motr_trace_dir, exist_ok=True)
@@ -164,10 +185,31 @@ class RGWSupportBundle:
 
         # copy ceph crash-dump files
         if coredumps:
-            crash_dump_dir = os.path.join(log_dir, RGW_CORE_FILE_DIR_NAME)
+            crash_dump_dir = os.path.join(log_dir, 'rgw_debug')
+            dest_dump_dir = os.path.join(RGWSupportBundle._tmp_src, 'rgw_debug')
             if os.path.exists(crash_dump_dir):
-                shutil.copytree(crash_dump_dir,\
-                    os.path.join(RGWSupportBundle._tmp_src, RGW_CORE_FILE_DIR_NAME))
+                if size_limit:
+                    # get latest 2 core dumps
+                    latest_cores = RGWSupportBundle._get_latest_files(
+                        directory=crash_dump_dir, number_of_files=2)
+                    if len(latest_cores) == 2:
+                        remaining_size = RGWSupportBundle._get_remaining_folder_size(
+                            RGWSupportBundle._tmp_src, size_limit)
+                        # check if sum of both cores is less than remaining size else collect only one
+                        sum_of_core_size = os.path.getsize(
+                            os.path.join(crash_dump_dir,latest_cores[0])) + \
+                            os.path.getsize(
+                                os.path.join(crash_dump_dir,latest_cores[1]))
+                        # select only one core if both cores exceed the size limit
+                        if sum_of_core_size > int(remaining_size[:-1]):
+                            latest_cores.pop()
+                        if not os.path.exists(dest_dump_dir):
+                            os.mkdir(dest_dump_dir)
+                    for file_name in latest_cores:
+                        shutil.copyfile(os.path.join(crash_dump_dir, file_name),
+                            os.path.join(dest_dump_dir, file_name))
+                else:
+                    shutil.copytree(crash_dump_dir, dest_dump_dir)
 
         # add cortx components rpm version
         cmd = "rpm -qa | grep cortx"
@@ -178,6 +220,31 @@ class RGWSupportBundle:
                 fin.write(output.decode("utf-8"))
         RGWSupportBundle._generate_tar(bundle_id, target_path)
         RGWSupportBundle._cleanup()
+
+    @staticmethod
+    def _get_remaining_folder_size(directory:str, size_limit:str) -> str:
+        """Returns size of directory in bytes. eg '3B', '100B', '0B'."""
+        current_size = 0
+        for path, _, files in os.walk(directory):
+            for file in files:
+                file_path = os.path.join(path, file)
+                current_size += os.path.getsize(file_path)
+        size_limit_in_byte = FilterLog._get_size_in_bytes(size_limit)
+        remaining_size_in_byte = size_limit_in_byte - current_size
+        if remaining_size_in_byte < 0:
+            return '0B'
+        else:
+            return str(remaining_size_in_byte) + 'B'
+
+    @staticmethod
+    def _get_latest_files(directory:str,number_of_files:int=5) -> list:
+        all_files = filter(lambda f: os.path.isfile(os.path.join(directory, f)),
+            os.listdir(directory))
+        # sort the files based on last modification time
+        sorted_files = sorted(all_files,
+            key=lambda f: os.path.getmtime(os.path.join(directory, f)),
+            reverse=True)
+        return sorted_files[0:number_of_files]
 
     @staticmethod
     def _generate_tar(bundle_id: str, target_path: str):
