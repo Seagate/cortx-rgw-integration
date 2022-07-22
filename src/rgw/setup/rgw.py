@@ -426,10 +426,10 @@ class Rgw:
         except CipherInvalidToken as e:
             raise SetupError(errno.EINVAL, f'auth_secret decryption failed. {e}')
         rgw_config = Rgw._get_rgw_config_path(conf)
-        create_usr_cmd = f'radosgw-admin user create --uid={user_name} --access-key \
-            {access_key} --secret {password} --display-name="{user_name}" \
-            --caps="users=*;metadata=*;usage=*;zone=*;info=*;user=*;roles=*;user-policy=*;buckets=*" \
-            -c {rgw_config} -n client.radosgw-admin --no-mon-config'
+        create_usr_cmd = (f'radosgw-admin user create --uid={user_name} --access-key '
+            f'{access_key} --secret {password} --display-name="{user_name}" '
+            f'--caps="users=*;metadata=*;usage=*;zone=*;info=*;user=*;roles=*;user-policy=*;buckets=*" '
+            f'-c {rgw_config} -n client.radosgw-admin --no-mon-config')
 
         # Adding retry logic for user creation with given timeout value.
         retry_count = 0
@@ -862,8 +862,8 @@ class Rgw:
         Log.info(f'Validating minimum values of resource limits for {const.COMPONENT_NAME}.')
         num_services = int(Rgw._get_cortx_conf(conf, const.SVC_LIMIT_NUM_SERVICES))
         if num_services == 0:
-            raise SetupError(errno.EINVAL, f"Invalid/Missing values found in gconf \
-                for key :'{const.SVC_LIMIT_NUM_SERVICES}'")
+            raise SetupError(errno.EINVAL,
+                f'Invalid/Missing values found in gconf for key :{const.SVC_LIMIT_NUM_SERVICES}')
         input_cpu_min_val = ''
         input_mem_min_val = ''
         for value_index in range(0, num_services):
@@ -875,8 +875,7 @@ class Rgw:
                break
 
         if input_cpu_min_val == '' or input_mem_min_val == '' :
-            raise SetupError(errno.EINVAL, 'Empty values received for rgw resource limits \
-                            from gconf.')
+            raise SetupError(errno.EINVAL, 'Empty values received for rgw resource limits from gconf.')
         Rgw._compare_resource_limit_value(input_cpu_min_val, const.SVC_CPU_MIN_VAL_LIMIT, 'cpu')
         Rgw._compare_resource_limit_value(input_mem_min_val, const.SVC_MEM_MIN_VAL_LIMIT, 'mem')
         Log.info(f'Minimum values for {const.COMPONENT_NAME} resource limits are valid.')
@@ -895,8 +894,8 @@ class Rgw:
             converted_expected_val = Rgw._convert_resource_limit_value(expected_val, limit_type)
 
         if converted_input_val < converted_expected_val :
-            raise SetupError(errno.EINVAL, f'Provided value {input_val} for rgw resource limit \
-                             is less than expected value {expected_val}')
+            raise SetupError(errno.EINVAL,
+                f'Provided value {input_val} for rgw resource limit is less than expected value {expected_val}')
 
     @staticmethod
     def _convert_resource_limit_value(resource_limit_val: str, limit_type: str):
@@ -928,9 +927,10 @@ class Rgw:
             ret = int(num_resource_limit_val) * int(map_val)
             return ret
         else:
-            raise SetupError(errno.EINVAL, 'Invalid format values received for rgw resource limits \
-                                from gconf. Please use valid format (e.g. for mem limits : 1024, 1Ki, 1Mi, 1Gi etc.)\
-                                for CPU limits : 200m, 700m etc.')
+            raise SetupError(errno.EINVAL,
+                'Invalid format values received for rgw resource limits from gconf.'
+                'Please use valid format (e.g. for mem limits : 1024, 1Ki, 1Mi, 1Gi etc.)'
+                'for CPU limits : 200m, 700m etc.')
 
     @staticmethod
     def _update_svc_config(conf: MappedConf, client_section: str, config_key_mapping: dict):
@@ -943,19 +943,20 @@ class Rgw:
         for config_key, confstore_key in config_key_mapping.items():
             default_value = Conf.get(Rgw._conf_idx, f'{client_section}>{config_key}')
             if confstore_key is None:
-                Log.info(f'config key:{config_key} not found in rgw key mapping.\
-                    hence using default value as {default_value} specified in config file.')
+                Log.info(f'config key:{config_key} not found in rgw key mapping.'
+                    f'hence using default value as {default_value} specified in config file.')
                 continue
             else:
                 # fetch actual value of parameter from confstore.
                 # if config key/value is missing in confstore then use default value mentioned in config file.
                 config_value = conf.get(confstore_key)
                 if config_value is not None:
-                    Log.info(f'Setting config key :{config_key} with value:{config_value} at {client_section} section')
+                    Log.info(f'Setting config key :{config_key} with value:{config_value}'
+                        f'at {client_section} section')
                     Conf.set(Rgw._conf_idx, f'{client_section}>{config_key}', str(config_value))
                 else :
-                    Log.info(f'GConfig entry is missing for config key :{config_key}.\
-                        hence using default value as {default_value} specified in config file.')
+                    Log.info(f'GConfig entry is missing for config key :{config_key}.'
+                        f'hence using default value as {default_value} specified in config file.')
                     continue
 
         Conf.save(Rgw._conf_idx)
@@ -975,12 +976,12 @@ class Rgw:
         data_path_default_value = const.SVC_DATA_PATH_DEFAULT_VALUE + cluster_id
         confstore_data_path_value = conf.get(const.SVC_DATA_PATH_CONFSTORE_KEY)
         if confstore_data_path_value is not None:
-           Log.info(f'Setting config key :{const.SVC_DATA_PATH_KEY} with value:{confstore_data_path_value}\
-               at {client_section} section')
+           Log.info(f'Setting config key :{const.SVC_DATA_PATH_KEY} with value:{confstore_data_path_value}'
+               f'at {client_section} section')
            Conf.set(Rgw._conf_idx, f'{client_section}>{const.SVC_DATA_PATH_KEY}', str(confstore_data_path_value))
         else:
-           Log.info(f'GConfig entry is missing for config key :{const.SVC_DATA_PATH_KEY}.\
-                        hence using default value as {data_path_default_value} specified in config file.')
+           Log.info(f'GConfig entry is missing for config key :{const.SVC_DATA_PATH_KEY}.'
+                f'hence using default value as {data_path_default_value} specified in config file.')
            Conf.set(Rgw._conf_idx, f'{client_section}>{const.SVC_DATA_PATH_KEY}', str(data_path_default_value))
 
         Conf.save(Rgw._conf_idx)
