@@ -917,9 +917,8 @@ class Rgw:
         elif limit_type == 'cpu':
             temp = list(filter(resource_limit_val.endswith, const.SVC_RESOURCE_LIMIT_CPU_VAL_SUFFIXES))
         else:
-            raise SetupError(errno.EINVAL, f'Invalid limit type {limit_type} is speicified in rgw.')
+            raise SetupError(errno.EINVAL, f'Invalid resource limit type {limit_type} speicified for rgw.')
         if len(temp) > 0:
-            suffix = temp[0]
             # Ex: If mem resource_limit_val is 128MiB then num_resource_limit_val=128 or
             # If cpu resource_limit_val is 200m then num_resource_limit_val=200
             num_resource_limit_val = re.sub(r'[^0-9]', '', resource_limit_val)
