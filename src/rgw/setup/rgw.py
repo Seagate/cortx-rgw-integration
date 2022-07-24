@@ -858,7 +858,7 @@ class Rgw:
 
     @staticmethod
     def _validate_resource_limit_values(conf: MappedConf):
-        """Validate minimum values of rgw resource limits in Gconf."""
+        """Validating minimum values of rgw resource limits in Gconf against minimum required values."""
         Log.info(f'Validating minimum values of resource limits for {const.COMPONENT_NAME}.')
         num_services = int(Rgw._get_cortx_conf(conf, const.SVC_LIMIT_NUM_SERVICES))
         if num_services == 0:
@@ -884,22 +884,30 @@ class Rgw:
     def _compare_resource_limit_value(input_val: str, expected_val: str, limit_type: str):
         """ Compare resource limit values with expected value"""
         if input_val.isnumeric():
-            converted_input_val = int(input_val)
+            # for CPU, value 1 = 1000m hence handling this numeric convertion.
+            if limit_type == 'cpu':
+               converted_input_val = int(input_val) * const.CPU_VAL_MULTIPLICATION_FACTOR
+            else:
+               converted_input_val = int(input_val)
         else:
             converted_input_val = Rgw._convert_resource_limit_value(input_val, limit_type)
 
         if expected_val.isnumeric():
-            converted_expected_val = int(expected_val)
+            # for CPU, value 1 = 1000m hence handling this numeric convertion.
+            if limit_type == 'cpu':
+               converted_expected_val = int(expected_val) * const.CPU_VAL_MULTIPLICATION_FACTOR
+            else:
+               converted_expected_val = int(expected_val)
         else:
             converted_expected_val = Rgw._convert_resource_limit_value(expected_val, limit_type)
 
         if converted_input_val < converted_expected_val :
             raise SetupError(errno.EINVAL,
-                f'Provided value {input_val} for rgw resource limit is less than expected value {expected_val}')
+                f'Provided value {input_val} for rgw resource limit ({limit_type}) is less than expected value {expected_val}')
 
     @staticmethod
     def _convert_resource_limit_value(resource_limit_val: str, limit_type: str):
-        """"Convert give resource limit value to common units based on limit type"""
+        """"Convert given resource limit value to common units based on limit type"""
         # e.g. if Gconf has cortx>rgw>limits>services[0]>memory>min : 128MiB value,
         # then convert this into bytes i.e. 128*1024*1024*1024
 
@@ -915,16 +923,19 @@ class Rgw:
             # Ex: If mem resource_limit_val is 128MiB then num_resource_limit_val=128 or
             # If cpu resource_limit_val is 200m then num_resource_limit_val=200
             num_resource_limit_val = re.sub(r'[^0-9]', '', resource_limit_val)
+            val_length = len(num_resource_limit_val)
+            # If mem resource_limit_val is 128MiB then resource_unit_key is M.
+            resource_unit_key = resource_limit_val[val_length:val_length+1]
 
             # Ex: If mem resource_limit_val is 128MiB then map_val = 1024*1024*1024 or
             # If cpu resource_limit_val is 200m then map_val = 1
             if limit_type == 'mem' :
-                map_val = const.SVC_RESOURCE_LIMIT_MEM_VAL_SIZE_MAP[suffix]
+                map_val = const.SVC_RESOURCE_LIMIT_MEM_VAL_SIZE_MAP[resource_unit_key]
             else :
-                map_val = const.SVC_RESOURCE_LIMIT_CPU_VAL_SIZE_MAP[suffix]
+                map_val = const.SVC_RESOURCE_LIMIT_CPU_VAL_SIZE_MAP[resource_unit_key]
 
             # Calcuate final limit value.
-            ret = int(num_resource_limit_val) * int(map_val)
+            ret = int(num_resource_limit_val) * map_val
             return ret
         else:
             raise SetupError(errno.EINVAL,
