@@ -141,6 +141,23 @@ RGW_BACKEND_STORE_KEY = 'client>rgw backend store'
 UTF_ENCODING = 'utf-8'
 MOTR_MY_FID = f'{SVC_SECTION}>motr my fid'
 
+# RGW resource limit keys
+SVC_CPU_MIN_VAL_LIMIT = '250m'
+SVC_MEM_MIN_VAL_LIMIT = '128Mi'
+SVC_LIMIT_KEY = f'cortx>{COMPONENT_NAME}>limits'
+SVC_LIMIT_NUM_SERVICES= f'{SVC_LIMIT_KEY}>num_services'
+SVC_LIMIT_NAME = f'{SVC_LIMIT_KEY}>services[%s]>name'
+SVC_LIMIT_CPU_MIN_KEY = f'{SVC_LIMIT_KEY}>services[%s]>cpu>min'
+SVC_LIMIT_MEM_MIN_KEY = f'{SVC_LIMIT_KEY}>services[%s]>memory>min'
+SVC_RESOURCE_LIMIT_MEM_VAL_SUFFIXES = [
+    'K', 'Ki', 'Kib', 'M', 'Mi', 'Mib', 'G', 'Gi', 'Gib', 'T', 'Ti', 'Tib']
+SVC_RESOURCE_LIMIT_MEM_VAL_SIZE_MAP = {
+    "K": 1024, "M": 1024*1024, "G": 1024*1024*1024, "T": 1024*1024*1024*1024}
+
+SVC_RESOURCE_LIMIT_CPU_VAL_SUFFIXES = ['m']
+CPU_VAL_MULTIPLICATION_FACTOR = 1000
+SVC_RESOURCE_LIMIT_CPU_VAL_SIZE_MAP = { "m": 1 }
+
 class RgwEndpoint(Enum):
     """Enum class to define rgw endpoints provided by hare."""
 
