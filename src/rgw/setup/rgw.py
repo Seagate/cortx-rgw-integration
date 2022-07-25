@@ -928,10 +928,15 @@ class Rgw:
 
             # Ex: If mem resource_limit_val is 128MiB then map_val = 1024*1024*1024 or
             # If cpu resource_limit_val is 200m then map_val = 1
-            if limit_type == 'mem' :
+            if limit_type == 'mem' and resource_unit_key in const.SVC_RESOURCE_LIMIT_MEM_VAL_SIZE_MAP :
                 map_val = const.SVC_RESOURCE_LIMIT_MEM_VAL_SIZE_MAP[resource_unit_key]
-            else :
+            elif limit_type == 'cpu' and resource_unit_key in const.SVC_RESOURCE_LIMIT_CPU_VAL_SIZE_MAP :
                 map_val = const.SVC_RESOURCE_LIMIT_CPU_VAL_SIZE_MAP[resource_unit_key]
+            else :
+                raise SetupError(errno.EINVAL,
+                    f'Invalid resource unit :{resource_unit_key} found for rgw {limit_type} limit ({resource_limit_val}). '
+                    'Please use valid format e.g. for mem limits : 1024, 1K, 1Ki, 1M, 1Mi, 1G, 1Gi etc and '
+                    'for CPU limits : 1, 0.5, 200m, 700m etc.')
 
             # Calcuate final limit value.
             ret = int(num_resource_limit_val) * map_val
@@ -939,8 +944,8 @@ class Rgw:
         else:
             raise SetupError(errno.EINVAL,
                 'Invalid format values received for rgw resource limits from gconf.'
-                'Please use valid format (e.g. for mem limits : 1024, 1Ki, 1Mi, 1Gi etc.)'
-                'for CPU limits : 200m, 700m etc.')
+                'Please use valid format (e.g. for mem limits :  1024, 1K, 1Ki, 1M, 1Mi, 1G, 1Gi etc)'
+                'for CPU limits : 1, 0.5, 200m, 700m etc.')
 
     @staticmethod
     def _update_svc_config(conf: MappedConf, client_section: str, config_key_mapping: dict):
