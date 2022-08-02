@@ -117,6 +117,17 @@ class Rgw:
         os.environ['M0_TRACE_DIR'] = motr_trace_dir
         Log.info('Created motr trace directory : %s' % os.environ.get('M0_TRACE_DIR'))
 
+        # Create motr addb directory for collecting addb files
+        # in case admin user creation issue during mini-provisioner execution.
+        Log.info('Creating motr addb_files- directory for collecting addb files..')
+        motr_fid_key = const.MOTR_ADMIN_FID_KEY
+        motr_fid_value = Conf.get(Rgw._conf_idx, motr_fid_key)
+        log_path = Rgw._get_log_dir_path(conf)
+        addb_dir = os.path.join(log_path, f'addb_files-{motr_fid_value}')
+        os.makedirs(addb_dir, exist_ok=True)
+        os.environ['M0_CLIENT_ADDB_DIR'] = addb_dir
+        Log.info('Created addb-files- directory : %s' % os.environ.get('M0_CLIENT_ADDB_DIR'))
+
         # Change current working directory to rgw_debug for core file generation
         Rgw._change_working_dir(conf)
 
@@ -147,9 +158,11 @@ class Rgw:
         motr_fid_value = Conf.get(Rgw._conf_idx, motr_fid_key)
         log_path = Rgw._get_log_dir_path(conf)
         motr_trace_dir = os.path.join(log_path, 'motr_trace_files')
-        addb_dir = os.path.join(log_path, f'addb_files-{motr_fid_value}')
         os.makedirs(motr_trace_dir, exist_ok=True)
+
+        addb_dir = os.path.join(log_path, f'addb_files-{motr_fid_value}')
         os.makedirs(addb_dir, exist_ok=True)
+
         # Create rgw crash file directory
         rgw_core_dir = os.path.join(log_path, 'rgw_debug')
         os.makedirs(rgw_core_dir, exist_ok=True)
@@ -157,7 +170,7 @@ class Rgw:
         Log.info('Starting radosgw service.')
         log_file = os.path.join(log_path, f'{const.COMPONENT_NAME}_startup.log')
 
-        RgwService.start(conf, config_file, log_file, motr_trace_dir, rgw_core_dir, index)
+        RgwService.start(conf, config_file, log_file, motr_trace_dir, addb_dir, rgw_core_dir, index)
         Log.info("Started radosgw service.")
 
         return 0
