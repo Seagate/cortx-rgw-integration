@@ -64,8 +64,6 @@ class Rgw:
     @staticmethod
     def post_install(conf: MappedConf):
         """Performs post install operations."""
-
-        Log.info('PostInstall phase completed.')
         return 0
 
     @staticmethod
@@ -88,8 +86,6 @@ class Rgw:
         except Exception as e:
             raise SetupError(errno.EINVAL, f'Error ocurred while fetching node ip, {e}')
 
-        Log.info('Prepare phase completed.')
-
         return 0
 
     @staticmethod
@@ -102,7 +98,7 @@ class Rgw:
         if not os.path.exists(config_file):
             raise SetupError(errno.EINVAL, f'"{config_file}" config file is not present.')
 
-        # Validate resouce limit values
+        # Validate resource limit values
         Rgw._validate_resource_limit_values(conf)
 
         # Create ssl certificate
@@ -129,8 +125,6 @@ class Rgw:
         # Try HAX endpoint from data pod of same node first & if it doesnt work,
         # from other data pods in cluster
         Rgw._update_hax_endpoint_and_create_admin(conf)
-        Log.info('Config phase completed.')
-
 
         return 0
 
@@ -138,13 +132,12 @@ class Rgw:
     def start(conf: MappedConf, index: str):
         """Create rgw admin user and start rgw service."""
 
-        Log.info(f'Configure logrotate for {const.COMPONENT_NAME} at path: {const.LOGROTATE_CONF}')
         Rgw._logrotate_generic(conf)
 
         # Before starting service,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
 
-        # Create motr trace & addb stob dirctory.
+        # Create motr trace & addb stob directory.
         # Collect fid value of motr to create addb value.
         config_file = Rgw._get_rgw_config_path(conf)
         confstore_url = const.CONFSTORE_FILE_HANDLER + config_file
@@ -172,21 +165,18 @@ class Rgw:
     def init(conf: MappedConf):
         """Perform initialization."""
 
-        Log.info('Init phase completed.')
         return 0
 
     @staticmethod
     def test(conf: MappedConf, plan: str):
         """Perform configuration testing."""
 
-        Log.info('Test phase completed.')
         return 0
 
     @staticmethod
     def reset(conf: MappedConf):
         """Remove/Delete all the data/logs that was created by user/testing."""
 
-        Log.info('Reset phase completed.')
         return 0
 
     @staticmethod
@@ -195,7 +185,7 @@ class Rgw:
         config_path = Rgw._get_rgw_config_path(conf)
         if os.path.exists(config_path):
             os.remove(config_path)
-        Log.info('Cleanup phase completed.')
+
         return 0
 
     @staticmethod
@@ -273,7 +263,6 @@ class Rgw:
         except Exception as e:
             raise SetupError(errno.EINVAL, f'Upgrade failed with error: {e}')
 
-        Log.info('Upgrade phase completed.')
         return 0
 
     @staticmethod
@@ -282,7 +271,7 @@ class Rgw:
         svc_name = Rgw._get_svc_name(conf)
 
         client_instance_count = Rgw._get_num_client_instances(conf, svc_name)
-        Log.info('fetching endpoint values from hctl fetch-fids cmd.')
+        Log.info('Fetching endpoint values from hctl fetch-fids cmd.')
         # For running rgw service and radosgw-admin tool,
         # we are using same endpoints fetched from hctl fetch-fids cmd as default endpoints,
         # given radosgw-admin tool & rgw service not expected to run simultaneously.
@@ -292,7 +281,7 @@ class Rgw:
         while instance <= client_instance_count:
             service_endpoints = Rgw._parse_endpoint_values(
                 conf, instance, client_instance_count, svc_name)
-            Rgw._validate_endpoint_paramters(service_endpoints)
+            Rgw._validate_endpoint_parameters(service_endpoints)
 
             Rgw._update_rgw_config_with_endpoints(conf, service_endpoints, instance)
             instance = instance + 1
@@ -304,7 +293,6 @@ class Rgw:
         # Before user creation,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
 
-        Log.info(f'Configure logrotate for {const.COMPONENT_NAME} at path: {const.LOGROTATE_CONF}')
         Rgw._logrotate_generic(conf)
 
     @staticmethod
@@ -325,7 +313,7 @@ class Rgw:
         host, port = consul_url.split(':')
         result = sock.connect_ex((host, int(port)))
         if result != 0:
-            raise SetupError(errno.EINVAL, f"Consul server {host:port} not reachable")
+            raise SetupError(errno.EINVAL, f"Consul server {host:port} not reachable.")
 
     @staticmethod
     def _get_gconf_key_list(conf: MappedConf, gconf_num_key:str, actual_gconf_key:str):
@@ -355,7 +343,7 @@ class Rgw:
                                       consul_endpoints))
         if len(endpoints_value) == 0:
             raise SetupError(errno.EINVAL,
-                f'{endpoint_type} endpoint is not specified in the conf.'
+                f'{endpoint_type} endpoint is not specified in the GConf.'
                 f' Listed endpoints: {consul_endpoints}')
         return endpoints_value
 
@@ -434,7 +422,8 @@ class Rgw:
         # Adding retry logic for user creation with given timeout value.
         retry_count = 0
         rc = -1
-        while(retry_count < const.USER_CREATION_MAX_RETRY_COUNT):
+        while (retry_count < const.USER_CREATION_MAX_RETRY_COUNT):
+            Log.info(f'Creating admin user, command : {create_usr_cmd}.')
             _, err, rc, = SimpleProcess(create_usr_cmd).run(timeout=const.ADMIN_CREATION_TIMEOUT)
             if rc == 0:
                 Log.info(f'RGW admin user {user_name} is created.')
@@ -470,7 +459,7 @@ class Rgw:
         # no of rgw config elements present in hctl fetch-fids output.
         if len(endpoints) < client_instance_count:
             raise SetupError(errno.EINVAL,
-                f'The count of {svc_name} elements in hctl-fetch-fids o/p '
+                f'The count of {svc_name} endpoints in hctl-fetch-fids o/p '
                 f'does not match with the {svc_name} client instance count.')
         # Fetch endpoints based on instance,
         # for eg. for instance=1 read 0th index rgw config list from output and so on.
@@ -490,7 +479,8 @@ class Rgw:
         confstore_url = const.CONFSTORE_FILE_HANDLER + config_file
         Rgw._load_rgw_config(Rgw._conf_idx, confstore_url)
         log_path = Rgw._get_log_dir_path(conf)
-        service_instance_log_file = os.path.join(log_path, f'{const.COMPONENT_NAME}-{instance}.log')
+        service_instance_log_file = os.path.join(
+            log_path, f'{const.COMPONENT_NAME}-{instance}.log')
         radosgw_admin_log_file = os.path.join(log_path, 'radosgw-admin.log')
 
         # Update version in conf file.
@@ -537,12 +527,12 @@ class Rgw:
                 port = const.DEFAULT_HTTP_PORT
             elif protocol == 'https':
                 port = const.DEFAULT_HTTPS_PORT
-            Log.info(f'{const.SVC_ENDPOINT_NUM_KEY} is not available in cluster.conf,'
+            Log.info(f'{const.SVC_ENDPOINT_NUM_KEY} is not available in GConf,'
                 f' using the default value. {protocol} - {port}')
         return port
 
     @staticmethod
-    def _validate_endpoint_paramters(endpoints: dict):
+    def _validate_endpoint_parameters(endpoints: dict):
         """Validate endpoint values fetched from hctl fetch-fids cmd."""
 
         for key, _ in const.RgwEndpoint.__members__.items():
@@ -560,7 +550,7 @@ class Rgw:
         try:
             next(endpoint for endpoint in decoded_out if endpoint['name'] == svc_name)
         except StopIteration:
-            raise SetupError(errno.EINVAL, 'Invalid %s endpoint values', svc_name)
+            raise SetupError(errno.EINVAL, 'Invalid %s endpoint values' % svc_name)
 
     @staticmethod
     def _get_hare_config_path(conf: MappedConf):
@@ -584,7 +574,7 @@ class Rgw:
         return num_instances
 
     @staticmethod
-    def _get_cortx_conf(conf: MappedConf, key: str, default_value = None):
+    def _get_cortx_conf(conf: MappedConf, key: str, default_value=None):
         """Read value from cluster config for given key"""
         val = conf.get(key)
         if val is None:
@@ -595,7 +585,7 @@ class Rgw:
         return val
 
     @staticmethod
-    def _search_cortx_conf(conf: MappedConf, parent_key: str, search_key : str, search_value : str = None):
+    def _search_cortx_conf(conf: MappedConf, parent_key: str, search_key: str, search_value: str = None):
         """
         Search specific key with parent level key, actual search key and optional search value.
 
@@ -636,10 +626,11 @@ class Rgw:
     @staticmethod
     def _update_hax_endpoint(conf: MappedConf, data_pod_hostname: str):
         """Update hax endpoint values in rgw config file."""
-        Log.info('Reading motr_ha_endpoint from data pod')
 
         if not data_pod_hostname:
-            raise SetupError(errno.EINVAL, 'Invalid data pod hostname: %s', data_pod_hostname)
+            raise SetupError(errno.EINVAL, 'Invalid data pod hostname: %s' % data_pod_hostname)
+
+        Log.info(f'Reading motr_ha_endpoint from {data_pod_hostname}')
 
         hare_config_dir = Rgw._get_hare_config_path(conf)
         fetch_fids_cmd = f'hctl fetch-fids -c {hare_config_dir} --node {data_pod_hostname}'
@@ -647,7 +638,7 @@ class Rgw:
         Rgw._validate_hctl_cmd_response(decoded_out, 'hax')
         motr_ha_endpoint = [endpoints['ep'] for endpoints in decoded_out \
             if 'hax' in endpoints.values()][0]
-        Log.info(f'Fetched motr_ha_endpoint from data pod. Endpoint: {motr_ha_endpoint}')
+        Log.info(f'Fetched motr_ha_endpoint from {data_pod_hostname}. Endpoint: {motr_ha_endpoint}')
 
         config_path = Rgw._get_rgw_config_path(conf)
         confstore_url = const.CONFSTORE_FILE_HANDLER + config_path
@@ -664,13 +655,10 @@ class Rgw:
         out, err, rc = SimpleProcess(fetch_fids_cmd).run()
         if rc != 0:
             if data_pod_hostname:
-                Log.error(f'Unable to read fid information for hostname: '
-                    f'{data_pod_hostname}. {err}')
                 raise SetupError(rc, 'Unable to read fid information for hostname: '
-                    '%s. %s', data_pod_hostname, err)
+                    '%s. %s' % (data_pod_hostname, err))
             else:
-                Log.error(f'Unable to read fid information. {err}')
-                raise SetupError(rc, 'Unable to read fid information. %s', err)
+                raise SetupError(rc, 'Unable to read fid information. %s' % err)
 
         decoded_out = json.loads(out.decode(const.UTF_ENCODING))
 
@@ -680,7 +668,6 @@ class Rgw:
     def _create_admin_on_current_node(conf: MappedConf, current_data_node: str):
         try:
             Rgw._update_hax_endpoint(conf, current_data_node)
-            Log.info('Creating admin user.')
             # Before creating user check if user is already created.
             user_status = Rgw._create_rgw_user(conf)
             return user_status
@@ -706,7 +693,7 @@ class Rgw:
         # Check for rgw_lock in consul kv store.
         Log.info('Checking for rgw lock in consul kv store.')
         Rgw._load_rgw_config(rgw_consul_idx, consul_url)
-        rgw_lock = Rgw._get_lock(rgw_consul_idx)
+        rgw_lock = Rgw._get_lock(conf, rgw_consul_idx)
         if rgw_lock is True:
             # TODO: Find a way to get current data pod hostname on server node.
             # current_data_node = socket.gethostname().replace('server', 'data')
@@ -737,7 +724,6 @@ class Rgw:
                     break
                 else:
                     if data_pod_hostname == data_pod_hostnames[-1]:
-                        Log.error(f'Admin user creation failed with error code - {status}')
                         Rgw._delete_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY)
                         raise SetupError(status, 'Admin user creation failed on'
                             f' "{Rgw._machine_id}" node, with all data pods - {data_pod_hostnames}')
@@ -747,17 +733,17 @@ class Rgw:
     def _get_data_nodes(conf: MappedConf):
         """Return all data nodes hostname from GConf"""
         data_pod_hostnames = []
-        Log.debug('collecting all data pod hostnames from GConf..')
+        Log.debug('Collecting all data pod hostnames from GConf..')
         node_identify_keys = Rgw._search_cortx_conf(conf, const.NODE_IDENTIFIER, const.DATA_NODE_IDENTIFIER)
         node_machine_ids = list(map(lambda x: x.split('>')[1], node_identify_keys))
         for machine_id in node_machine_ids:
             data_pod_hostnames.append(Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % machine_id))
 
-        Log.debug(f'collected all data pod hostnames from GConf : {data_pod_hostnames}')
+        Log.debug(f'Collected all data pod hostnames from GConf : {data_pod_hostnames}')
         return data_pod_hostnames
 
     @staticmethod
-    def _get_lock(consul_idx: str):
+    def _get_lock(conf: MappedConf, consul_idx: str):
         """Get lock from consul kv."""
         # if in case try-catch block code executed at the same time on all the nodes,
         # then all nodes will try to update rgw lock-key in consul, after updating key
@@ -770,21 +756,23 @@ class Rgw:
                 rgw_lock_val = Conf.get(consul_idx, const.CONSUL_LOCK_KEY)
                 Log.info(f'{const.CONSUL_LOCK_KEY} value - {rgw_lock_val}')
                 if rgw_lock_val is None:
-                    Log.info(f'Setting consul kv store value for key :{const.CONSUL_LOCK_KEY}'
-                            f' and value as :{Rgw._machine_id}')
+                    Log.info(
+                        f'Adding kv pair in consul - {const.CONSUL_LOCK_KEY}:{Rgw._machine_id}')
                     Rgw._set_consul_kv(consul_idx, const.CONSUL_LOCK_KEY, Rgw._machine_id)
                     continue
                 elif rgw_lock_val == Rgw._machine_id:
                     Log.info('Required lock already possessed, proceeding with RGW '
-                        f'admin user creation on node {rgw_lock_val}')
+                         'admin user creation on node '
+                        f'{Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % rgw_lock_val)}')
                     rgw_lock = True
                     break
                 elif rgw_lock_val != Rgw._machine_id:
                     if rgw_lock_val == const.ADMIN_USER_CREATED:
                         Log.info('User is already created.')
                         break
-                    Log.info(f'RGW lock is acquired by "{rgw_lock_val}" node.')
-                    Log.info(f'Waiting for user creation to complete on "{rgw_lock_val}" node')
+                    node_name = Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % rgw_lock_val)
+                    Log.info(f'RGW lock is acquired by "{node_name}" node.')
+                    Log.info(f'Waiting for user creation to complete on {node_name}" node.')
                     time.sleep(3)
                     continue
 
@@ -805,13 +793,13 @@ class Rgw:
     @staticmethod
     def _delete_consul_kv(consul_idx: str, key: str):
         """Delete key value pair from consul kv store."""
-        Log.debug(f'Deleting rgw_lock key {key}.')
         Conf.delete(consul_idx, key)
-        Log.info(f'{key} key is deleted')
+        Log.info(f'rgw_lock key {key} is deleted')
 
     @staticmethod
     def _logrotate_generic(conf: MappedConf):
         """ Configure logrotate utility for rgw logs."""
+        Log.info(f'Configure logrotate for {const.COMPONENT_NAME} at path: {const.LOGROTATE_CONF}')
         log_file_path = Rgw._get_log_dir_path(conf)
         # Configure the cron job on hourly frequency for RGW log files.
         try:
@@ -853,8 +841,9 @@ class Rgw:
         backend_store = Conf.get(Rgw._conf_idx, const.RGW_BACKEND_STORE_KEY)
         if not backend_store in const.SUPPORTED_BACKEND_STORES:
             raise SetupError(errno.EINVAL,
-                f'Supported rgw backend store are {const.SUPPORTED_BACKEND_STORES},'
-                f' currently configured one is {backend_store}')
+                f'"{backend_store}" is not supported,'
+                f'supported rgw backend store: {const.SUPPORTED_BACKEND_STORES},'
+                )
 
     @staticmethod
     def _validate_resource_limit_values(conf: MappedConf):
@@ -893,7 +882,7 @@ class Rgw:
             converted_input_val = Rgw._convert_resource_limit_value(input_val, limit_type)
 
         if expected_val.isnumeric():
-            # for CPU, value 1 = 1000m hence handling this numeric convertion.
+            # for CPU, value 1 = 1000m hence handling this numeric conversion.
             if limit_type == 'cpu':
                converted_expected_val = int(expected_val) * const.CPU_VAL_MULTIPLICATION_FACTOR
             else:
@@ -917,7 +906,7 @@ class Rgw:
         elif limit_type == 'cpu':
             temp = list(filter(resource_limit_val.endswith, const.SVC_RESOURCE_LIMIT_CPU_VAL_SUFFIXES))
         else:
-            raise SetupError(errno.EINVAL, f'Invalid resource limit type {limit_type} speicified for rgw.')
+            raise SetupError(errno.EINVAL, f'Invalid resource limit type {limit_type} specified for rgw.')
         if len(temp) > 0:
             # Ex: If mem resource_limit_val is 128MiB then num_resource_limit_val=128 or
             # If cpu resource_limit_val is 200m then num_resource_limit_val=200
@@ -938,7 +927,7 @@ class Rgw:
                     'Please use valid format e.g. for mem limits : 1024, 1K, 1Ki, 1M, 1Mi, 1G, 1Gi etc and '
                     'for CPU limits : 1, 0.5, 200m, 700m etc.')
 
-            # Calcuate final limit value.
+            # Calculate final limit value.
             ret = int(num_resource_limit_val) * map_val
             return ret
         else:
@@ -953,29 +942,29 @@ class Rgw:
         svc_config_file = Rgw._get_rgw_config_path(conf)
         confstore_url = const.CONFSTORE_FILE_HANDLER + svc_config_file
         Rgw._load_rgw_config(Rgw._conf_idx, confstore_url)
-        Log.info(f'updating parameters to {client_section} in {svc_config_file}')
+        Log.info(f'Updating parameters to {client_section} in {svc_config_file}')
 
         for config_key, confstore_key in config_key_mapping.items():
             default_value = Conf.get(Rgw._conf_idx, f'{client_section}>{config_key}')
             if confstore_key is None:
-                Log.info(f'config key:{config_key} not found in rgw key mapping.'
-                    f'hence using default value as {default_value} specified in config file.')
+                Log.info(f'Config key:{config_key} not found in rgw key mapping.'
+                    f'hence using default value:{default_value}.')
                 continue
             else:
                 # fetch actual value of parameter from confstore.
                 # if config key/value is missing in confstore then use default value mentioned in config file.
                 config_value = conf.get(confstore_key)
                 if config_value is not None:
-                    Log.info(f'Setting config key :{config_key} with value:{config_value}'
+                    Log.debug(f'Setting KV pair {config_key} :{config_value}'
                         f'at {client_section} section')
                     Conf.set(Rgw._conf_idx, f'{client_section}>{config_key}', str(config_value))
                 else :
-                    Log.info(f'GConfig entry is missing for config key :{config_key}.'
-                        f'hence using default value as {default_value} specified in config file.')
+                    Log.debug(f'Key: {config_key} is missing from GConf,'
+                        f'hence using the default value:"{default_value}".')
                     continue
 
         Conf.save(Rgw._conf_idx)
-        Log.info(f'added paramters to {client_section} successfully..')
+        Log.info(f'Added parameters to {client_section} successfully..')
 
     @staticmethod
     def _update_svc_data_path_value(conf: MappedConf, client_section: str):
@@ -985,19 +974,19 @@ class Rgw:
         svc_config_file = Rgw._get_rgw_config_path(conf)
         confstore_url = const.CONFSTORE_FILE_HANDLER + svc_config_file
         Rgw._load_rgw_config(Rgw._conf_idx, confstore_url)
-        Log.info(f'updating data_path paramter to {client_section} in {svc_config_file}')
+        Log.info(f'Updating data_path parameter to {client_section} in {svc_config_file}')
 
         # Create data path's default value e.g. /var/lib/ceph/radosgw/<cluster-id>
         data_path_default_value = const.SVC_DATA_PATH_DEFAULT_VALUE + cluster_id
         confstore_data_path_value = conf.get(const.SVC_DATA_PATH_CONFSTORE_KEY)
         if confstore_data_path_value is not None:
-           Log.info(f'Setting config key :{const.SVC_DATA_PATH_KEY} with value:{confstore_data_path_value}'
+           Log.debug(f'Setting KV pair {const.SVC_DATA_PATH_KEY}:{confstore_data_path_value}'
                f'at {client_section} section')
            Conf.set(Rgw._conf_idx, f'{client_section}>{const.SVC_DATA_PATH_KEY}', str(confstore_data_path_value))
         else:
-           Log.info(f'GConfig entry is missing for config key :{const.SVC_DATA_PATH_KEY}.'
-                f'hence using default value as {data_path_default_value} specified in config file.')
+           Log.debug(f'Key: {const.SVC_DATA_PATH_KEY} is missing from GConf,'
+                f'hence using default the value:"{data_path_default_value}".')
            Conf.set(Rgw._conf_idx, f'{client_section}>{const.SVC_DATA_PATH_KEY}', str(data_path_default_value))
 
         Conf.save(Rgw._conf_idx)
-        Log.info(f'added config parameters to {client_section} successfully..')
+        Log.info(f'Added config parameters to {client_section} successfully..')
