@@ -423,7 +423,7 @@ class Rgw:
         retry_count = 0
         rc = -1
         while (retry_count < const.USER_CREATION_MAX_RETRY_COUNT):
-            Log.info(f'Creating admin user, command : {create_usr_cmd}.')
+            Log.info('Creating RGW admin user.')
             _, err, rc, = SimpleProcess(create_usr_cmd).run(timeout=const.ADMIN_CREATION_TIMEOUT)
             if rc == 0:
                 Log.info(f'RGW admin user {user_name} is created.')
@@ -441,7 +441,7 @@ class Rgw:
                     retry_count = retry_count + 1
                     continue
                 else:
-                    Log.error(f'"{create_usr_cmd}" failed with error {err}.')
+                    Log.error(f'RGW admin user creation failed with error {err}.')
                     break
 
         return rc
@@ -984,7 +984,7 @@ class Rgw:
                f'at {client_section} section')
            Conf.set(Rgw._conf_idx, f'{client_section}>{const.SVC_DATA_PATH_KEY}', str(confstore_data_path_value))
         else:
-           Log.debug(f'Key: {const.SVC_DATA_PATH_KEY} is missing from GConf,'
+           Log.info(f'Key: {const.SVC_DATA_PATH_KEY} is missing from GConf,'
                 f'hence using default the value:"{data_path_default_value}".')
            Conf.set(Rgw._conf_idx, f'{client_section}>{const.SVC_DATA_PATH_KEY}', str(data_path_default_value))
 
