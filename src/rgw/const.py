@@ -110,14 +110,13 @@ SVC_CONFIG_DICT[f'{COMPONENT_NAME} max concurrent request'] = f'cortx>{COMPONENT
 SVC_CONFIG_DICT[f'{COMPONENT_NAME} init timeout'] = f'cortx>{COMPONENT_NAME}>init_timeout'
 
 # GC parameters
-SVC_CONFIG_DICT[f'{COMPONENT_NAME} enable gc threads'] = f'cortx>{COMPONENT_NAME}>enable_gc_threads' # new key
+SVC_CONFIG_DICT[f'{COMPONENT_NAME} enable gc threads'] = f'cortx>{COMPONENT_NAME}>enable_gc_threads'
 SVC_CONFIG_DICT[f'{COMPONENT_NAME} gc obj min wait'] = f'cortx>{COMPONENT_NAME}>gc_obj_min_wait'
 SVC_CONFIG_DICT[f'{COMPONENT_NAME} gc processor period'] = f'cortx>{COMPONENT_NAME}>gc_processor_period'
-SVC_CONFIG_DICT[f'{COMPONENT_NAME} gc max concurrent io'] = f'cortx>{COMPONENT_NAME}>gc_max_concurrent_io' # new key
-SVC_CONFIG_DICT[f'{COMPONENT_NAME} gc max trim chunk'] = f'cortx>{COMPONENT_NAME}>gc_max_trim_chunk' # new key
+SVC_CONFIG_DICT[f'{COMPONENT_NAME} gc max concurrent io'] = f'cortx>{COMPONENT_NAME}>gc_max_concurrent_io'
+SVC_CONFIG_DICT[f'{COMPONENT_NAME} gc max trim chunk'] = f'cortx>{COMPONENT_NAME}>gc_max_trim_chunk'
 SVC_CONFIG_DICT[f'{COMPONENT_NAME} gc max objs'] = f'cortx>{COMPONENT_NAME}>gc_max_objs'
-
-SVC_CONFIG_DICT[f'{COMPONENT_NAME} gc processor max time'] = f'cortx>{COMPONENT_NAME}>gc_processor_max_time' # TBD
+SVC_CONFIG_DICT[f'{COMPONENT_NAME} gc processor max time'] = f'cortx>{COMPONENT_NAME}>gc_processor_max_time'
 
 
 # MOTR additional parameters in SVC config file.
