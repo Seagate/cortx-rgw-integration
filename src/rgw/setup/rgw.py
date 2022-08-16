@@ -291,7 +291,7 @@ class Rgw:
         Rgw._update_svc_config(conf, 'client', const.SVC_CONFIG_DICT)
         Rgw._update_svc_data_path_value(conf, 'client')
 
-        Rgw._update_resource_limt_based_config(conf, 'client')
+        Rgw._update_resource_limit_based_config(conf, 'client')
         # Before user creation,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
 
@@ -867,8 +867,8 @@ class Rgw:
 
         if input_cpu_max_val == '' or input_mem_max_val == '' :
             raise SetupError(errno.EINVAL, 'Empty values received for rgw resource limits from gconf.')
-        Rgw._compare_resource_limit_value(input_cpu_max_val, const.SVC_LIMIT_CPU_MAX_KEY, 'cpu')
-        Rgw._compare_resource_limit_value(input_mem_max_val, const.SVC_LIMIT_MEM_MAX_KEY, 'mem')
+        Rgw._compare_resource_limit_value(input_cpu_max_val, const.SVC_CPU_MAX_VAL_LIMIT, 'cpu')
+        Rgw._compare_resource_limit_value(input_mem_max_val, const.SVC_MEM_MAX_VAL_LIMIT, 'mem')
         Log.info(f'Maximum values for {const.COMPONENT_NAME} resource limits are valid.')
 
     @staticmethod
@@ -991,7 +991,7 @@ class Rgw:
         Log.info(f'Added config parameters to {client_section} successfully..')
 
     @staticmethod
-    def _update_resource_limt_based_config(conf: MappedConf, client_section: str):
+    def _update_resource_limit_based_config(conf: MappedConf, client_section: str):
         """Update svc config file with 'thread pool size' & 'concurrent max req' key based on
         resource limit formula."""
         svc_config_file = Rgw._get_rgw_config_path(conf)
