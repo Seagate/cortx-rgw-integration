@@ -165,10 +165,8 @@ SVC_RESOURCE_LIMIT_MEM_VAL_SIZE_MAP = {
 SVC_RESOURCE_LIMIT_CPU_VAL_SUFFIXES = ['m']
 CPU_VAL_MULTIPLICATION_FACTOR = 1000
 SVC_RESOURCE_LIMIT_CPU_VAL_SIZE_MAP = { "m": 1 }
-SVC_THREAD_POOL_SIZE_RGW_KEY = f'{COMPONENT_NAME} thread pool size'
-SVC_THREAD_POOL_GCONF_KEY = f'cortx>{COMPONENT_NAME}>thread_pool_size'
-SVC_CONCURRENT_MAX_REQ_RGW_KEY = f'{COMPONENT_NAME} max concurrent request'
-SVC_CONCURRENT_MAX_REQ_GCONF_KEY = f'cortx>{COMPONENT_NAME}>max_concurrent_request'
+SVC_THREAD_POOL_SIZE_KEY = f'{COMPONENT_NAME} thread pool size'
+SVC_CONCURRENT_MAX_REQ_KEY = f'{COMPONENT_NAME} max concurrent request'
 
 class RgwEndpoint(Enum):
     """Enum class to define rgw endpoints provided by hare."""

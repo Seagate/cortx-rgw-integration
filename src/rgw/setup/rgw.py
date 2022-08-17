@@ -1018,35 +1018,37 @@ class Rgw:
         if input_mem_max_val == '' or input_cpu_max_val == '' :
            raise SetupError(errno.EINVAL, 'Empty values received for rgw resource limits from gconf.')
 
+        # convert all values into bytes for formula calculation.
         input_max_mem_limit_val = Rgw._convert_resource_limit_value(input_mem_max_val, 'mem')
         initial_startup_mem_val = Rgw._convert_resource_limit_value(const.SVC_INITIAL_STARTUP_MEM, 'mem')
         mem_per_thread_pre_req_val = Rgw._convert_resource_limit_value(const.SVC_MEM_PER_THREAD_PER_REQ, 'mem')
         input_max_cpu_limit_val = Rgw._convert_resource_limit_value(input_cpu_max_val, 'cpu')
         cpu_per_thread_val =  Rgw._convert_resource_limit_value(const.SVC_CPU_PER_THREAD_PER_REQ, 'cpu')
 
+        # Resource limit based formula.
         tuned_memory_val = const.SVC_MEM_FACTOR * (input_max_mem_limit_val - initial_startup_mem_val) / mem_per_thread_pre_req_val
         tuned_cpu_val = input_max_cpu_limit_val / cpu_per_thread_val
 
         thread_pool_size_val = math.floor(min(tuned_memory_val, tuned_cpu_val))
         concurrent_max_requests_val = math.floor(min(tuned_memory_val, 2*tuned_cpu_val))
         if thread_pool_size_val > 0 :
-           Log.debug(f'Setting KV pair {const.SVC_THREAD_POOL_SIZE_RGW_KEY} : {thread_pool_size_val}'
+           Log.debug(f'Setting KV pair {const.SVC_THREAD_POOL_SIZE_KEY} : {thread_pool_size_val}'
                f'at {client_section} section')
-           Conf.set(Rgw._conf_idx, f'{client_section}>{const.SVC_THREAD_POOL_SIZE_RGW_KEY}',
+           Conf.set(Rgw._conf_idx, f'{client_section}>{const.SVC_THREAD_POOL_SIZE_KEY}',
                     str(thread_pool_size_val))
         else:
            raise SetupError(errno.EINVAL,
-                            'Invalid value is generated for {const.SVC_THREAD_POOL_SIZE_RGW_KEY} key.')
+                            'Invalid value is generated for {const.SVC_THREAD_POOL_SIZE_KEY} key.')
 
         if concurrent_max_requests_val > 0 :
-           Log.debug(f'Setting KV pair {const.SVC_CONCURRENT_MAX_REQ_RGW_KEY} :'
+           Log.debug(f'Setting KV pair {const.SVC_CONCURRENT_MAX_REQ_KEY} :'
                      f'{concurrent_max_requests_val} at {client_section} section')
-           Conf.set(Rgw._conf_idx, f'{client_section}>{const.SVC_CONCURRENT_MAX_REQ_RGW_KEY}',
+           Conf.set(Rgw._conf_idx, f'{client_section}>{const.SVC_CONCURRENT_MAX_REQ_KEY}',
                     str(concurrent_max_requests_val))
         else:
            raise SetupError(errno.EINVAL,
-                            'Invalid value is generated for {const.SVC_CONCURRENT_MAX_REQ_RGW_KEY} key.')
+                            'Invalid value is generated for {const.SVC_CONCURRENT_MAX_REQ_KEY} key.')
 
         Conf.save(Rgw._conf_idx)
-        Log.info(f'Added resource limit based config parameters {const.SVC_THREAD_POOL_SIZE_RGW_KEY} and'
-                 f'{const.SVC_CONCURRENT_MAX_REQ_RGW_KEY} to {client_section} successfully..')
+        Log.info(f'Added resource limit based config parameters {const.SVC_THREAD_POOL_SIZE_KEY} and'
+                 f'{const.SVC_CONCURRENT_MAX_REQ_KEY} to {client_section} successfully..')
