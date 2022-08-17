@@ -20,6 +20,7 @@ import time
 import errno
 import json
 import re
+import math
 from urllib.parse import urlparse
 
 from cortx.utils.security.certificate import Certificate
@@ -290,6 +291,7 @@ class Rgw:
         Rgw._update_svc_config(conf, 'client', const.SVC_CONFIG_DICT)
         Rgw._update_svc_data_path_value(conf, 'client')
 
+        Rgw._update_resource_limit_based_config(conf, 'client')
         # Before user creation,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
 
@@ -847,66 +849,63 @@ class Rgw:
 
     @staticmethod
     def _validate_resource_limit_values(conf: MappedConf):
-        """Validating minimum values of rgw resource limits in Gconf against minimum required values."""
-        Log.info(f'Validating minimum values of resource limits for {const.COMPONENT_NAME}.')
+        """Validating max values of rgw resource limits in Gconf against minimum required values."""
+        Log.info(f'Validating max values of resource limits for {const.COMPONENT_NAME}.')
         num_services = int(Rgw._get_cortx_conf(conf, const.SVC_LIMIT_NUM_SERVICES))
         if num_services == 0:
             raise SetupError(errno.EINVAL,
                 f'Invalid/Missing values found in gconf for key :{const.SVC_LIMIT_NUM_SERVICES}')
-        input_cpu_min_val = ''
-        input_mem_min_val = ''
+        input_cpu_max_val = ''
+        input_mem_max_val = ''
         for value_index in range(0, num_services):
             svc_name = Rgw._get_cortx_conf(conf, const.SVC_LIMIT_NAME % value_index)
             # check if current limits are for rgw.
             if svc_name == const.COMPONENT_NAME:
-               input_cpu_min_val = Rgw._get_cortx_conf(conf, const.SVC_LIMIT_CPU_MIN_KEY % value_index)
-               input_mem_min_val = Rgw._get_cortx_conf(conf, const.SVC_LIMIT_MEM_MIN_KEY % value_index)
+               input_cpu_max_val = Rgw._get_cortx_conf(conf, const.SVC_LIMIT_CPU_MAX_KEY % value_index)
+               input_mem_max_val = Rgw._get_cortx_conf(conf, const.SVC_LIMIT_MEM_MAX_KEY % value_index)
                break
 
-        if input_cpu_min_val == '' or input_mem_min_val == '' :
+        if input_cpu_max_val == '' or input_mem_max_val == '' :
             raise SetupError(errno.EINVAL, 'Empty values received for rgw resource limits from gconf.')
-        Rgw._compare_resource_limit_value(input_cpu_min_val, const.SVC_CPU_MIN_VAL_LIMIT, 'cpu')
-        Rgw._compare_resource_limit_value(input_mem_min_val, const.SVC_MEM_MIN_VAL_LIMIT, 'mem')
-        Log.info(f'Minimum values for {const.COMPONENT_NAME} resource limits are valid.')
+        Rgw._compare_resource_limit_value(input_cpu_max_val, const.SVC_CPU_MAX_VAL_LIMIT, 'cpu')
+        Rgw._compare_resource_limit_value(input_mem_max_val, const.SVC_MEM_MAX_VAL_LIMIT, 'mem')
+        Log.info(f'Maximum values for {const.COMPONENT_NAME} resource limits are valid.')
 
     @staticmethod
     def _compare_resource_limit_value(input_val: str, expected_val: str, limit_type: str):
         """ Compare resource limit values with expected value"""
-        if input_val.isnumeric():
-            # for CPU, value 1 = 1000m hence handling this numeric convertion.
-            if limit_type == 'cpu':
-               converted_input_val = int(input_val) * const.CPU_VAL_MULTIPLICATION_FACTOR
-            else:
-               converted_input_val = int(input_val)
-        else:
-            converted_input_val = Rgw._convert_resource_limit_value(input_val, limit_type)
 
-        if expected_val.isnumeric():
-            # for CPU, value 1 = 1000m hence handling this numeric conversion.
-            if limit_type == 'cpu':
-               converted_expected_val = int(expected_val) * const.CPU_VAL_MULTIPLICATION_FACTOR
-            else:
-               converted_expected_val = int(expected_val)
-        else:
-            converted_expected_val = Rgw._convert_resource_limit_value(expected_val, limit_type)
-
+        converted_input_val = Rgw._convert_resource_limit_value(input_val, limit_type)
+        converted_expected_val = Rgw._convert_resource_limit_value(expected_val, limit_type)
         if converted_input_val < converted_expected_val :
             raise SetupError(errno.EINVAL,
                 f'Provided value {input_val} for rgw resource limit ({limit_type}) is less than expected value {expected_val}')
 
+
     @staticmethod
     def _convert_resource_limit_value(resource_limit_val: str, limit_type: str):
         """"Convert given resource limit value to common units based on limit type"""
-        # e.g. if Gconf has cortx>rgw>limits>services[0]>memory>min : 128MiB value,
+        # e.g. if Gconf has cortx>rgw>limits>services[0]>memory>max : 128MiB value,
         # then convert this into bytes i.e. 128*1024*1024*1024
 
+        # Handle numeric conversion
+        if resource_limit_val.isnumeric():
+            # for CPU, value 1 = 1000m hence handling this numeric convertion.
+            if limit_type == 'cpu':
+               converted_val = int(resource_limit_val) * const.CPU_VAL_MULTIPLICATION_FACTOR
+            else:
+               converted_val = int(resource_limit_val)
+            return converted_val
+
+        # Handle suffix conversion.
         # Check if resource_limit_val ends with proper suffixes. It matches only one suffix.
         if limit_type == 'mem' :
             temp = list(filter(resource_limit_val.endswith, const.SVC_RESOURCE_LIMIT_MEM_VAL_SUFFIXES))
         elif limit_type == 'cpu':
             temp = list(filter(resource_limit_val.endswith, const.SVC_RESOURCE_LIMIT_CPU_VAL_SUFFIXES))
         else:
-            raise SetupError(errno.EINVAL, f'Invalid resource limit type {limit_type} specified for rgw.')
+            raise SetupError(errno.EINVAL,
+                             f'Invalid resource limit type {limit_type} specified for {const.COMPONENT_NAME}.')
         if len(temp) > 0:
             # Ex: If mem resource_limit_val is 128MiB then num_resource_limit_val=128 or
             # If cpu resource_limit_val is 200m then num_resource_limit_val=200
@@ -924,7 +923,7 @@ class Rgw:
             else :
                 raise SetupError(errno.EINVAL,
                     f'Invalid resource unit :{resource_unit_key} found for rgw {limit_type} limit ({resource_limit_val}). '
-                    'Please use valid format e.g. for mem limits : 1024, 1K, 1Ki, 1M, 1Mi, 1G, 1Gi etc and '
+                    'Please use valid format e.g. for mem limits : 1024, 1K, 1Kb, 1Ki, 1M, 1Mb, 1Mi, 1G, 1Gb, 1Gi etc and '
                     'for CPU limits : 1, 0.5, 200m, 700m etc.')
 
             # Calculate final limit value.
@@ -933,7 +932,7 @@ class Rgw:
         else:
             raise SetupError(errno.EINVAL,
                 'Invalid format values received for rgw resource limits from gconf.'
-                'Please use valid format (e.g. for mem limits :  1024, 1K, 1Ki, 1M, 1Mi, 1G, 1Gi etc)'
+                'Please use valid format (e.g. for mem limits :  1024, 1K, 1Kb, 1Ki, 1M, 1Mb, 1Mi, 1G, 1Gb, 1Gi etc)'
                 'for CPU limits : 1, 0.5, 200m, 700m etc.')
 
     @staticmethod
@@ -990,3 +989,66 @@ class Rgw:
 
         Conf.save(Rgw._conf_idx)
         Log.info(f'Added config parameters to {client_section} successfully..')
+
+    @staticmethod
+    def _update_resource_limit_based_config(conf: MappedConf, client_section: str):
+        """Update svc config file with 'thread pool size' & 'concurrent max req' key based on
+        resource limit formula."""
+        svc_config_file = Rgw._get_rgw_config_path(conf)
+        confstore_url = const.CONFSTORE_FILE_HANDLER + svc_config_file
+        Rgw._load_rgw_config(Rgw._conf_idx, confstore_url)
+
+        Log.info(f'Updating resource limit based parameters to {client_section} in {svc_config_file}')
+
+        # get max memory & cpu value from resource limit Gconf parameter.
+        num_services = int(Rgw._get_cortx_conf(conf, const.SVC_LIMIT_NUM_SERVICES))
+        if num_services == 0:
+            raise SetupError(errno.EINVAL,
+                f'Invalid/Missing values found in gconf for key :{const.SVC_LIMIT_NUM_SERVICES}')
+        input_mem_max_val = ''
+        input_cpu_max_val = ''
+        for value_index in range(0, num_services):
+            svc_name = Rgw._get_cortx_conf(conf, const.SVC_LIMIT_NAME % value_index)
+            # check if current limits are for rgw.
+            if svc_name == const.COMPONENT_NAME:
+               input_mem_max_val = Rgw._get_cortx_conf(conf, const.SVC_LIMIT_MEM_MAX_KEY % value_index)
+               input_cpu_max_val = Rgw._get_cortx_conf(conf, const.SVC_LIMIT_CPU_MAX_KEY % value_index)
+               break
+
+        if input_mem_max_val == '' or input_cpu_max_val == '' :
+           raise SetupError(errno.EINVAL, 'Empty values received for rgw resource limits from gconf.')
+
+        # convert all values into bytes for formula calculation.
+        input_max_mem_limit_val = Rgw._convert_resource_limit_value(input_mem_max_val, 'mem')
+        initial_startup_mem_val = Rgw._convert_resource_limit_value(const.SVC_INITIAL_STARTUP_MEM, 'mem')
+        mem_per_thread_pre_req_val = Rgw._convert_resource_limit_value(const.SVC_MEM_PER_THREAD_PER_REQ, 'mem')
+        input_max_cpu_limit_val = Rgw._convert_resource_limit_value(input_cpu_max_val, 'cpu')
+        cpu_per_thread_val =  Rgw._convert_resource_limit_value(const.SVC_CPU_PER_THREAD_PER_REQ, 'cpu')
+
+        # Resource limit based formula.
+        tuned_memory_val = const.SVC_MEM_FACTOR * (input_max_mem_limit_val - initial_startup_mem_val) / mem_per_thread_pre_req_val
+        tuned_cpu_val = input_max_cpu_limit_val / cpu_per_thread_val
+
+        thread_pool_size_val = math.floor(min(tuned_memory_val, tuned_cpu_val))
+        concurrent_max_requests_val = math.floor(min(tuned_memory_val, 2*tuned_cpu_val))
+        if thread_pool_size_val > 0 :
+           Log.debug(f'Setting KV pair {const.SVC_THREAD_POOL_SIZE_KEY} : {thread_pool_size_val}'
+               f'at {client_section} section')
+           Conf.set(Rgw._conf_idx, f'{client_section}>{const.SVC_THREAD_POOL_SIZE_KEY}',
+                    str(thread_pool_size_val))
+        else:
+           raise SetupError(errno.EINVAL,
+                            'Invalid value is generated for {const.SVC_THREAD_POOL_SIZE_KEY} key.')
+
+        if concurrent_max_requests_val > 0 :
+           Log.debug(f'Setting KV pair {const.SVC_CONCURRENT_MAX_REQ_KEY} :'
+                     f'{concurrent_max_requests_val} at {client_section} section')
+           Conf.set(Rgw._conf_idx, f'{client_section}>{const.SVC_CONCURRENT_MAX_REQ_KEY}',
+                    str(concurrent_max_requests_val))
+        else:
+           raise SetupError(errno.EINVAL,
+                            'Invalid value is generated for {const.SVC_CONCURRENT_MAX_REQ_KEY} key.')
+
+        Conf.save(Rgw._conf_idx)
+        Log.info(f'Added resource limit based config parameters {const.SVC_THREAD_POOL_SIZE_KEY} and'
+                 f'{const.SVC_CONCURRENT_MAX_REQ_KEY} to {client_section} successfully..')

@@ -105,8 +105,6 @@ SVC_ENDPOINT_VALUE_KEY = f'{SVC_ENDPOINT}>endpoints[%s]'
 # e.g. svc_keys = {'actual_svc_config_key1':'confstore_key1', 'actual_svc_config_key2':'confstore_key2'}
 SVC_CONFIG_DICT = {}
 
-SVC_CONFIG_DICT[f'{COMPONENT_NAME} thread pool size'] = f'cortx>{COMPONENT_NAME}>thread_pool_size'
-SVC_CONFIG_DICT[f'{COMPONENT_NAME} max concurrent request'] = f'cortx>{COMPONENT_NAME}>max_concurrent_request'
 SVC_CONFIG_DICT[f'{COMPONENT_NAME} init timeout'] = f'cortx>{COMPONENT_NAME}>init_timeout'
 
 # GC parameters
@@ -148,21 +146,27 @@ UTF_ENCODING = 'utf-8'
 MOTR_MY_FID = f'{SVC_SECTION}>motr my fid'
 
 # RGW resource limit keys
-SVC_CPU_MIN_VAL_LIMIT = '250m'
-SVC_MEM_MIN_VAL_LIMIT = '128Mi'
+SVC_INITIAL_STARTUP_MEM = '200Mb'
+SVC_MEM_PER_THREAD_PER_REQ = '200Mb'
+SVC_MEM_FACTOR = 0.7
+SVC_CPU_MAX_VAL_LIMIT = '250m'
+SVC_MEM_MAX_VAL_LIMIT = '500Mb'
+SVC_CPU_PER_THREAD_PER_REQ = '100m'
 SVC_LIMIT_KEY = f'cortx>{COMPONENT_NAME}>limits'
 SVC_LIMIT_NUM_SERVICES= f'{SVC_LIMIT_KEY}>num_services'
 SVC_LIMIT_NAME = f'{SVC_LIMIT_KEY}>services[%s]>name'
-SVC_LIMIT_CPU_MIN_KEY = f'{SVC_LIMIT_KEY}>services[%s]>cpu>min'
-SVC_LIMIT_MEM_MIN_KEY = f'{SVC_LIMIT_KEY}>services[%s]>memory>min'
+SVC_LIMIT_CPU_MAX_KEY = f'{SVC_LIMIT_KEY}>services[%s]>cpu>max'
+SVC_LIMIT_MEM_MAX_KEY = f'{SVC_LIMIT_KEY}>services[%s]>memory>max'
 SVC_RESOURCE_LIMIT_MEM_VAL_SUFFIXES = [
-    'K', 'Ki', 'Kib', 'M', 'Mi', 'Mib', 'G', 'Gi', 'Gib', 'T', 'Ti', 'Tib']
+    'K', 'Kb', 'Ki', 'Kib', 'M', 'Mb', 'Mi', 'Mib', 'G', 'Gb', 'Gi', 'Gib', 'T', 'Tb', 'Ti', 'Tib']
 SVC_RESOURCE_LIMIT_MEM_VAL_SIZE_MAP = {
     "K": 1024, "M": 1024*1024, "G": 1024*1024*1024, "T": 1024*1024*1024*1024}
 
 SVC_RESOURCE_LIMIT_CPU_VAL_SUFFIXES = ['m']
 CPU_VAL_MULTIPLICATION_FACTOR = 1000
 SVC_RESOURCE_LIMIT_CPU_VAL_SIZE_MAP = { "m": 1 }
+SVC_THREAD_POOL_SIZE_KEY = f'{COMPONENT_NAME} thread pool size'
+SVC_CONCURRENT_MAX_REQ_KEY = f'{COMPONENT_NAME} max concurrent request'
 
 class RgwEndpoint(Enum):
     """Enum class to define rgw endpoints provided by hare."""
