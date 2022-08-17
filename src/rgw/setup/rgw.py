@@ -923,7 +923,7 @@ class Rgw:
             else :
                 raise SetupError(errno.EINVAL,
                     f'Invalid resource unit :{resource_unit_key} found for rgw {limit_type} limit ({resource_limit_val}). '
-                    'Please use valid format e.g. for mem limits : 1024, 1K, 1Ki, 1M, 1Mi, 1G, 1Gi etc and '
+                    'Please use valid format e.g. for mem limits : 1024, 1K, 1Kb, 1Ki, 1M, 1Mb, 1Mi, 1G, 1Gb, 1Gi etc and '
                     'for CPU limits : 1, 0.5, 200m, 700m etc.')
 
             # Calculate final limit value.
@@ -932,7 +932,7 @@ class Rgw:
         else:
             raise SetupError(errno.EINVAL,
                 'Invalid format values received for rgw resource limits from gconf.'
-                'Please use valid format (e.g. for mem limits :  1024, 1K, 1Ki, 1M, 1Mi, 1G, 1Gi etc)'
+                'Please use valid format (e.g. for mem limits :  1024, 1K, 1Kb, 1Ki, 1M, 1Mb, 1Mi, 1G, 1Gb, 1Gi etc)'
                 'for CPU limits : 1, 0.5, 200m, 700m etc.')
 
     @staticmethod
