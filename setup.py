@@ -37,6 +37,7 @@ with open('README.md', 'r') as rf:
 mini_prov_files = glob.glob('./src/setup/*.py')
 logrotate_tmpl_file = 'src/rgw/setup/templates/rgw.logrotate.tmpl'
 logrotate_service_tmpl = 'src/rgw/setup/templates/logrotate.service.tmpl'
+core_file_logrotate_tmpl = 'src/rgw/setup/templates/rgw_core_logrotate.sh'
 
 data_file_list=[ ('%s/mini-provisioner' % RGW_INSTALL_PATH, mini_prov_files),
                     ('%s/bin' % RGW_INSTALL_PATH,
@@ -45,7 +46,7 @@ data_file_list=[ ('%s/mini-provisioner' % RGW_INSTALL_PATH, mini_prov_files),
                     ('%s/mini-provisioner' % RGW_INSTALL_PATH,['VERSION']),
                     ('%s/conf' % RGW_INSTALL_PATH,['conf/cortx_rgw.conf',
                     logrotate_tmpl_file, 'src/rgw/support/support.yaml',
-                    logrotate_service_tmpl])
+                    logrotate_service_tmpl, core_file_logrotate_tmpl])
                   ]
 
 # Add addb plugin to rpm if its generated duirng build process.
