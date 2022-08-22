@@ -40,7 +40,7 @@ while getopts ":n:" option; do
     case "${option}" in
         n)
             core_files_max_count=${OPTARG}
-            if [ -z ${core_files_max_count} ]
+            if [ -z "${core_files_max_count}" ]
             then
               usage
             fi
@@ -58,31 +58,27 @@ echo "Checking for core files in $rgw_core_dir directory"
 if [[ -n "$rgw_core_dir" && -d "$rgw_core_dir" ]]
 then
     # Find core files
-     core_files=`find $rgw_core_dir -maxdepth 1 -type f -name "core.*"`
-     core_files_count=`echo "$core_files" | grep -v "^$" | wc -l`
+     core_files=$(find "$rgw_core_dir" -maxdepth 1 -type f -name "core.*")
+     core_files_count=$(echo "$core_files" | grep -v "^$" | wc -l)
      echo "## found $core_files_count file(s) in log directory($rgw_core_dir) ##"
      # check core files count is greater than max core file count or not
-     if [ $core_files_count -gt $core_files_max_count ]
+     if [ "$core_files_count" -gt "$core_files_max_count" ]
      then
         # get files sort by date - oldest will come on top
-        remove_file_count=`expr $core_files_count - $core_files_max_count`
-        if [ $remove_file_count -gt 0 ]
+        remove_file_count=$(expr "$core_files_count" - "$core_files_max_count")
+        if [ "$remove_file_count" -gt 0 ]
         then
             echo "## ($remove_file_count) rgw core file(s) can be removed from directory :$rgw_core_dir ##"
             # get the files sorted by time modified (most recently modified comes last),
             # that is oldest files will come on top.
-            files_to_remove=`ls -tr "$rgw_core_dir" | grep core | head -n $remove_file_count`
-            for file in $files_to_remove
+            files_to_remove=$(ls -tr "$rgw_core_dir" | grep core | head -n "$remove_file_count")
+            for file in "$files_to_remove"
             do
               rm -f "$rgw_core_dir/$file"
             done
             echo "## deleted ($remove_file_count) core file(s) from directory: $rgw_core_dir ##"
-        else
-            echo "## No rgw core files to remove ##"
         fi
-     else
-         echo "## No rgw core files to remove ##"
      fi
-else
-    echo "## No rgw core files to remove ##"
 fi
+
+echo "Done with rgw core log rotation script."

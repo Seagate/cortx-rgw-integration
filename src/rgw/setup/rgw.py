@@ -829,10 +829,7 @@ class Rgw:
             Log.error(f"Failed to configure logrotate for {const.COMPONENT_NAME}. ERROR:{e}")
 
         # Copy log rotate script for rgw core files into system's logrotate directory.
-        old_core_logrotate_file = os.path.join(const.LOGROTATE_DIR, const.CORE_LOGROTATE_FILE_NAME)
         core_dir_path = os.path.join(log_file_path, const.RGW_CORE_FILE_DIR_NAME)
-        if os.path.exists(old_core_logrotate_file):
-            os.remove(old_core_logrotate_file)
         try:
             with open(const.CORE_LOGROTATE_TMPL, 'r') as f:
                 content = f.read()
