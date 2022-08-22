@@ -83,7 +83,6 @@ then
      else
          echo "## No rgw core files to remove ##"
      fi
-   done
 else
     echo "## No rgw core files to remove ##"
 fi
