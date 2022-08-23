@@ -34,6 +34,7 @@ COMPONENT_NAME = 'rgw'
 COMPONENT_SVC_NAME = 'rgw_s3'
 DECRYPTION_KEY = 'cortx'
 SERVICE_NAME = f'{COMPONENT_NAME}_setup' # rgw_setup
+RGW_CORE_FILE_DIR_NAME = f'{COMPONENT_NAME}_debug' # rgw_debug
 INSTALL_PATH = '/opt/seagate/cortx'
 RGW_INSTALL_PATH = f'{INSTALL_PATH}/{COMPONENT_NAME}'
 ADMIN_CREATION_TIMEOUT = 600
@@ -62,6 +63,11 @@ CRON_DIR = f'/etc/cron.{FREQUENCY}'
 CRON_LOGROTATE = f'{CRON_DIR}/logrotate'
 REQUIRED_RPMS = ['cortx-hare', 'cortx-py-utils', 'ceph-radosgw']
 ADMIN_PARAMETERS = {'MOTR_ADMIN_FID':'motr admin fid', 'MOTR_ADMIN_ENDPOINT':'motr admin endpoint', 'RGW_FRONTENDS': 'rgw frontends'}
+
+# core files rotate script
+CORE_LOGROTATE_FILE_NAME =f'{COMPONENT_NAME}_core_logrotate.sh' # rgw_core_logrotate.sh
+CORE_LOGROTATE_FILE = f'{CRON_DIR}/{CORE_LOGROTATE_FILE_NAME}'
+CORE_LOGROTATE_TMPL = f'{RGW_INSTALL_PATH}/conf/{CORE_LOGROTATE_FILE_NAME}'
 
 # CORTX cluster confstore keys
 SVC_NAME_KEY = 'node>%s>components[%s]>services[0]'
