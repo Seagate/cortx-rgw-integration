@@ -84,4 +84,4 @@ else
     exit
 fi
 
-echo "Done with rgw core log rotation script."
+echo "Done with rgw core file rotation"
