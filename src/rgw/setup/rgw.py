@@ -164,7 +164,7 @@ class Rgw:
         os.makedirs(addb_dir, exist_ok=True)
 
         # Create rgw crash file directory
-        rgw_core_dir = os.path.join(log_path, 'rgw_debug')
+        rgw_core_dir = os.path.join(log_path, const.RGW_CORE_FILE_DIR_NAME)
         os.makedirs(rgw_core_dir, exist_ok=True)
 
         Log.info('Starting radosgw service.')
@@ -408,7 +408,7 @@ class Rgw:
         """Change current working directory to crash directory path."""
         log_path = Rgw._get_log_dir_path(conf)
         # Create svc crash file directory
-        svc_core_dir = os.path.join(log_path, 'rgw_debug')
+        svc_core_dir = os.path.join(log_path, const.RGW_CORE_FILE_DIR_NAME)
         os.makedirs(svc_core_dir, exist_ok=True)
         os.chdir(svc_core_dir)
 
@@ -840,6 +840,19 @@ class Rgw:
             Log.info(f'{const.LOGROTATE_TMPL} file copied to {const.LOGROTATE_CONF}')
         except Exception as e:
             Log.error(f"Failed to configure logrotate for {const.COMPONENT_NAME}. ERROR:{e}")
+
+        # Copy log rotate script for rgw core files into system's logrotate directory.
+        core_dir_path = os.path.join(log_file_path, const.RGW_CORE_FILE_DIR_NAME)
+        try:
+            with open(const.CORE_LOGROTATE_TMPL, 'r') as f:
+                content = f.read()
+            content = content.replace('TEMP_CORE_FILE_DIR_PATH', core_dir_path)
+            with open(const.CORE_LOGROTATE_FILE, 'w') as f:
+                f.write(content)
+            Log.info(f'{const.CORE_LOGROTATE_TMPL} file copied to {const.CORE_LOGROTATE_FILE}')
+        except Exception as e:
+            Log.error(f"Failed to configure core file's logrotate for {const.COMPONENT_NAME}. ERROR:{e}")
+
         # start cron.d service
         try:
             os.system(f"chmod +x {const.CRON_LOGROTATE}")
