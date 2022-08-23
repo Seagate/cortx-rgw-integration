@@ -27,10 +27,11 @@ class RgwService:
     """Entrypoint class for RGW."""
 
     @staticmethod
-    def start(conf: MappedConf, config_file, log_file, motr_trace_dir, rgw_cwd, index: str = '1',):
+    def start(conf: MappedConf, config_file, log_file, motr_trace_dir, addb_dir, rgw_cwd, index: str = '1',):
         """Start rgw service independently."""
         try:
             os.environ['M0_TRACE_DIR'] = motr_trace_dir
+            os.environ['M0_CLIENT_ADDB_DIR'] = addb_dir
             cmd = os.path.join(INSTALL_PATH, COMPONENT_NAME, 'bin/radosgw_start')
             sys.stdout.flush()
             sys.stderr.flush()
