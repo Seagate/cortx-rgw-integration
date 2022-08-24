@@ -171,6 +171,7 @@ class Rgw:
     @staticmethod
     def init(conf: MappedConf):
         """Perform initialization."""
+        Log.info('Init phase started.')
         # Create admin user with below steps.
         # 1. Get any random data pod hostname from Gconf.
         # 2. Read corresponding Motr HA(HAX) endpoint
@@ -650,7 +651,7 @@ class Rgw:
         if not data_pod_hostname:
             raise SetupError(errno.EINVAL, 'Invalid data pod hostname: %s' % data_pod_hostname)
 
-        Log.info(f'Reading motr_ha_endpoint from {data_pod_hostname}')
+        Log.info(f'Reading motr_ha_endpoint for {data_pod_hostname}')
 
         hare_config_dir = Rgw._get_hare_config_path(conf)
         fetch_fids_cmd = f'hctl fetch-fids -c {hare_config_dir} --node {data_pod_hostname}'
@@ -658,7 +659,7 @@ class Rgw:
         Rgw._validate_hctl_cmd_response(decoded_out, 'hax')
         motr_ha_endpoint = [endpoints['ep'] for endpoints in decoded_out \
             if 'hax' in endpoints.values()][0]
-        Log.info(f'Fetched motr_ha_endpoint from {data_pod_hostname}. Endpoint: {motr_ha_endpoint}')
+        Log.info(f'Found motr_ha_endpoint as : {motr_ha_endpoint}')
 
         config_path = Rgw._get_rgw_config_path(conf)
         confstore_url = const.CONFSTORE_FILE_HANDLER + config_path
