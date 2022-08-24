@@ -36,8 +36,6 @@ DECRYPTION_KEY = 'cortx'
 SERVICE_NAME = f'{COMPONENT_NAME}_setup' # rgw_setup
 INSTALL_PATH = '/opt/seagate/cortx'
 RGW_INSTALL_PATH = f'{INSTALL_PATH}/{COMPONENT_NAME}'
-ADMIN_CREATION_TIMEOUT = 600
-USER_CREATION_MAX_RETRY_COUNT = 1
 ADMIN_USER_CREATED = 'user_created'
 DEFAULT_HTTP_PORT = '22751'
 DEFAULT_HTTPS_PORT = '23001'
@@ -85,6 +83,12 @@ VERSION_KEY = 'cortx>common>release>version'
 CLUSTER_ID_KEY = 'cluster>id'
 NODE_IDENTIFIER = 'node'
 DATA_NODE_IDENTIFIER = 'num_cvg'
+
+# ADMIN user creation parameters
+ADMIN_USER_CREATION_TIMEOUT_KEY = f'cortx>{COMPONENT_NAME}>admin_creation_timeout'
+ADMIN_USER_CREATION_MAX_RETRY_KEY =  f'cortx>{COMPONENT_NAME}>admin_creation_max_retry'
+ADMIN_USER_CREATION_DEFAULT_TIMEOUT = 600
+ADMIN_USER_CREATION_MAX_DEFAULT_RETRY = 1
 
 # SSL certificate parameters
 SSL_CERT_CONFIGS = {"country" : "IN", "state" : "MH", "locality" : "Pune",
