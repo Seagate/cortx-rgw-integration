@@ -178,6 +178,9 @@ SVC_RESOURCE_LIMIT_CPU_VAL_SIZE_MAP = { "m": 1 }
 SVC_THREAD_POOL_SIZE_KEY = f'{COMPONENT_NAME} thread pool size'
 SVC_CONCURRENT_MAX_REQ_KEY = f'{COMPONENT_NAME} max concurrent request'
 
+# Support Bundle
+SVC_FILE_PERCENTAGE = 95
+
 class RgwEndpoint(Enum):
     """Enum class to define rgw endpoints provided by hare."""
 
