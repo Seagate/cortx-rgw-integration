@@ -131,13 +131,6 @@ class Rgw:
         # Change current working directory to rgw_debug for core file generation
         Rgw._change_working_dir(conf)
 
-        # Read Motr HA(HAX) endpoint from data pod using hctl fetch-fids and update in config file
-        # Use remote hax endpoint running on data pod which will be available during rgw
-        # config phase since data pod starts before server pod.
-        # Try HAX endpoint from data pod of same node first & if it doesnt work,
-        # from other data pods in cluster
-        Rgw._update_hax_endpoint_and_create_admin(conf)
-
         return 0
 
     @staticmethod
@@ -178,6 +171,14 @@ class Rgw:
     @staticmethod
     def init(conf: MappedConf):
         """Perform initialization."""
+        Log.info('Init phase started.')
+        # Create admin user with below steps.
+        # 1. Get first data pod hostname from Gconf.
+        # 2. Read corresponding Motr HA(HAX) endpoint
+        #    from above hostname value using hctl fetch-fids call.
+        # 3. update this endpoint in config file in client.radosgw-admin section.
+        # 4. Create rgw admin user
+        Rgw._update_hax_endpoint_and_create_admin(conf)
 
         return 0
 
@@ -418,8 +419,13 @@ class Rgw:
         user_name = Rgw._get_cortx_conf(conf, const.AUTH_USER_KEY)
         access_key = Rgw._get_cortx_conf(conf, const.AUTH_ADMIN_KEY)
         auth_secret = Rgw._get_cortx_conf(conf, const.AUTH_SECRET_KEY)
+        admin_creation_timeout_val = Rgw._get_cortx_conf(
+            conf, const.ADMIN_USER_CREATION_TIMEOUT_KEY, const.ADMIN_USER_CREATION_DEFAULT_TIMEOUT)
+        admin_creation_max_retry_val = Rgw._get_cortx_conf(
+            conf, const.ADMIN_USER_CREATION_MAX_RETRY_KEY, const.ADMIN_USER_CREATION_MAX_DEFAULT_RETRY)
+
         err_str = f'user: {user_name} exists'
-        timeout_str = f'timed out after {const.ADMIN_CREATION_TIMEOUT} seconds'
+        timeout_str = f'timed out after {admin_creation_timeout_val} seconds'
         # decrypt secret key.
         try:
             cluster_id = Rgw._get_cortx_conf(conf, const.CLUSTER_ID_KEY)
@@ -437,9 +443,9 @@ class Rgw:
         # Adding retry logic for user creation with given timeout value.
         retry_count = 0
         rc = -1
-        while (retry_count < const.USER_CREATION_MAX_RETRY_COUNT):
+        while (retry_count < admin_creation_max_retry_val):
             Log.info('Creating RGW admin user.')
-            _, err, rc, = SimpleProcess(create_usr_cmd).run(timeout=const.ADMIN_CREATION_TIMEOUT)
+            _, err, rc, = SimpleProcess(create_usr_cmd).run(timeout=admin_creation_timeout_val)
             if rc == 0:
                 Log.info(f'RGW admin user {user_name} is created.')
                 break
@@ -452,7 +458,7 @@ class Rgw:
                     break
                 elif timeout_str in err:
                     Log.info('RGW user creation process exceeding timeout value - '
-                        f'{const.ADMIN_CREATION_TIMEOUT} seconds. Retrying user creation on this node.')
+                        f'{admin_creation_timeout_val} seconds. Retrying user creation on this node.')
                     retry_count = retry_count + 1
                     continue
                 else:
@@ -645,7 +651,7 @@ class Rgw:
         if not data_pod_hostname:
             raise SetupError(errno.EINVAL, 'Invalid data pod hostname: %s' % data_pod_hostname)
 
-        Log.info(f'Reading motr_ha_endpoint from {data_pod_hostname}')
+        Log.info(f'Reading motr_ha_endpoint for {data_pod_hostname}')
 
         hare_config_dir = Rgw._get_hare_config_path(conf)
         fetch_fids_cmd = f'hctl fetch-fids -c {hare_config_dir} --node {data_pod_hostname}'
@@ -653,7 +659,7 @@ class Rgw:
         Rgw._validate_hctl_cmd_response(decoded_out, 'hax')
         motr_ha_endpoint = [endpoints['ep'] for endpoints in decoded_out \
             if 'hax' in endpoints.values()][0]
-        Log.info(f'Fetched motr_ha_endpoint from {data_pod_hostname}. Endpoint: {motr_ha_endpoint}')
+        Log.info(f'Found motr_ha_endpoint as : {motr_ha_endpoint}')
 
         config_path = Rgw._get_rgw_config_path(conf)
         confstore_url = const.CONFSTORE_FILE_HANDLER + config_path
@@ -680,18 +686,8 @@ class Rgw:
         return decoded_out
 
     @staticmethod
-    def _create_admin_on_current_node(conf: MappedConf, current_data_node: str):
-        try:
-            Rgw._update_hax_endpoint(conf, current_data_node)
-            # Before creating user check if user is already created.
-            user_status = Rgw._create_rgw_user(conf)
-            return user_status
-        except Exception:
-            return -1
-
-    @staticmethod
     def _update_hax_endpoint_and_create_admin(conf: MappedConf):
-        """Update motr_ha(hax) endpoint values to rgw config file and create admin."""
+        """Update motr_ha(hax) endpoint value to rgw config file and create admin."""
         # admin user should be created only on one node.
         # 1. While creating admin user, global lock created in consul kv store.
         # (rgw_consul_index, cortx>rgw>volatile>rgw_lock, machine_id)
@@ -710,52 +706,35 @@ class Rgw:
         Rgw._load_rgw_config(rgw_consul_idx, consul_url)
         rgw_lock = Rgw._get_lock(conf, rgw_consul_idx)
         if rgw_lock is True:
-            # TODO: Find a way to get current data pod hostname on server node.
-            # current_data_node = socket.gethostname().replace('server', 'data')
-            # user_status = Rgw._create_admin_on_current_node(conf, current_data_node)
-
-            # if user_status == 0:
-            #    Log.info(f'User creation is successful on "{Rgw._machine_id}" node.')
-            #    Rgw._set_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY, const.ADMIN_USER_CREATED)
-            # else:
-            data_pod_hostnames = Rgw._get_data_nodes(conf)
-            #    if len(data_pod_hostnames) == 1 and current_data_node == data_pod_hostnames[0]:
-            #        Log.error('Admin user creation failed')
-            #        Rgw._delete_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY)
-            #        raise SetupError(user_status, 'Admin user creation failed on'
-            #            f' "{Rgw._machine_id}" node, with all data pods - {data_pod_hostnames}')
-
-            #    data_pod_hostnames.remove(current_data_node)
-            for data_pod_hostname in data_pod_hostnames:
-                try:
-                    Rgw._update_hax_endpoint(conf, data_pod_hostname)
-                except SetupError as e:
-                    Log.debug(f'Error occured while updating hax endpoints. {e}')
-                    continue
-                status = Rgw._create_rgw_user(conf)
-                if status == 0:
-                    Log.info(f'User creation is successful on "{Rgw._machine_id}" node.')
-                    Rgw._set_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY, const.ADMIN_USER_CREATED)
-                    break
-                else:
-                    if data_pod_hostname == data_pod_hostnames[-1]:
-                        Rgw._delete_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY)
-                        raise SetupError(status, 'Admin user creation failed on'
-                            f' "{Rgw._machine_id}" node, with all data pods - {data_pod_hostnames}')
+            data_pod_hostname = Rgw._get_first_data_node(conf)
+            try:
+                Rgw._update_hax_endpoint(conf, data_pod_hostname)
+            except SetupError as e:
+                raise SetupError(errno.EINVAL, f'Error occured while updating hax endpoints. {e}')
+            # create admin user
+            status = Rgw._create_rgw_user(conf)
+            if status == 0:
+                Log.info(f'User creation is successful on "{Rgw._machine_id}" node.')
+                Rgw._set_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY, const.ADMIN_USER_CREATED)
+            else:
+                Rgw._delete_consul_kv(rgw_consul_idx, const.CONSUL_LOCK_KEY)
+                raise SetupError(status, 'Admin user creation failed on'
+                    f' "{Rgw._machine_id}" node with data pod endpoint - {data_pod_hostname}')
 
 
     @staticmethod
-    def _get_data_nodes(conf: MappedConf):
-        """Return all data nodes hostname from GConf"""
-        data_pod_hostnames = []
-        Log.debug('Collecting all data pod hostnames from GConf..')
+    def _get_first_data_node(conf: MappedConf):
+        """Return first data nodes hostname from GConf"""
+        Log.debug('Collecting first data pod hostnames from GConf..')
         node_identify_keys = Rgw._search_cortx_conf(conf, const.NODE_IDENTIFIER, const.DATA_NODE_IDENTIFIER)
         node_machine_ids = list(map(lambda x: x.split('>')[1], node_identify_keys))
-        for machine_id in node_machine_ids:
-            data_pod_hostnames.append(Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % machine_id))
+        if len(node_machine_ids) <= 0:
+           raise SetupError(errno.EINVAL, 'Failed to fetch data node machine ids from Gconf !!')
 
-        Log.debug(f'Collected all data pod hostnames from GConf : {data_pod_hostnames}')
-        return data_pod_hostnames
+        node_machine_id = node_machine_ids[0]
+        data_pod_hostname = Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % node_machine_id)
+        Log.debug(f'Collected data pod hostnames from GConf : {data_pod_hostname}')
+        return data_pod_hostname
 
     @staticmethod
     def _get_lock(conf: MappedConf, consul_idx: str):
