@@ -173,7 +173,7 @@ class Rgw:
         """Perform initialization."""
         Log.info('Init phase started.')
         # Create admin user with below steps.
-        # 1. Get any random data pod hostname from Gconf.
+        # 1. Get first data pod hostname from Gconf.
         # 2. Read corresponding Motr HA(HAX) endpoint
         #    from above hostname value using hctl fetch-fids call.
         # 3. update this endpoint in config file in client.radosgw-admin section.
@@ -706,7 +706,7 @@ class Rgw:
         Rgw._load_rgw_config(rgw_consul_idx, consul_url)
         rgw_lock = Rgw._get_lock(conf, rgw_consul_idx)
         if rgw_lock is True:
-            data_pod_hostname = Rgw._get_random_data_node(conf)
+            data_pod_hostname = Rgw._get_first_data_node(conf)
             try:
                 Rgw._update_hax_endpoint(conf, data_pod_hostname)
             except SetupError as e:
@@ -723,17 +723,17 @@ class Rgw:
 
 
     @staticmethod
-    def _get_random_data_node(conf: MappedConf):
-        """Return any random data nodes hostname from GConf"""
-        Log.debug('Collecting one random data pod hostnames from GConf..')
+    def _get_first_data_node(conf: MappedConf):
+        """Return first data nodes hostname from GConf"""
+        Log.debug('Collecting first data pod hostnames from GConf..')
         node_identify_keys = Rgw._search_cortx_conf(conf, const.NODE_IDENTIFIER, const.DATA_NODE_IDENTIFIER)
         node_machine_ids = list(map(lambda x: x.split('>')[1], node_identify_keys))
         if len(node_machine_ids) <= 0:
            raise SetupError(errno.EINVAL, 'Failed to fetch data node machine ids from Gconf !!')
 
-        random_machine_id = node_machine_ids[0]
-        data_pod_hostname = Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % random_machine_id)
-        Log.debug(f'Collected one random data pod hostnames from GConf : {data_pod_hostname}')
+        node_machine_id = node_machine_ids[0]
+        data_pod_hostname = Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % node_machine_id)
+        Log.debug(f'Collected data pod hostnames from GConf : {data_pod_hostname}')
         return data_pod_hostname
 
     @staticmethod
