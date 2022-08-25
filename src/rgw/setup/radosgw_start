@@ -2,8 +2,7 @@
 
 INDEX=$1
 CONFIG_FILE=$2
-LOG_FILE=$3
-RGW_CWD=$4
+RGW_CWD=$3
 
 [ -z "$RGW_CWD" ] && RGW_CWD="$PWD"
 

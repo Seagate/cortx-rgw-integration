@@ -161,9 +161,8 @@ class Rgw:
         os.makedirs(rgw_core_dir, exist_ok=True)
 
         Log.info('Starting radosgw service.')
-        log_file = os.path.join(log_path, f'{const.COMPONENT_NAME}_startup.log')
 
-        RgwService.start(conf, config_file, log_file, motr_trace_dir, addb_dir, rgw_core_dir, index)
+        RgwService.start(conf, config_file, motr_trace_dir, addb_dir, rgw_core_dir, index)
         Log.info("Started radosgw service.")
 
         return 0
