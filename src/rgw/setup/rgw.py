@@ -831,12 +831,60 @@ class Rgw:
         except Exception as e:
             Log.error(f"Failed to configure core file's logrotate for {const.COMPONENT_NAME}. ERROR:{e}")
 
+        Rgw._update_motr_log_rotate_scripts(conf, log_file_path)
         # start cron.d service
         try:
             os.system(f"chmod +x {const.CRON_LOGROTATE}")
             os.system("/usr/sbin/crond start")
         except Exception as e:
             Log.error(f"Failed to start the crond service for {const.COMPONENT_NAME}. ERROR:{e}")
+
+    @staticmethod
+    def _update_motr_log_rotate_scripts(conf: MappedConf, svc_log_dir: str):
+        """"Update correct PVC path of m0trace, addb log directory for motr log rotate script"""
+        motr_addb_file_fid = Conf.get(Rgw._conf_idx, const.MOTR_ADMIN_FID_KEY)
+        addb_log_dir_path = os.path.join(svc_log_dir, f'addb_files-{motr_addb_file_fid}')
+        addb_log_rotate_script = os.path.join(const.CRON_DIR, 'm0addb_logrotate.sh')
+        motr_trace_log_path = os.path.join(svc_log_dir, 'motr_trace_files')
+        motr_trace_rotate_script = os.path.join(const.CRON_DIR, 'm0trace_logrotate.sh')
+
+        if not os.path.exists(addb_log_rotate_script) or not os.path.exists(motr_trace_rotate_script):
+            Log.info(f'WARNING:: {const.CRON_DIR} does not has addb/m0trace motr log rotate scripts.')
+            return
+        # Handle m0trace log rotate script path.
+        try:
+            with open(motr_trace_rotate_script, 'r') as f:
+                content = f.read()
+            for line in content :
+                if line.startswith("M0TR_M0D_TRACE_DIR="):
+                   line_key = line.split("=")[0]
+                   new_line = line_key + "=" + motr_trace_log_path
+                   content = content.replace(line, new_line)
+                   break
+
+            with open(motr_trace_rotate_script, 'w') as f:
+                f.write(content)
+            Log.info(f'{motr_trace_rotate_script} file updated with log path {motr_trace_log_path}')
+        except Exception as e:
+            Log.error(f"Failed to update m0trace log rotation script path. ERROR:{e}")
+
+        # Handle addb trace log rotate script path.
+        try:
+            with open(addb_log_rotate_script, 'r') as f:
+                content = f.read()
+            for line in content :
+                if line.startswith("ADDB_RECORD_DIR="):
+                   line_key = line.split("=")[0]
+                   new_line = line_key + "=" + addb_log_dir_path
+                   content = content.replace(line, new_line)
+                   break
+
+            with open(addb_log_rotate_script, 'w') as f:
+                f.write(content)
+            Log.info(f'{addb_log_rotate_script} file updated with log path {addb_log_dir_path}')
+        except Exception as e:
+            Log.error(f"Failed to update m0addb log rotation script path. ERROR:{e}")
+
 
     @staticmethod
     def _verify_backend_store_value(conf: MappedConf):
