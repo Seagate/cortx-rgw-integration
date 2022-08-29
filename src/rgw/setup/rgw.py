@@ -844,16 +844,15 @@ class Rgw:
         """"Update correct PVC path of m0trace, addb log directory for motr log rotate script"""
         motr_addb_file_fid = Conf.get(Rgw._conf_idx, const.MOTR_ADMIN_FID_KEY)
         addb_log_dir_path = os.path.join(svc_log_dir, f'addb_files-{motr_addb_file_fid}')
-        addb_log_rotate_script = os.path.join(const.CRON_DIR, 'm0addb_logrotate.sh')
         motr_trace_log_path = os.path.join(svc_log_dir, 'motr_trace_files')
-        motr_trace_rotate_script = os.path.join(const.CRON_DIR, 'm0trace_logrotate.sh')
 
-        if not os.path.exists(addb_log_rotate_script) or not os.path.exists(motr_trace_rotate_script):
+        if not os.path.exists(const.ADDB_LOG_ROTATE_FILE) or \
+            not os.path.exists(const.M0TRACE_LOG_ROTATE_FILE):
             Log.info(f'WARNING:: {const.CRON_DIR} does not has addb/m0trace motr log rotate scripts.')
             return
         # Handle m0trace log rotate script path.
         try:
-            with open(motr_trace_rotate_script, 'r') as f:
+            with open(const.M0TRACE_LOG_ROTATE_FILE, 'r') as f:
                 content = f.read()
             for line in content :
                 if line.startswith("M0TR_M0D_TRACE_DIR="):
@@ -862,15 +861,15 @@ class Rgw:
                    content = content.replace(line, new_line)
                    break
 
-            with open(motr_trace_rotate_script, 'w') as f:
+            with open(const.M0TRACE_LOG_ROTATE_FILE, 'w') as f:
                 f.write(content)
-            Log.info(f'{motr_trace_rotate_script} file updated with log path {motr_trace_log_path}')
+            Log.info(f'{const.M0TRACE_LOG_ROTATE_FILE} file updated with log path {motr_trace_log_path}')
         except Exception as e:
             Log.error(f"Failed to update m0trace log rotation script path. ERROR:{e}")
 
         # Handle addb trace log rotate script path.
         try:
-            with open(addb_log_rotate_script, 'r') as f:
+            with open(const.ADDB_LOG_ROTATE_FILE, 'r') as f:
                 content = f.read()
             for line in content :
                 if line.startswith("ADDB_RECORD_DIR="):
@@ -879,9 +878,9 @@ class Rgw:
                    content = content.replace(line, new_line)
                    break
 
-            with open(addb_log_rotate_script, 'w') as f:
+            with open(const.ADDB_LOG_ROTATE_FILE, 'w') as f:
                 f.write(content)
-            Log.info(f'{addb_log_rotate_script} file updated with log path {addb_log_dir_path}')
+            Log.info(f'{const.ADDB_LOG_ROTATE_FILE} file updated with log path {addb_log_dir_path}')
         except Exception as e:
             Log.error(f"Failed to update m0addb log rotation script path. ERROR:{e}")
 

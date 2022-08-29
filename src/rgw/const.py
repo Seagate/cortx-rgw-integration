@@ -59,6 +59,9 @@ LOGROTATE_CONF = f'{LOGROTATE_DIR}/radosgw'
 FREQUENCY='hourly'
 CRON_DIR = f'/etc/cron.{FREQUENCY}'
 CRON_LOGROTATE = f'{CRON_DIR}/logrotate'
+M0TRACE_LOG_ROTATE_FILE = f'{CRON_DIR}/m0trace_logrotate.sh'
+ADDB_LOG_ROTATE_FILE = f'{CRON_DIR}/m0addb_logrotate.sh'
+
 REQUIRED_RPMS = ['cortx-hare', 'cortx-py-utils', 'ceph-radosgw']
 ADMIN_PARAMETERS = {'MOTR_ADMIN_FID':'motr admin fid', 'MOTR_ADMIN_ENDPOINT':'motr admin endpoint', 'RGW_FRONTENDS': 'rgw frontends'}
 
