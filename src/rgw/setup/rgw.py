@@ -857,16 +857,17 @@ class Rgw:
         # Handle m0trace log rotate script path.
         try:
             with open(const.M0TRACE_LOG_ROTATE_FILE, 'r') as f:
-                content = f.read()
-            for line in content :
-                if line.startswith("M0TR_M0D_TRACE_DIR="):
-                   line_key = line.split("=")[0]
-                   new_line = line_key + "=" + motr_trace_log_path
-                   content = content.replace(line, new_line)
-                   break
+                lines=f.readlines()
+            tmp_file = "/tmp/tmp_m0trace.sh"
+            with open(tmp_file, 'w') as tmp_file:
+                for line in lines :
+                    if line.startswith("M0TR_M0D_TRACE_DIR="):
+                       trace_dir_val = line.split("=")[1]
+                       line = line.replace(trace_dir_val, motr_trace_log_path)
+                    tmp_file.write(line)
 
-            with open(const.M0TRACE_LOG_ROTATE_FILE, 'w') as f:
-                f.write(content)
+            shutil.copyfile(tmp_file, const.M0TRACE_LOG_ROTATE_FILE)
+            os.remove(tmp_file)
             Log.info(f'{const.M0TRACE_LOG_ROTATE_FILE} file updated with log path {motr_trace_log_path}')
         except Exception as e:
             Log.error(f"Failed to update m0trace log rotation script path. ERROR:{e}")
@@ -874,16 +875,18 @@ class Rgw:
         # Handle addb trace log rotate script path.
         try:
             with open(const.ADDB_LOG_ROTATE_FILE, 'r') as f:
-                content = f.read()
-            for line in content :
-                if line.startswith("ADDB_RECORD_DIR="):
-                   line_key = line.split("=")[0]
-                   new_line = line_key + "=" + addb_log_dir_path
-                   content = content.replace(line, new_line)
-                   break
+                lines=f.readlines()
+            tmp_file = "/tmp/tmp_m0addb_log.sh"
+            with open(tmp_file, 'w') as tmp_file:
+                for line in lines :
+                    if line.startswith("ADDB_RECORD_DIR="):
+                       addb_dir_val = line.split("=")[1]
+                       line = line.replace(addb_dir_val, addb_log_dir_path)
+                    tmp_file.write(line)
 
-            with open(const.ADDB_LOG_ROTATE_FILE, 'w') as f:
-                f.write(content)
+            shutil.copyfile(tmp_file, const.ADDB_LOG_ROTATE_FILE)
+            os.remove(tmp_file)
+
             Log.info(f'{const.ADDB_LOG_ROTATE_FILE} file updated with log path {addb_log_dir_path}')
         except Exception as e:
             Log.error(f"Failed to update m0addb log rotation script path. ERROR:{e}")
