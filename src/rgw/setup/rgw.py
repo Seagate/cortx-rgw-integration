@@ -857,14 +857,15 @@ class Rgw:
         # Handle m0trace log rotate script path.
         try:
             with open(const.M0TRACE_LOG_ROTATE_FILE, 'r') as f:
-                lines=f.readlines()
+                lines = f.readlines()
             tmp_file = "/tmp/tmp_m0trace.sh"
-            with open(tmp_file, 'w') as tmp_file:
-                for line in lines :
+            with open(tmp_file, 'w') as tmp_fout:
+                for idx, line in enumerate(lines):
                     if line.startswith("M0TR_M0D_TRACE_DIR="):
-                       trace_dir_val = line.split("=")[1]
-                       line = line.replace(trace_dir_val, motr_trace_log_path)
-                    tmp_file.write(line)
+                       trace_key_name = line.split("=")[0]
+                       updated_line = trace_key_name + "=" + f'\"{motr_trace_log_path}\"' + "\n"
+                       lines[idx] = updated_line
+                    tmp_fout.write(lines[idx])
 
             shutil.copyfile(tmp_file, const.M0TRACE_LOG_ROTATE_FILE)
             os.remove(tmp_file)
@@ -875,14 +876,15 @@ class Rgw:
         # Handle addb trace log rotate script path.
         try:
             with open(const.ADDB_LOG_ROTATE_FILE, 'r') as f:
-                lines=f.readlines()
+                lines = f.readlines()
             tmp_file = "/tmp/tmp_m0addb_log.sh"
-            with open(tmp_file, 'w') as tmp_file:
-                for line in lines :
+            with open(tmp_file, 'w') as tmp_fout:
+                for idx, line in enumerate(lines):
                     if line.startswith("ADDB_RECORD_DIR="):
-                       addb_dir_val = line.split("=")[1]
-                       line = line.replace(addb_dir_val, addb_log_dir_path)
-                    tmp_file.write(line)
+                       addb_dir_key = line.split("=")[0]
+                       updated_line = addb_dir_key + "=" + f'\"{addb_log_dir_path}\"' + "\n"
+                       lines[idx] = updated_line
+                    tmp_fout.write(lines[idx])
 
             shutil.copyfile(tmp_file, const.ADDB_LOG_ROTATE_FILE)
             os.remove(tmp_file)
