@@ -842,6 +842,10 @@ class Rgw:
     @staticmethod
     def _update_motr_log_rotate_scripts(conf: MappedConf, svc_log_dir: str):
         """"Update correct PVC path of m0trace, addb log directory for motr log rotate script"""
+        config_file = Rgw._get_rgw_config_path(conf)
+        confstore_url = const.CONFSTORE_FILE_HANDLER + config_file
+        Rgw._load_rgw_config(Rgw._conf_idx, confstore_url)
+
         motr_addb_file_fid = Conf.get(Rgw._conf_idx, const.MOTR_ADMIN_FID_KEY)
         addb_log_dir_path = os.path.join(svc_log_dir, f'addb_files-{motr_addb_file_fid}')
         motr_trace_log_path = os.path.join(svc_log_dir, 'motr_trace_files')
