@@ -858,7 +858,7 @@ class Rgw:
         try:
             with open(const.M0TRACE_LOG_ROTATE_FILE, 'r') as f:
                 lines = f.readlines()
-            tmp_file = os.path.join('/tmp', 'tmp_m0trace.sh')
+            tmp_file = os.path.join(const.CRON_DIR, 'tmp_m0trace.sh')
             with open(tmp_file, 'w') as tmp_fout:
                 for idx, line in enumerate(lines):
                     if line.startswith("M0TR_M0D_TRACE_DIR="):
@@ -877,7 +877,7 @@ class Rgw:
         try:
             with open(const.ADDB_LOG_ROTATE_FILE, 'r') as f:
                 lines = f.readlines()
-            tmp_file = os.path.join('/tmp', 'tmp_m0addb_log.sh')
+            tmp_file = os.path.join(const.CRON_DIR, 'tmp_m0addb_log.sh')
             with open(tmp_file, 'w') as tmp_fout:
                 for idx, line in enumerate(lines):
                     if line.startswith("ADDB_RECORD_DIR="):
