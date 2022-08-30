@@ -161,9 +161,8 @@ class Rgw:
         os.makedirs(rgw_core_dir, exist_ok=True)
 
         Log.info('Starting radosgw service.')
-        log_file = os.path.join(log_path, f'{const.COMPONENT_NAME}_startup.log')
 
-        RgwService.start(conf, config_file, log_file, motr_trace_dir, addb_dir, rgw_core_dir, index)
+        RgwService.start(conf, config_file, motr_trace_dir, addb_dir, rgw_core_dir, index)
         Log.info("Started radosgw service.")
 
         return 0
@@ -832,12 +831,68 @@ class Rgw:
         except Exception as e:
             Log.error(f"Failed to configure core file's logrotate for {const.COMPONENT_NAME}. ERROR:{e}")
 
+        Rgw._update_motr_log_rotate_scripts(conf, log_file_path)
         # start cron.d service
         try:
             os.system(f"chmod +x {const.CRON_LOGROTATE}")
             os.system("/usr/sbin/crond start")
         except Exception as e:
             Log.error(f"Failed to start the crond service for {const.COMPONENT_NAME}. ERROR:{e}")
+
+    @staticmethod
+    def _update_motr_log_rotate_scripts(conf: MappedConf, svc_log_dir: str):
+        """"Update correct PVC path of m0trace, addb log directory for motr log rotate script"""
+        config_file = Rgw._get_rgw_config_path(conf)
+        confstore_url = const.CONFSTORE_FILE_HANDLER + config_file
+        Rgw._load_rgw_config(Rgw._conf_idx, confstore_url)
+
+        motr_addb_file_fid = Conf.get(Rgw._conf_idx, const.MOTR_ADMIN_FID_KEY)
+        addb_log_dir_path = os.path.join(svc_log_dir, f'addb_files-{motr_addb_file_fid}')
+        motr_trace_log_path = os.path.join(svc_log_dir, 'motr_trace_files')
+
+        if not os.path.exists(const.ADDB_LOG_ROTATE_FILE) or \
+            not os.path.exists(const.M0TRACE_LOG_ROTATE_FILE):
+            Log.info(f'WARNING:: {const.CRON_DIR} does not has addb/m0trace motr log rotate scripts.')
+            return
+        # Handle m0trace log rotate script path.
+        try:
+            with open(const.M0TRACE_LOG_ROTATE_FILE, 'r') as f:
+                lines = f.readlines()
+            tmp_file = os.path.join(const.CRON_DIR, 'tmp_m0trace.sh')
+            with open(tmp_file, 'w') as tmp_fout:
+                for idx, line in enumerate(lines):
+                    if line.startswith("M0TR_M0D_TRACE_DIR="):
+                       trace_key_name = line.split("=")[0]
+                       updated_line = trace_key_name + "=" + f'\"{motr_trace_log_path}\"' + "\n"
+                       lines[idx] = updated_line
+                    tmp_fout.write(lines[idx])
+
+            shutil.copyfile(tmp_file, const.M0TRACE_LOG_ROTATE_FILE)
+            os.remove(tmp_file)
+            Log.info(f'{const.M0TRACE_LOG_ROTATE_FILE} file updated with log path {motr_trace_log_path}')
+        except Exception as e:
+            Log.error(f"Failed to update m0trace log rotation script path. ERROR:{e}")
+
+        # Handle addb trace log rotate script path.
+        try:
+            with open(const.ADDB_LOG_ROTATE_FILE, 'r') as f:
+                lines = f.readlines()
+            tmp_file = os.path.join(const.CRON_DIR, 'tmp_m0addb_log.sh')
+            with open(tmp_file, 'w') as tmp_fout:
+                for idx, line in enumerate(lines):
+                    if line.startswith("ADDB_RECORD_DIR="):
+                       addb_dir_key = line.split("=")[0]
+                       updated_line = addb_dir_key + "=" + f'\"{addb_log_dir_path}\"' + "\n"
+                       lines[idx] = updated_line
+                    tmp_fout.write(lines[idx])
+
+            shutil.copyfile(tmp_file, const.ADDB_LOG_ROTATE_FILE)
+            os.remove(tmp_file)
+
+            Log.info(f'{const.ADDB_LOG_ROTATE_FILE} file updated with log path {addb_log_dir_path}')
+        except Exception as e:
+            Log.error(f"Failed to update m0addb log rotation script path. ERROR:{e}")
+
 
     @staticmethod
     def _verify_backend_store_value(conf: MappedConf):

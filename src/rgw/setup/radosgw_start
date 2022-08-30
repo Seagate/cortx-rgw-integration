@@ -2,8 +2,7 @@
 
 INDEX=$1
 CONFIG_FILE=$2
-LOG_FILE=$3
-RGW_CWD=$4
+RGW_CWD=$3
 
 [ -z "$RGW_CWD" ] && RGW_CWD="$PWD"
 
@@ -11,6 +10,5 @@ echo "Change RGW CWD to dir $RGW_CWD, to retain core files in there"
 cd $RGW_CWD
 
 set -o pipefail;
-/usr/bin/radosgw -f --name client.rgw-$INDEX -c $CONFIG_FILE --no-mon-config 2>&1 \
- | while read line; do printf "%s %s\n" "$(date +'[%Y-%m-%d %H:%M:%S,%03N]')" "$line"; done | tee $LOG_FILE
+/usr/bin/radosgw -f --name client.rgw-$INDEX -c $CONFIG_FILE --no-mon-config
 exit $?

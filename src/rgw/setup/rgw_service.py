@@ -27,7 +27,7 @@ class RgwService:
     """Entrypoint class for RGW."""
 
     @staticmethod
-    def start(conf: MappedConf, config_file, log_file, motr_trace_dir, addb_dir, rgw_cwd, index: str = '1',):
+    def start(conf: MappedConf, config_file, motr_trace_dir, addb_dir, rgw_cwd, index: str = '1',):
         """Start rgw service independently."""
         try:
             os.environ['M0_TRACE_DIR'] = motr_trace_dir
@@ -35,7 +35,7 @@ class RgwService:
             cmd = os.path.join(INSTALL_PATH, COMPONENT_NAME, 'bin/radosgw_start')
             sys.stdout.flush()
             sys.stderr.flush()
-            os.execl(cmd, cmd, index, config_file, log_file, rgw_cwd)
+            os.execl(cmd, cmd, index, config_file, rgw_cwd)
         except OSError as e:
             Log.error(f"Failed to start radosgw service:{e}")
             raise SetupError(e.errno, "Failed to start radosgw service. %s", e)
