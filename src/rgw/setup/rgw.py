@@ -302,6 +302,7 @@ class Rgw:
 
         # Add additional parameters of SVC & Motr to config file.
         Rgw._update_svc_config(conf, 'client', const.SVC_CONFIG_DICT)
+        Rgw._update_svc_config(conf, 'global', const.SVC_LOG_CONFIG_DICT)
         Rgw._update_svc_data_path_value(conf, 'client')
 
         Rgw._update_resource_limit_based_config(conf, 'client')
