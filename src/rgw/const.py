@@ -143,8 +143,8 @@ SVC_CONFIG_DICT['motr addb enabled'] = f'cortx>{COMPONENT_NAME}>motr_addb_enable
 SVC_LOG_CONFIG_DICT = {}
 SVC_LOG_CONFIG_DICT[f'debug {COMPONENT_NAME}'] = f'cortx>{COMPONENT_NAME}>log_level'
 
-SVC_DATA_PATH_CONFSTORE_KEY = f'cortx>{COMPONENT_NAME}>data_path'
-SVC_DATA_PATH_KEY = f'{COMPONENT_NAME} data path'
+SVC_DATA_PATH_CONFSTORE_KEY = f'cortx>{COMPONENT_NAME}>data'
+SVC_DATA_PATH_KEY = f'{COMPONENT_NAME} data'
 SVC_DATA_PATH_DEFAULT_VALUE = '/var/lib/ceph/radosgw/' # e.g. /var/lib/ceph/radosgw/<cluster-id>
 
 # RGW config keys (cortx_rgw.conf).
