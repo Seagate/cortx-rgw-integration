@@ -143,8 +143,8 @@ SVC_CONFIG_DICT['motr addb enabled'] = f'cortx>{COMPONENT_NAME}>motr_addb_enable
 SVC_LOG_CONFIG_DICT = {}
 SVC_LOG_CONFIG_DICT[f'debug {COMPONENT_NAME}'] = f'cortx>{COMPONENT_NAME}>log_level'
 
-SVC_DATA_PATH_CONFSTORE_KEY = f'cortx>{COMPONENT_NAME}>data_path'
-SVC_DATA_PATH_KEY = f'{COMPONENT_NAME} data path'
+SVC_DATA_PATH_CONFSTORE_KEY = f'cortx>{COMPONENT_NAME}>data'
+SVC_DATA_PATH_KEY = f'{COMPONENT_NAME} data'
 SVC_DATA_PATH_DEFAULT_VALUE = '/var/lib/ceph/radosgw/' # e.g. /var/lib/ceph/radosgw/<cluster-id>
 
 # RGW config keys (cortx_rgw.conf).
@@ -181,7 +181,7 @@ SVC_RESOURCE_LIMIT_CPU_VAL_SUFFIXES = ['m']
 CPU_VAL_MULTIPLICATION_FACTOR = 1000
 SVC_RESOURCE_LIMIT_CPU_VAL_SIZE_MAP = { "m": 1 }
 SVC_THREAD_POOL_SIZE_KEY = f'{COMPONENT_NAME} thread pool size'
-SVC_CONCURRENT_MAX_REQ_KEY = f'{COMPONENT_NAME} max concurrent request'
+SVC_CONCURRENT_MAX_REQ_KEY = f'{COMPONENT_NAME} max concurrent requests'
 
 # Support Bundle
 SVC_FILE_PERCENTAGE = 95
