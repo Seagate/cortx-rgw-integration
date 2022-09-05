@@ -1108,7 +1108,7 @@ class Rgw:
         if thread_pool_size_val is None:
             thread_pool_size_val = math.floor(min(tuned_memory_val, tuned_cpu_val))
 
-        if thread_pool_size_val > 0 :
+        if int(thread_pool_size_val) > 0 :
            Log.debug(f'Setting KV pair {const.SVC_THREAD_POOL_SIZE_KEY} : {thread_pool_size_val}'
                f'at {client_section} section')
            Conf.set(Rgw._conf_idx, f'{client_section}>{const.SVC_THREAD_POOL_SIZE_KEY}',
@@ -1117,7 +1117,7 @@ class Rgw:
            raise SetupError(errno.EINVAL,
                             'Invalid value is generated for {const.SVC_THREAD_POOL_SIZE_KEY} key.')
 
-        if concurrent_max_requests_val > 0 :
+        if int(concurrent_max_requests_val) > 0 :
            Log.debug(f'Setting KV pair {const.SVC_CONCURRENT_MAX_REQ_KEY} :'
                      f'{concurrent_max_requests_val} at {client_section} section')
            Conf.set(Rgw._conf_idx, f'{client_section}>{const.SVC_CONCURRENT_MAX_REQ_KEY}',
