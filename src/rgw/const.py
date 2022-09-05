@@ -120,7 +120,6 @@ SVC_CONFIG_DICT = {}
 
 SVC_CONFIG_DICT[f'{COMPONENT_NAME} init timeout'] = f'cortx>{COMPONENT_NAME}>init_timeout'
 
-
 # GC parameters
 SVC_CONFIG_DICT[f'{COMPONENT_NAME} enable gc threads'] = f'cortx>{COMPONENT_NAME}>enable_gc_threads'
 SVC_CONFIG_DICT[f'{COMPONENT_NAME} gc obj min wait'] = f'cortx>{COMPONENT_NAME}>gc_obj_min_wait'

@@ -306,7 +306,6 @@ class Rgw:
         Rgw._update_svc_data_path_value(conf, 'client')
 
         Rgw._update_resource_limit_based_config(conf, 'client')
-
         # Before user creation,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
 
@@ -1056,7 +1055,6 @@ class Rgw:
     def _update_resource_limit_based_config(conf: MappedConf, client_section: str):
         """Update svc config file with 'thread pool size' & 'concurrent max req' key based on
         resource limit formula."""
-
         svc_config_file = Rgw._get_rgw_config_path(conf)
         confstore_url = const.CONFSTORE_FILE_HANDLER + svc_config_file
         Rgw._load_rgw_config(Rgw._conf_idx, confstore_url)
