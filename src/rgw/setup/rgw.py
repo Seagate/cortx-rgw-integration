@@ -305,7 +305,8 @@ class Rgw:
         Rgw._update_svc_config(conf, 'global', const.SVC_LOG_CONFIG_DICT)
         Rgw._update_svc_data_path_value(conf, 'client')
 
-        #Rgw._update_resource_limit_based_config(conf, 'client')
+        Rgw._update_resource_limit_based_config(conf, 'client')
+
         # Before user creation,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
 
@@ -1055,9 +1056,23 @@ class Rgw:
     def _update_resource_limit_based_config(conf: MappedConf, client_section: str):
         """Update svc config file with 'thread pool size' & 'concurrent max req' key based on
         resource limit formula."""
+
         svc_config_file = Rgw._get_rgw_config_path(conf)
         confstore_url = const.CONFSTORE_FILE_HANDLER + svc_config_file
         Rgw._load_rgw_config(Rgw._conf_idx, confstore_url)
+
+        concurrent_max_requests_val = conf.get(const.GCONF_MAX_CONCURRENT_REQ_KEY)
+        thread_pool_size_val = conf.get(const.GCONF_THREAD_POOL_SIZE_KEY)
+
+        # check if user specified these values explicitly.
+        # if not then populate formula based values.
+        if (concurrent_max_requests_val is not None and thread_pool_size_val is not None):
+           Conf.set(Rgw._conf_idx, f'{client_section}>{const.SVC_CONCURRENT_MAX_REQ_KEY}',
+                    str(concurrent_max_requests_val))
+           Conf.set(Rgw._conf_idx, f'{client_section}>{const.SVC_THREAD_POOL_SIZE_KEY}',
+                    str(thread_pool_size_val))
+           Conf.save(Rgw._conf_idx)
+           return
 
         Log.info(f'Updating resource limit based parameters to {client_section} in {svc_config_file}')
 
@@ -1090,8 +1105,11 @@ class Rgw:
         tuned_memory_val = const.SVC_MEM_FACTOR * (input_max_mem_limit_val - initial_startup_mem_val) / mem_per_thread_pre_req_val
         tuned_cpu_val = input_max_cpu_limit_val / cpu_per_thread_val
 
-        thread_pool_size_val = math.floor(min(tuned_memory_val, tuned_cpu_val))
-        concurrent_max_requests_val = math.floor(min(tuned_memory_val, 2*tuned_cpu_val))
+        if concurrent_max_requests_val is None:
+            concurrent_max_requests_val = math.floor(min(tuned_memory_val, 2*tuned_cpu_val))
+        if thread_pool_size_val is None:
+            thread_pool_size_val = math.floor(min(tuned_memory_val, tuned_cpu_val))
+
         if thread_pool_size_val > 0 :
            Log.debug(f'Setting KV pair {const.SVC_THREAD_POOL_SIZE_KEY} : {thread_pool_size_val}'
                f'at {client_section} section')

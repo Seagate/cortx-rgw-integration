@@ -119,8 +119,7 @@ SVC_ENDPOINT_VALUE_KEY = f'{SVC_ENDPOINT}>endpoints[%s]'
 SVC_CONFIG_DICT = {}
 
 SVC_CONFIG_DICT[f'{COMPONENT_NAME} init timeout'] = f'cortx>{COMPONENT_NAME}>init_timeout'
-SVC_CONFIG_DICT[f'{COMPONENT_NAME} thread pool size'] = f'cortx>{COMPONENT_NAME}>thread_pool_size'
-SVC_CONFIG_DICT[f'{COMPONENT_NAME} max concurrent requests'] = f'cortx>{COMPONENT_NAME}>max_concurrent_requests'
+
 
 # GC parameters
 SVC_CONFIG_DICT[f'{COMPONENT_NAME} enable gc threads'] = f'cortx>{COMPONENT_NAME}>enable_gc_threads'
@@ -184,6 +183,8 @@ CPU_VAL_MULTIPLICATION_FACTOR = 1000
 SVC_RESOURCE_LIMIT_CPU_VAL_SIZE_MAP = { "m": 1 }
 SVC_THREAD_POOL_SIZE_KEY = f'{COMPONENT_NAME} thread pool size'
 SVC_CONCURRENT_MAX_REQ_KEY = f'{COMPONENT_NAME} max concurrent requests'
+GCONF_THREAD_POOL_SIZE_KEY = f'cortx>{COMPONENT_NAME}>thread_pool_size'
+GCONF_MAX_CONCURRENT_REQ_KEY = f'cortx>{COMPONENT_NAME}>max_concurrent_requests'
 
 # Support Bundle
 SVC_FILE_PERCENTAGE = 95
