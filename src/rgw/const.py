@@ -119,6 +119,8 @@ SVC_ENDPOINT_VALUE_KEY = f'{SVC_ENDPOINT}>endpoints[%s]'
 SVC_CONFIG_DICT = {}
 
 SVC_CONFIG_DICT[f'{COMPONENT_NAME} init timeout'] = f'cortx>{COMPONENT_NAME}>init_timeout'
+SVC_CONFIG_DICT[f'{COMPONENT_NAME} thread pool size'] = f'cortx>{COMPONENT_NAME}>thread_pool_size'
+SVC_CONFIG_DICT[f'{COMPONENT_NAME} max concurrent requests'] = f'cortx>{COMPONENT_NAME}>max_concurrent_requests'
 
 # GC parameters
 SVC_CONFIG_DICT[f'{COMPONENT_NAME} enable gc threads'] = f'cortx>{COMPONENT_NAME}>enable_gc_threads'
