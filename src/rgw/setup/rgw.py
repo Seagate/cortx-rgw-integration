@@ -305,7 +305,7 @@ class Rgw:
         Rgw._update_svc_config(conf, 'global', const.SVC_LOG_CONFIG_DICT)
         Rgw._update_svc_data_path_value(conf, 'client')
 
-        Rgw._update_resource_limit_based_config(conf, 'client')
+        #Rgw._update_resource_limit_based_config(conf, 'client')
         # Before user creation,Verify backend store value=motr in rgw config file.
         Rgw._verify_backend_store_value(conf)
 
