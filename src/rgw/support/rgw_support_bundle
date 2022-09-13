@@ -84,14 +84,6 @@ class RGWSupportBundle:
 
         # copy rgw client log files
         log_dir = os.path.join(log_base, f'rgw/{machine_id}')
-        if os.path.exists(log_dir):
-            regex = re.compile('(rgw*)|(radosgw*)')
-            for file in os.listdir(log_dir):
-                if regex.match(file):
-                    infile = os.path.join(log_dir, file)
-                    outfile = os.path.join(RGWSupportBundle._tmp_src, file)
-                    if os.path.isfile(infile):
-                        shutil.copyfile(infile, outfile)
 
         if duration:
             # files in delim_space use timestamp syntax as
@@ -99,21 +91,10 @@ class RGWSupportBundle:
             # files in delim_T use timestamp syntax as
             # 2022-07-10T05:28:35.570+0000
             from cortx.utils.support_framework.log_filters import FilterLog
-            temp_path_src = os.path.join('/tmp', 'rgw_src')
-            os.makedirs(temp_path_src, exist_ok=True)
-            # Move text logs and rotated log files to temp dir.
-            for file in os.listdir(RGWSupportBundle._tmp_src):
-                if file.endswith('.conf') or file == "installed-cortx-rpms.txt":
-                    continue
-                shutil.move(os.path.join(RGWSupportBundle._tmp_src, file),
-                    os.path.join(temp_path_src, file))
-            temp_path = os.path.join('/tmp', 'rgw_time_based_log')
-            RGWSupportBundle._apply_limit_time(temp_path_src, temp_path, 'rgw-*', duration)
-            RGWSupportBundle._apply_limit_time(temp_path_src, temp_path, 'rgw_*', duration)
-            RGWSupportBundle._apply_limit_time(temp_path_src, temp_path, 'radosgw*', duration)
-            # delete temp paths.
-            shutil.rmtree(temp_path)
-            shutil.rmtree(temp_path_src)
+            RGWSupportBundle._apply_limit_time(log_dir, 'rgw-*', duration)
+            RGWSupportBundle._apply_limit_time(log_dir, 'rgw_*', duration)
+            RGWSupportBundle._apply_limit_time(log_dir, 'radosgw*', duration)
+
             Log.info('Collected log files based on time duration.')
         else:
             Log.error("RGW log file does not exists hence skipping log file collection.")
@@ -126,8 +107,6 @@ class RGWSupportBundle:
         # rgw service logs(rgw-*) and then add other files in SB if it fits
         # withing the size_limit.
         if size_limit:
-            from cortx.utils.support_framework.log_filters import FilterLog
-            # Move all files to temp dir and apply size filter on it.
             tmp_client_log_dir = os.path.join('/tmp', 'rgw_log')
             os.makedirs(tmp_client_log_dir, exist_ok=True)
             for file in os.listdir(RGWSupportBundle._tmp_src):
@@ -161,13 +140,13 @@ class RGWSupportBundle:
                 RGWSupportBundle._apply_size_filter(
                     tmp_svc_files_dir, allocated_size, 'rgw-*',
                     check_remaining_size=False)
+                shutil.rmtree(tmp_svc_files_dir)
                 RGWSupportBundle._copy_compressed_files(
                     tmp_client_log_dir, allocated_size)
                 RGWSupportBundle._apply_size_filter(
                     tmp_client_log_dir, size_limit, 'rgw_*')
                 RGWSupportBundle._apply_size_filter(
                     tmp_client_log_dir, size_limit, 'radosgw*')
-                shutil.rmtree(tmp_svc_files_dir)
             shutil.rmtree(tmp_client_log_dir)
 
         RGWSupportBundle._collect_motr_trace_files(size_limit, log_dir)
@@ -223,16 +202,8 @@ class RGWSupportBundle:
         RGWSupportBundle._cleanup()
 
     @staticmethod
-    def _apply_limit_time(temp_path_src: str, path: str, reg_ex: str, duration: str):
+    def _apply_limit_time(log_path: str, reg_ex: str, duration: str):
         """Apply limit_time filter."""
-        if os.path.exists(path):
-            shutil.rmtree(path)
-        os.makedirs(path, exist_ok=True)
-        for file in os.listdir(temp_path_src):
-            regex = re.compile(f'({reg_ex})')
-            if regex.match(file) and file.startswith(reg_ex[:-1]):
-                shutil.move(os.path.join(temp_path_src, file),
-                    os.path.join(path, file))
         if reg_ex == 'rgw-*' or reg_ex == 'radosgw*':
             delim = 'T'
         else:
@@ -241,7 +212,7 @@ class RGWSupportBundle:
         datetime_format = DATETIME_DATE_REGEX + delim + DATETIME_TIME_REGEX
         Log.info(f'apply limit-time filter on {reg_ex} files.')
         # apply limit_time log filter to file names started by reg_ex
-        FilterLog.limit_time(src_dir=path, dest_dir=RGWSupportBundle._tmp_src,
+        FilterLog.limit_time(src_dir=log_path, dest_dir=RGWSupportBundle._tmp_src,
             duration=duration, file_name_reg_ex=reg_ex[:-1],
             log_timestamp_regex=log_timestamp_regex,
             datetime_format=datetime_format)
