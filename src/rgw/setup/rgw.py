@@ -43,6 +43,7 @@ class Rgw:
 
     _machine_id = Conf.machine_id
     _conf_idx = f'{const.COMPONENT_NAME}_config'   # e.g. rgw_config
+    _consul_idx = f'{const.COMPONENT_NAME}_consul_config' # rgw_consul_config
 
     @staticmethod
     def validate(phase: str):
@@ -98,6 +99,14 @@ class Rgw:
         config_file = Rgw._get_rgw_config_path(conf)
         if not os.path.exists(config_file):
             raise SetupError(errno.EINVAL, f'"{config_file}" config file is not present.')
+        confstore_url = const.CONFSTORE_FILE_HANDLER + config_file
+        Rgw._load_rgw_config(Rgw._conf_idx, confstore_url)
+
+        # Add consul logic
+        consul_url = Rgw._get_consul_url(conf)
+        Rgw._push_config(conf, consul_url)
+
+        Rgw._pull_config(conf, consul_url)
 
         # Validate resource limit values
         Rgw._validate_resource_limit_values(conf)
@@ -201,6 +210,75 @@ class Rgw:
             os.remove(config_path)
 
         return 0
+
+    # Implementation of consul based rgw keys.
+    @staticmethod
+    def _push_config(conf: MappedConf, consul_url: str):
+        """Push all RGW config to consul."""
+        
+        # load consul url.
+        Rgw._load_rgw_config(Rgw._consul_idx, consul_url)
+        Rgw._push_common_config(conf)
+        Rgw._push_node_level_config(conf)
+
+    @staticmethod
+    def _push_common_config(conf: MappedConf):
+        """Push common config parameters to consul using lock mechanism."""
+        # Acquire lock for pushing common keys
+        rgw_lock = Rgw._get_lock(conf, Rgw._consul_idx,
+            const.CONSUL_CONF_LOCK_KEY, const.COMMON_CONF_PUSHED)
+
+        if rgw_lock is True:
+            common_global_keys = Conf.get_keys(Rgw._conf_idx, starts_with='global>')
+            common_client_keys = Conf.get_keys(Rgw._conf_idx, starts_with='client>')
+            common_sections = [common_global_keys, common_client_keys]
+            # Get Gconf value for each key.
+            for section in common_sections:
+                for key in section:
+                    default_val = Conf.get(Rgw._conf_idx, key)
+                    value = Rgw._get_cortx_conf(conf, key, default_val)
+                    Conf.set(Rgw._consul_idx,
+                        f'{const.CONSUL_KEY_PREFIX}>common>{key}', value)
+            Conf.save(Rgw._consul_idx)
+            Conf.set(Rgw._consul_idx, const.CONSUL_CONF_LOCK_KEY,
+                const.COMMON_CONF_PUSHED)
+
+        # TODO: Handle pre-processing of some config key. like resource limit.
+        # TODO: Handle locktimeout
+
+    @staticmethod
+    def _push_node_level_config(conf: MappedConf):
+        """Push node specific config parameters to consul."""
+        admin_keys = Conf.get_keys(Rgw._conf_idx, starts_with='client.radosgw-admin>')
+        # TODO: Handle multi-instance keys in single pod
+        svc_keys = Conf.get_keys(Rgw._conf_idx, starts_with='client.rgw-1>')
+        node_sections = [admin_keys, svc_keys]
+        # Get Gconf value for each key.
+        for section in node_sections:
+            for key in section:
+                default_val = Conf.get(Rgw._conf_idx, key)
+                value = Rgw._get_cortx_conf(conf, key, default_val)
+                Conf.set(Rgw._consul_idx,
+                    f'{const.CONSUL_KEY_PREFIX}>{Rgw._machine_id}>{key}',
+                    value)
+        Conf.save(Rgw._consul_idx)
+
+    @staticmethod
+    def _pull_config(conf: MappedConf, consul_url: str):
+        """pull RGW config from consul and put in local config file."""
+        # load svc config file
+        svc_conf_file = Rgw._get_rgw_config_path(conf)
+        Rgw._load_rgw_config(Rgw._conf_idx,
+            const.CONFSTORE_FILE_HANDLER + svc_conf_file)
+        # load consul
+        Rgw._load_rgw_config(Rgw._consul_idx, consul_url)        
+        svc_keys = Conf.get_keys(Rgw._consul_idx,
+            starts_with=const.CONSUL_KEY_PREFIX)
+        for key in svc_keys:
+            value = Conf.get(Rgw._consul_idx, key)
+            key = key.split('>', 4)[-1]
+            Conf.set(Rgw._conf_idx, key, value)
+        Conf.save(Rgw._conf_idx)
 
     @staticmethod
     def _update_rgw_config(conf: MappedConf, config_index:str, config_key: str, config_val: str):
@@ -704,7 +782,8 @@ class Rgw:
         # Check for rgw_lock in consul kv store.
         Log.info('Checking for rgw lock in consul kv store.')
         Rgw._load_rgw_config(rgw_consul_idx, consul_url)
-        rgw_lock = Rgw._get_lock(conf, rgw_consul_idx)
+        rgw_lock = Rgw._get_lock(conf, rgw_consul_idx, const.CONSUL_LOCK_KEY,
+            const.ADMIN_USER_CREATED)
         if rgw_lock is True:
             data_pod_hostname = Rgw._get_first_data_node(conf)
             try:
@@ -737,7 +816,7 @@ class Rgw:
         return data_pod_hostname
 
     @staticmethod
-    def _get_lock(conf: MappedConf, consul_idx: str):
+    def _get_lock(conf: MappedConf, consul_idx: str, lock_key: str, lock_val: str):
         """Get lock from consul kv."""
         # if in case try-catch block code executed at the same time on all the nodes,
         # then all nodes will try to update rgw lock-key in consul, after updating key
@@ -747,12 +826,12 @@ class Rgw:
         rgw_lock = False
         while True:
             try:
-                rgw_lock_val = Conf.get(consul_idx, const.CONSUL_LOCK_KEY)
-                Log.info(f'{const.CONSUL_LOCK_KEY} value - {rgw_lock_val}')
+                rgw_lock_val = Conf.get(consul_idx, lock_key)
+                Log.info(f'{lock_key} value - {rgw_lock_val}')
                 if rgw_lock_val is None:
                     Log.info(
-                        f'Adding kv pair in consul - {const.CONSUL_LOCK_KEY}:{Rgw._machine_id}')
-                    Rgw._set_consul_kv(consul_idx, const.CONSUL_LOCK_KEY, Rgw._machine_id)
+                        f'Adding kv pair in consul - {lock_key}:{Rgw._machine_id}')
+                    Rgw._set_consul_kv(consul_idx, lock_key, Rgw._machine_id)
                     continue
                 elif rgw_lock_val == Rgw._machine_id:
                     Log.info('Required lock already possessed, proceeding with RGW '
@@ -761,7 +840,7 @@ class Rgw:
                     rgw_lock = True
                     break
                 elif rgw_lock_val != Rgw._machine_id:
-                    if rgw_lock_val == const.ADMIN_USER_CREATED:
+                    if rgw_lock_val == lock_val:
                         Log.info('User is already created.')
                         break
                     node_name = Rgw._get_cortx_conf(conf, const.NODE_HOSTNAME % rgw_lock_val)
